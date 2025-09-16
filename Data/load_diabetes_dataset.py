@@ -130,7 +130,6 @@ VALUES ('{first_name}', '{last_name}', {birth_date_sql}, {sex_sql}, (SELECT id_u
         salud_general = salud_general_map.get(gen_hlth, None) if gen_hlth is not None else None
         
         # Convertir valores a SQL apropiado
-        diabetes_sql = str(bool(diabetes)) if diabetes is not None else "NULL"
         high_bp_sql = str(bool(high_bp)) if high_bp is not None else "NULL"
         chol_check_sql = str(bool(chol_check)) if chol_check is not None else "NULL"
         high_chol_sql = str(bool(high_chol)) if high_chol is not None else "NULL"
@@ -141,10 +140,20 @@ VALUES ('{first_name}', '{last_name}', {birth_date_sql}, {sex_sql}, (SELECT id_u
         salud_general_sql = f"'{salud_general}'" if salud_general is not None else "NULL"
         
         sql_commands.append(f"""
-INSERT INTO Historial_Medico (diabetes, hipertension, colesterol, colesterol_alto, bmi, presion_arterial, acv, problemas_corazon, salud_general, id_usuario)
-SELECT {diabetes_sql}, {high_bp_sql}, {chol_check_sql}, {high_chol_sql}, {bmi_sql}, {presion_arterial_sql}, {stroke_sql}, {heart_disease_sql}, {salud_general_sql}, id_usuario 
+INSERT INTO Historial_Medico (hipertension, colesterol, colesterol_alto, bmi, presion_arterial, acv, problemas_corazon, salud_general, id_usuario)
+SELECT {high_bp_sql}, {chol_check_sql}, {high_chol_sql}, {bmi_sql}, {presion_arterial_sql}, {stroke_sql}, {heart_disease_sql}, {salud_general_sql}, id_usuario 
 FROM Usuario 
 WHERE email = '{email}';""")
+        
+        # Insertar relación con diabetes si aplica
+        diabetes_binary = row.get('Diabetes_binary', None)
+        if diabetes_binary == 'Diabetic':
+            sql_commands.append(f"""
+INSERT INTO Historial_Enfermedad (id_historial, id_enfermedad)
+SELECT h.id_historial, (SELECT id_enfermedad FROM Enfermedad WHERE nombre = 'Diabetes')
+FROM Historial_Medico h
+JOIN Usuario u ON h.id_usuario = u.id_usuario
+WHERE u.email = '{email}';""")
         
         # 4. Insertar estilo de vida
         fruits = row.get('Fruits', None)
@@ -209,32 +218,42 @@ VALUES ({prediccion_sql}, CURRENT_TIMESTAMP, (SELECT id_enfermedad FROM Enfermed
     print("✅ Copia el contenido de 'sql_commands.txt' y pégalo al final de tu init.sql")
 
 def main():
-    print("Cargando dataset CDC Diabetes Health Indicators...")
+    import os
     
-    # Cargar dataset completo
-    ds = load_dataset("Bena345/cdc-diabetes-health-indicators")
-    
-    # Convertir a DataFrames
-    df_train = pd.DataFrame(ds['train'])
-    df_test = pd.DataFrame(ds['test'])
-    
-    print(f"✅ Dataset cargado:")
-    print(f"   - Train: {len(df_train)} registros")
-    print(f"   - Test: {len(df_test)} registros")
-    print(f"   - Total: {len(df_train) + len(df_test)} registros")
-    print(f"✅ Columnas: {list(df_train.columns)}")
-    
-    # Guardar datos
-    print("\n=== GUARDANDO DATOS ===")
-    df_train.to_csv('cdc_diabetes_train.csv', index=False)
-    df_test.to_csv('cdc_diabetes_test.csv', index=False)
-    print("✅ Train guardado en 'cdc_diabetes_train.csv'")
-    print("✅ Test guardado en 'cdc_diabetes_test.csv'")
-    
-    # Combinar train y test
-    df_combined = pd.concat([df_train, df_test], ignore_index=True)
-    df_combined.to_csv('cdc_diabetes_combined.csv', index=False)
-    print("✅ Datos combinados guardados en 'cdc_diabetes_combined.csv'")
+    # Verificar si ya existe el CSV combinado
+    if os.path.exists('cdc_diabetes_combined.csv'):
+        print("📁 Archivo CSV combinado encontrado, cargando desde archivo...")
+        df_combined = pd.read_csv('cdc_diabetes_combined.csv')
+        print(f"✅ Dataset cargado desde CSV:")
+        print(f"   - Total: {len(df_combined)} registros")
+        print(f"✅ Columnas: {list(df_combined.columns)}")
+    else:
+        print("📥 CSV combinado no encontrado, cargando dataset desde Hugging Face...")
+        
+        # Cargar dataset completo
+        ds = load_dataset("Bena345/cdc-diabetes-health-indicators")
+        
+        # Convertir a DataFrames
+        df_train = pd.DataFrame(ds['train'])
+        df_test = pd.DataFrame(ds['test'])
+        
+        print(f"✅ Dataset cargado:")
+        print(f"   - Train: {len(df_train)} registros")
+        print(f"   - Test: {len(df_test)} registros")
+        print(f"   - Total: {len(df_train) + len(df_test)} registros")
+        print(f"✅ Columnas: {list(df_train.columns)}")
+        
+        # Guardar datos
+        print("\n=== GUARDANDO DATOS ===")
+        df_train.to_csv('cdc_diabetes_train.csv', index=False)
+        df_test.to_csv('cdc_diabetes_test.csv', index=False)
+        print("✅ Train guardado en 'cdc_diabetes_train.csv'")
+        print("✅ Test guardado en 'cdc_diabetes_test.csv'")
+        
+        # Combinar train y test
+        df_combined = pd.concat([df_train, df_test], ignore_index=True)
+        df_combined.to_csv('cdc_diabetes_combined.csv', index=False)
+        print("✅ Datos combinados guardados en 'cdc_diabetes_combined.csv'")
     
     # Generar comandos SQL de inserción
     print("\n=== GENERANDO COMANDOS SQL ===")
@@ -242,10 +261,8 @@ def main():
     
     print("\n✅ Datos cargados exitosamente")
     print("Los datos están disponibles en:")
-    print("- df_train: datos de entrenamiento")
-    print("- df_test: datos de prueba")
     print("- df_combined: datos combinados")
-    print("- sql_commands.txt: comandos SQL para insertar datos")
+    print("- diabetes_sql_commands.txt: comandos SQL para insertar datos")
 
 if __name__ == "__main__":
     main()

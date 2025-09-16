@@ -101,24 +101,37 @@ VALUES ('{first_name}', '{last_name}', {birth_date_sql}, {sex_sql}, (SELECT id_u
         bmi = row.get('BMI', None)
         smoking_status = row.get('Smoking_Status', None)
         bp_history = row.get('BP_History', None)
+        has_hypertension = row.get('Has_Hypertension', None)
         
-        # Mapear hipertensión basada en BP_History
-        # Solo Hypertension = true, Normal y Prehypertension = false
-        hipertension = bp_history == 'Hypertension' if bp_history is not None else None
+        # Mapear hipertensión basada en Has_Hypertension
+        # Yes = true, No = false
+        hipertension = has_hypertension == 'Yes' if has_hypertension is not None else None
+        
+        # Mapear presión arterial basada en BP_History
+        presion_arterial = bp_history if bp_history is not None else None
         
         # Mapear tabaco basado en Smoking_Status
         tabaco = smoking_status == 'Smoker' if smoking_status is not None else None
         
         # Convertir valores a SQL apropiado
-        hipertension_sql = str(bool(hipertension)) if hipertension is not None else "NULL"
         tabaco_sql = str(bool(tabaco)) if tabaco is not None else "NULL"
         bmi_sql = str(bmi) if bmi is not None else "NULL"
+        presion_arterial_sql = f"'{presion_arterial}'" if presion_arterial is not None else "NULL"
         
         sql_commands.append(f"""
-INSERT INTO Historial_Medico (hipertension, bmi, id_usuario)
-SELECT {hipertension_sql}, {bmi_sql}, id_usuario 
+INSERT INTO Historial_Medico (bmi, presion_arterial, id_usuario)
+SELECT {bmi_sql}, {presion_arterial_sql}, id_usuario 
 FROM Usuario 
 WHERE email = '{email}';""")
+        
+        # Insertar relación con hipertensión si aplica
+        if hipertension:
+            sql_commands.append(f"""
+INSERT INTO Historial_Enfermedad (id_historial, id_enfermedad)
+SELECT h.id_historial, (SELECT id_enfermedad FROM Enfermedad WHERE nombre = 'Hipertensión')
+FROM Historial_Medico h
+JOIN Usuario u ON h.id_usuario = u.id_usuario
+WHERE u.email = '{email}';""")
         
         # 4. Insertar estilo de vida
         salt_intake = row.get('Salt_Intake', None)  # -> consumo_sal
@@ -168,7 +181,6 @@ JOIN Usuario u ON h.id_usuario = u.id_usuario
 WHERE u.email = '{email}';""")
         
         # 6. Insertar predicción basada en los datos
-        has_hypertension = row.get('Has_Hypertension', None)
         prediccion_boolean = has_hypertension == 'Yes' if has_hypertension is not None else None
         
         prediccion_sql = str(prediccion_boolean) if prediccion_boolean is not None else "NULL"
