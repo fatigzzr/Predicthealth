@@ -1,2 +1,2 @@
 # Predicthealth
-Plataforma de ia para predicción de enfermedades crónicas
+Plataforma de IA para predicción de enfermedades crónicas
