@@ -33,34 +33,6 @@ def generate_sql_commands(df_combined):
     
     print(f"Generando comandos SQL para {sample_size} registros...")
     
-    # Insertar enfermedades de ejemplo primero (para que existan las referencias)
-    sql_commands.append("-- Insertar enfermedades de ejemplo")
-    diseases = [
-        "Diabetes",
-        "Hipertensión"
-    ]
-    
-    for disease in diseases:
-        sql_commands.append(f"INSERT INTO Enfermedad (nombre) VALUES ('{disease}');")
-    
-    sql_commands.append("")
-    
-    # Insertar tipos de documentos
-    sql_commands.append("-- Insertar tipos de documentos")
-    documents = [
-        "Hemoglobina Glicada (HbA1c)",
-        "Curva de Tolerancia a la Glucosa", 
-        "Perfil Lipídico",
-        "Panel Metabólico",
-        "Registros de Monitoreo de Presión Arterial (PA)",
-        "Consulta"
-    ]
-    
-    for document in documents:
-        sql_commands.append(f"INSERT INTO Documento (nombre) VALUES ('{document}');")
-    
-    sql_commands.append("")
-    
     # Ahora procesar cada registro del dataset
     sql_commands.append("-- Insertar datos de usuarios del dataset CDC")
     for i in range(sample_size):
@@ -130,7 +102,6 @@ VALUES ('{first_name}', '{last_name}', {birth_date_sql}, {sex_sql}, (SELECT id_u
         salud_general = salud_general_map.get(gen_hlth, None) if gen_hlth is not None else None
         
         # Convertir valores a SQL apropiado
-        high_bp_sql = str(bool(high_bp)) if high_bp is not None else "NULL"
         chol_check_sql = str(bool(chol_check)) if chol_check is not None else "NULL"
         high_chol_sql = str(bool(high_chol)) if high_chol is not None else "NULL"
         bmi_sql = str(bmi) if bmi is not None else "NULL"
@@ -140,8 +111,8 @@ VALUES ('{first_name}', '{last_name}', {birth_date_sql}, {sex_sql}, (SELECT id_u
         salud_general_sql = f"'{salud_general}'" if salud_general is not None else "NULL"
         
         sql_commands.append(f"""
-INSERT INTO Historial_Medico (hipertension, colesterol, colesterol_alto, bmi, presion_arterial, acv, problemas_corazon, salud_general, id_usuario)
-SELECT {high_bp_sql}, {chol_check_sql}, {high_chol_sql}, {bmi_sql}, {presion_arterial_sql}, {stroke_sql}, {heart_disease_sql}, {salud_general_sql}, id_usuario 
+INSERT INTO Historial_Medico (colesterol, colesterol_alto, bmi, presion_arterial, acv, problemas_corazon, salud_general, id_usuario)
+SELECT {chol_check_sql}, {high_chol_sql}, {bmi_sql}, {presion_arterial_sql}, {stroke_sql}, {heart_disease_sql}, {salud_general_sql}, id_usuario 
 FROM Usuario 
 WHERE email = '{email}';""")
         
