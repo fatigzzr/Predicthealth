@@ -38,7 +38,6 @@ class MainActivity : AppCompatActivity() {
             if (viewFlipper.displayedChild > 0) viewFlipper.showPrevious()
         }
     }
-
     private fun sendFormulario() {
         // --- Usuario ---
         val email = findViewById<EditText>(R.id.emailEditText).text.toString()
@@ -56,13 +55,22 @@ class MainActivity : AppCompatActivity() {
         val hipertension = findViewById<CheckBox>(R.id.hipertensionCheckBox).isChecked
         val colesterol = findViewById<CheckBox>(R.id.colesterolCheckBox).isChecked
         val colesterolAlto = findViewById<CheckBox>(R.id.colesterolAltoCheckBox).isChecked
+
         val bmi = findViewById<EditText>(R.id.bmiEditText).text.toString().toFloatOrNull() ?: 0f
         val presion = findViewById<EditText>(R.id.presionEditText).text.toString()
-        val medicacion = findViewById<EditText>(R.id.medicacionEditText).text.toString()
-            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        val saludGeneral = findViewById<EditText>(R.id.saludGeneralEditText).text.toString()
+
+        // --- Medicamentos (opción múltiple) ---
+        val medicacion = mutableListOf<String>()
+        if (findViewById<CheckBox>(R.id.medicacionNingunaCheckBox).isChecked) medicacion.add("Ninguna")
+        if (findViewById<CheckBox>(R.id.medicacionBetaCheckBox).isChecked) medicacion.add("Beta blocker")
+        if (findViewById<CheckBox>(R.id.medicacionDiureticoCheckBox).isChecked) medicacion.add("Diurético")
+        if (findViewById<CheckBox>(R.id.medicacionAceCheckBox).isChecked) medicacion.add("ACE inhibitor")
+        if (findViewById<CheckBox>(R.id.medicacionOtroCheckBox).isChecked) medicacion.add("Otro")
+
+        // --- ACV y problemas del corazón ---
         val acv = findViewById<CheckBox>(R.id.acvCheckBox).isChecked
         val problemasCorazon = findViewById<CheckBox>(R.id.problemasCorazonCheckBox).isChecked
-        val saludGeneral = findViewById<EditText>(R.id.saludGeneralEditText).text.toString()
 
         val historialMedico = HistorialMedico(
             diabetes, hipertension, Colesterol(colesterol, colesterolAlto),
@@ -105,7 +113,9 @@ class MainActivity : AppCompatActivity() {
                 override fun onResponse(call: Call<PrediccionResponse>, response: Response<PrediccionResponse>) {
                     if (response.isSuccessful) {
                         val pred = response.body()
-                        resultTextView.text = "Riesgo diabetes: ${pred?.riesgoDiabetes}\nRiesgo hipertensión: ${pred?.riesgoHipertension}\nColor: ${pred?.color}"
+                        resultTextView.text = "Riesgo diabetes: ${pred?.riesgoDiabetes}\n" +
+                                "Riesgo hipertensión: ${pred?.riesgoHipertension}\n" +
+                                "Color: ${pred?.color}"
                     } else {
                         resultTextView.text = "Error al enviar formulario: ${response.code()}"
                     }
