@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#E6EEF5"
+    android:padding="16dp">
+
+    <!-- Progress / Section container -->
+    <TextView
+        android:id="@+id/sectionTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Crear cuenta"
+        android:textColor="#132232"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:paddingBottom="8dp"/>
+
+    <!-- ViewFlipper for multi-step form -->
+    <ViewFlipper
+        android:id="@+id/viewFlipper"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- Section 1: Crear cuenta -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <EditText
+                android:id="@+id/emailEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Email"
+                android:inputType="textEmailAddress"
+                android:backgroundTint="#ADC7EA"/>
+
+            <EditText
+                android:id="@+id/passwordEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Contraseña"
+                android:inputType="textPassword"
+                android:backgroundTint="#ADC7EA"/>
+        </LinearLayout>
+
+        <!-- Section 2: Datos personales -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <EditText android:id="@+id/nombreEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Nombre" android:backgroundTint="#ADC7EA"/>
+                <EditText android:id="@+id/apellidoEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Apellido" android:backgroundTint="#ADC7EA"/>
+                <EditText android:id="@+id/fechaEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Fecha nacimiento (YYYY-MM-DD)" android:backgroundTint="#ADC7EA"/>
+                <EditText android:id="@+id/sexoEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Sexo (M/F)" android:backgroundTint="#ADC7EA"/>
+                <EditText android:id="@+id/edadEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Edad" android:inputType="number" android:backgroundTint="#ADC7EA"/>
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Section 3: Historial médico -->
+        <ScrollView android:layout_width="match_parent" android:layout_height="match_parent">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <CheckBox android:id="@+id/diabetesCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Diabetes" android:textColor="#132232"/>
+                <CheckBox android:id="@+id/hipertensionCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hipertensión" android:textColor="#132232"/>
+                <CheckBox android:id="@+id/colesterolCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Colesterol" android:textColor="#132232"/>
+                <CheckBox android:id="@+id/colesterolAltoCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Colesterol alto" android:textColor="#132232"/>
+                <EditText android:id="@+id/bmiEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="BMI" android:inputType="numberDecimal" android:backgroundTint="#ADC7EA"/>
+                <EditText android:id="@+id/presionEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Presión arterial" android:backgroundTint="#ADC7EA"/>
+                <EditText android:id="@+id/medicacionEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Medicación (coma separada)" android:backgroundTint="#ADC7EA"/>
+                <CheckBox android:id="@+id/acvCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ACV" android:textColor="#132232"/>
+                <CheckBox android:id="@+id/problemasCorazonCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Problemas corazón" android:textColor="#132232"/>
+                <EditText android:id="@+id/saludGeneralEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Salud general" android:backgroundTint="#ADC7EA"/>
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Section 4: Estilo de vida y documentos -->
+        <ScrollView android:layout_width="match_parent" android:layout_height="match_parent">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <CheckBox android:id="@+id/frutasCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Consume frutas" android:textColor="#132232"/>
+                <CheckBox android:id="@+id/verdurasCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Consume verduras" android:textColor="#132232"/>
+                <EditText android:id="@+id/salEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Sal diaria (g)" android:inputType="number" android:backgroundTint="#ADC7EA"/>
+                <CheckBox android:id="@+id/fumaCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Fuma" android:textColor="#132232"/>
+                <CheckBox android:id="@+id/alcoholCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Alcohol exceso" android:textColor="#132232"/>
+                <CheckBox android:id="@+id/dificultadMovCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Dificultad movilidad" android:textColor="#132232"/>
+                <EditText android:id="@+id/horasSuenoEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Horas de sueño" android:inputType="number" android:backgroundTint="#ADC7EA"/>
+                <EditText android:id="@+id/nivelEstresEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Nivel de estrés 0-10" android:inputType="number" android:backgroundTint="#ADC7EA"/>
+                <EditText android:id="@+id/diasSaludMentalEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Días salud mental mala" android:inputType="number" android:backgroundTint="#ADC7EA"/>
+                <EditText android:id="@+id/actividadFisicaEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Nivel actividad física" android:backgroundTint="#ADC7EA"/>
+                <CheckBox android:id="@+id/actividad3VecesCheckBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Actividad 3 veces/semana" android:textColor="#132232"/>
+                <EditText android:id="@+id/diasSaludFisicaEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Días salud física mala" android:inputType="number" android:backgroundTint="#ADC7EA"/>
+
+                <EditText android:id="@+id/tipoDocumentoEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tipo documento" android:backgroundTint="#ADC7EA"/>
+                <EditText android:id="@+id/valorDocumentoEditText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Valor numérico" android:inputType="numberDecimal" android:backgroundTint="#ADC7EA"/>
+            </LinearLayout>
+        </ScrollView>
+
+    </ViewFlipper>
+
+    <!-- Navigation buttons -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="end" android:paddingTop="8dp">
+        <Button
+            android:id="@+id/prevButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Anterior"
+            android:backgroundTint="#ADC7EA"
+            android:textColor="#132232"/>
+        <Button
+            android:id="@+id/nextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Siguiente"
+            android:backgroundTint="#ADC7EA"
+            android:textColor="#132232"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/resultTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="16sp"
+        android:paddingTop="16dp"
+        android:textColor="#132232"/>
+</LinearLayout>

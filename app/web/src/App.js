@@ -25,7 +25,8 @@ function App() {
     setFade(false);
     setTimeout(() => {
       setShowLogin(false);
-      setFade(true);
+      // mount dashboard with fade=false, then trigger fade-in shortly after
+      setTimeout(() => setFade(true), 50);
     }, 400);
   };
 
@@ -34,7 +35,8 @@ function App() {
     setFade(false);
     setTimeout(() => {
       setShowLogin(true);
-      setFade(true);
+      // mount login with fade=false, then trigger fade-in shortly after
+      setTimeout(() => setFade(true), 50);
     }, 400);
   };
 
@@ -44,7 +46,9 @@ function App() {
     <div className="App">
       {showLogin ? (
         <div className={`fade-container ${fade ? "fade-in" : "fade-out"}`}>
-          <LoginForm onLoginSuccess={handleLoginSuccess} />
+          <div className="login-page">
+            <LoginForm onLoginSuccess={handleLoginSuccess} />
+          </div>
         </div>
       ) : (
         <>
@@ -53,7 +57,7 @@ function App() {
             Log Out
           </button>
 
-          <div className={`fade-container ${fade ? "fade-in" : "fade-out"}`}>
+          <div className={`fade-container ${fade ? "fade-in" : "fade-out"} dashboard-fade`}>
             <AdminDashboard />
           </div>
         </>

@@ -1,6 +1,17 @@
 import { useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from "chart.js";
 import '../styles.css';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 // Tabs Component
 function Tabs({ children }) {
@@ -41,29 +52,36 @@ function CollapsibleCard({ title, children }) {
 function RiskBadge({ value, type }) {
   let text = "Normal";
   let color = "#5B696F";
+  let textColor = "#FFFFFF";
 
   if (type === "hba1c") {
-    if (value >= 6.5) { text = "Alto riesgo"; color = "#FF6B6B"; }
-    else if (value >= 5.7) { text = "Moderado"; color = "#FFD93D"; }
+    if (value >= 6.5) { text = "Alto riesgo"; color = "#FF6B6B"; textColor = "#FFFFFF"; }
+    else if (value >= 5.7) { text = "Moderado"; color = "#FFD93D"; textColor = "#000000"; }
   }
   if (type === "bloodPressure") {
-    if (value >= 140) { text = "Alto riesgo"; color = "#FF6B6B"; }
-    else if (value >= 120) { text = "Moderado"; color = "#FFD93D"; }
+    if (value >= 140) { text = "Alto riesgo"; color = "#FF6B6B"; textColor = "#FFFFFF"; }
+    else if (value >= 120) { text = "Moderado"; color = "#FFD93D"; textColor = "#000000"; }
   }
   if (type === "ldl") {
-    if (value > 130) { text = "Alto riesgo"; color = "#FF6B6B"; }
-    else if (value > 100) { text = "Moderado"; color = "#FFD93D"; }
+    if (value > 130) { text = "Alto riesgo"; color = "#FF6B6B"; textColor = "#FFFFFF"; }
+    else if (value > 100) { text = "Moderado"; color = "#FFD93D"; textColor = "#000000"; }
   }
 
   return (
-    <span style={{ backgroundColor: color, color: "#FFFFFF", padding: "2px 6px", borderRadius: "4px", marginLeft: "8px", fontSize: "0.8rem" }}>
+    <span style={{
+      backgroundColor: color,
+      color: textColor,
+      padding: "2px 6px",
+      borderRadius: "4px",
+      marginLeft: "8px",
+      fontSize: "0.8rem"
+    }}>
       {text}
     </span>
   );
 }
 
 export default function AdminDashboard({ patients }) {
-  // Mock patients
   const mockPatients = [
     {
       id: 1, name: "Juan Pérez", age: 45, sex: "Masculino", bmi: 27.4, diabetes: true, hypertension: false,
@@ -92,7 +110,7 @@ export default function AdminDashboard({ patients }) {
   const [selectedPatientId, setSelectedPatientId] = useState(mockPatients[0].id);
   const p = mockPatients.find(pt => pt.id === selectedPatientId);
 
-  const labData = [
+  const labValues = [
     { name: "HbA1c", value: p.documents.find(d => d.type === "HbA1c")?.value || 0 },
     { name: "PA Sistólica", value: p.documents.find(d => d.type === "PA promedio")?.systolic || 0 },
     { name: "PA Diastólica", value: p.documents.find(d => d.type === "PA promedio")?.diastolic || 0 },
@@ -100,7 +118,29 @@ export default function AdminDashboard({ patients }) {
     { name: "HDL", value: p.documents.find(d => d.type === "Perfil Lipídico")?.hdl || 0 }
   ];
 
-  const predictionData = p.predictions.map(pred => ({ name: pred.model, value: pred.value }));
+  const labColors = labValues.map(lab => {
+    if ((lab.name === "HbA1c" && lab.value >= 6.5) || (lab.name.includes("PA") && lab.value >= 140) || (lab.name === "LDL" && lab.value > 130)) return "#FF6B6B";
+    if ((lab.name === "HbA1c" && lab.value >= 5.7) || (lab.name.includes("PA") && lab.value >= 120) || (lab.name === "LDL" && lab.value > 100)) return "#FFD93D";
+    return "#5B696F";
+  });
+
+  const labData = {
+    labels: labValues.map(l => l.name),
+    datasets: [{
+      label: "Valores de Laboratorio",
+      data: labValues.map(l => l.value),
+      backgroundColor: labColors
+    }]
+  };
+
+  const predictionData = {
+    labels: p.predictions.map(pred => pred.model),
+    datasets: [{
+      label: "Predicciones de Riesgo",
+      data: p.predictions.map(pred => pred.value),
+      backgroundColor: "#9DB3C1"
+    }]
+  };
 
   return (
     <div className="admin-dashboard">
@@ -111,7 +151,6 @@ export default function AdminDashboard({ patients }) {
         </select>
       </div>
 
-      {/* Overview KPIs with conditional badges */}
       <div className="overview-cards">
         <div className="kpi-card">
           <h4>BMI</h4>
@@ -131,33 +170,17 @@ export default function AdminDashboard({ patients }) {
         </div>
       </div>
 
-      {/* Charts */}
       <div className="charts-container">
         <div className="chart-card">
           <h4>Valores de Laboratorio</h4>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={labData}>
-              <XAxis dataKey="name" stroke="#ADC7EA" />
-              <YAxis stroke="#ADC7EA" />
-              <Tooltip />
-              <Bar dataKey="value" fill="#5B696F" />
-            </BarChart>
-          </ResponsiveContainer>
+          <Bar data={labData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
         </div>
         <div className="chart-card">
           <h4>Predicciones de Riesgo</h4>
-          <ResponsiveContainer width="100%" height={150}>
-            <BarChart data={predictionData}>
-              <XAxis dataKey="name" stroke="#ADC7EA" />
-              <YAxis stroke="#ADC7EA" />
-              <Tooltip />
-              <Bar dataKey="value" fill="#9DB3C1" />
-            </BarChart>
-          </ResponsiveContainer>
+          <Bar data={predictionData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
         </div>
       </div>
 
-      {/* Tabbed detailed info */}
       <Tabs>
         <div label="Información Personal">
           <p>Nombre: {p.personalInfo.firstName} {p.personalInfo.lastName}</p>
@@ -166,7 +189,7 @@ export default function AdminDashboard({ patients }) {
           <p>Sexo: {p.personalInfo.sex}</p>
         </div>
 
-        <div label="Estilo de Vida" >
+        <div label="Estilo de Vida">
           {Object.entries(p.lifestyle).map(([key, value]) => (
             <p key={key}>{key}: {value.toString()}</p>
           ))}
