@@ -37,6 +37,22 @@ class MainActivity : AppCompatActivity() {
         prevButton.setOnClickListener {
             if (viewFlipper.displayedChild > 0) viewFlipper.showPrevious()
         }
+
+        // Setup checkbox logic for Colesterol Alto
+        val colesterolCheckBox = findViewById<CheckBox>(R.id.colesterolCheckBox)
+        val colesterolAltoCheckBox = findViewById<CheckBox>(R.id.colesterolAltoCheckBox)
+        
+        colesterolCheckBox.setOnCheckedChangeListener { _, isChecked ->
+            colesterolAltoCheckBox.isEnabled = isChecked
+            if (!isChecked) {
+                colesterolAltoCheckBox.isChecked = false
+                // Gray out when disabled
+                colesterolAltoCheckBox.buttonTintList = getColorStateList(R.color.input_bg)
+            } else {
+                // Use accent color when enabled
+                colesterolAltoCheckBox.buttonTintList = getColorStateList(R.color.accent)
+            }
+        }
     }
     private fun sendFormulario() {
         // --- Usuario ---

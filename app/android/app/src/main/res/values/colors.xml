@@ -2,4 +2,11 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="bg_dark">#132232</color>
+    <color name="panel_dark">#1F2A36</color>
+    <color name="input_bg">#5B696F</color>
+    <color name="input_text">#FFFFFF</color>
+    <color name="accent">#ADC7EA</color>
+    <color name="accent_dark">#8BB8E3</color>
+    <color name="red">#F44336</color>
 </resources>
