@@ -110,19 +110,25 @@ body {
   font-size: 1rem;
 }
 
+/* Log Out button top-right */
 .logout-button {
-  background-color: #F44336;
+  position: fixed;      /* fixed to viewport */
+  top: 16px;            /* spacing from top */
+  right: 16px;          /* spacing from right */
+  background-color: #F44336; /* Error Red */
   color: #FFFFFF;
   border: none;
   border-radius: 4px;
-  padding: 6px 12px;
+  padding: 8px 14px;
   cursor: pointer;
+  z-index: 1000;        /* ensure it’s on top */
   transition: background-color 0.2s ease;
 }
 
 .logout-button:hover {
   background-color: #D32F2F;
 }
+
 
 /* --- KPI Cards --- */
 .overview-cards {

@@ -47,14 +47,16 @@ function App() {
           <LoginForm onLoginSuccess={handleLoginSuccess} />
         </div>
       ) : (
-        <div className={`fade-container ${fade ? "fade-in" : "fade-out"}`}>
-          <div className="dashboard-header">
-            <button className="logout-button" onClick={handleLogout}>
-              Log Out
-            </button>
+        <>
+          {/* Log Out button floats outside the dashboard */}
+          <button className="logout-button" onClick={handleLogout}>
+            Log Out
+          </button>
+
+          <div className={`fade-container ${fade ? "fade-in" : "fade-out"}`}>
+            <AdminDashboard />
           </div>
-          <AdminDashboard />
-        </div>
+        </>
       )}
     </div>
   );
