@@ -5,7 +5,10 @@ Plataforma de IA para predicción de enfermedades crónicas
 - App.js: httpOnly cookie is being simulated in 2 points
 - LoginForm.jsx: fake httpOnly cookies
 - mockAuth.js: used for httpOnly mock
+
+# Backend
 - init.sql: script de inicialización de PostgreSQL (crea BD/esquema, índices y funciones, y carga datos)
+- Acceso: predicthealth_user, 666
 
 # Documentación:
 - [Arquitectura de sistema](https://lucid.app/lucidchart/e8a4c780-8b4f-4ca2-8605-5b6e3927194d/edit?invitationId=inv_925c84d6-c21d-43af-ba4d-35265cca643f)
