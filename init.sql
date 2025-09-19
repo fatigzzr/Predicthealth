@@ -49637,3 +49637,123 @@ COMMENT ON PROCEDURE resumen_integral_salud IS
 
 COMMENT ON PROCEDURE analizar_compliance_adherencia IS 
 'Stored Procedure que analiza la adherencia del usuario al tratamiento basado en datos reales de documentos subidos.';
+
+CREATE OR REPLACE FUNCTION usuarios_con_riesgo_alto()
+RETURNS TABLE (
+    id_usuario UUID,
+    nombre VARCHAR(150),
+    apellido VARCHAR(150),
+    bmi DECIMAL(5,2),
+    problemas_corazon BOOLEAN,
+    nivel_estres INTEGER,
+    nivel_actividad_fisica VARCHAR(20),
+    medicamentos VARCHAR[]
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT u.id_usuario, dp.nombre, dp.apellido, hm.bmi, hm.problemas_corazon, ev.nivel_estres, ev.nivel_actividad_fisica,
+    ARRAY_AGG(m.nombre) AS medicamentos
+    FROM Usuario u
+    JOIN Datos_Personales dp ON u.id_usuario = dp.id_usuario
+    JOIN Historial_Medico hm ON u.id_usuario = hm.id_usuario
+    JOIN Historial_Medicamento hm_med ON hm.id_historial = hm_med.id_historial
+    JOIN Medicamento m ON hm_med.id_medicamento = m.id_medicamento
+    JOIN Estilo_Vida ev ON u.id_usuario = ev.id_usuario
+    WHERE hm.bmi > 25 AND hm.problemas_corazon = TRUE AND ev.nivel_estres >= 7
+    GROUP BY u.id_usuario, dp.nombre, dp.apellido, hm.bmi, hm.problemas_corazon, ev.nivel_estres, ev.nivel_actividad_fisica;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION usuarios_movilidad_baja()
+RETURNS TABLE (
+    id_usuario UUID,
+    nombre VARCHAR(150),
+    apellido VARCHAR(150),
+    dificultad_caminar BOOLEAN,
+    nivel_actividad_fisica VARCHAR(20),
+    dias_salud_fisica INTEGER
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT u.id_usuario, dp.nombre, dp.apellido, ev.dificultad_caminar, ev.nivel_actividad_fisica, ev.dias_salud_fisica
+    FROM Usuario u
+    JOIN Datos_Personales dp ON u.id_usuario = dp.id_usuario
+    JOIN Estilo_Vida ev ON u.id_usuario = ev.id_usuario
+    WHERE ev.dificultad_caminar = TRUE AND ev.nivel_actividad_fisica = 'Bajo' AND ev.dias_salud_fisica < 3;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION predicciones_por_usuario()
+RETURNS TABLE (
+    id_usuario UUID,
+    nombre VARCHAR(150),
+    apellido VARCHAR(150),
+    enfermedad VARCHAR(100),
+    total_predicciones BIGINT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT u.id_usuario, dp.nombre, dp.apellido, e.nombre AS enfermedad, COUNT(p.id_prediccion) AS total_predicciones
+    FROM Usuario u
+    JOIN Datos_Personales dp ON u.id_usuario = dp.id_usuario
+    JOIN Prediccion p ON u.id_usuario = p.id_usuario
+    JOIN Enfermedad e ON p.id_enfermedad = e.id_enfermedad
+    WHERE p.fecha >= NOW() - INTERVAL '30 days'
+    GROUP BY u.id_usuario, dp.nombre, dp.apellido, e.nombre
+    ORDER BY total_predicciones DESC;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION usuarios_gps_patron()
+RETURNS TABLE (
+    id_usuario UUID,
+    nombre VARCHAR(150),
+    apellido VARCHAR(150),
+    visitas_repetidas BIGINT,
+    lat_min DECIMAL(9,6),
+    lat_max DECIMAL(9,6),
+    lon_min DECIMAL(9,6),
+    lon_max DECIMAL(9,6)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT u.id_usuario, dp.nombre, dp.apellido,
+    COUNT(g.id_gps) AS visitas_repetidas,
+    MIN(g.latitud) AS lat_min, MAX(g.latitud) AS lat_max,
+    MIN(g.longitud) AS lon_min, MAX(g.longitud) AS lon_max
+    FROM Usuario u
+    JOIN Datos_Personales dp ON u.id_usuario = dp.id_usuario
+    JOIN Gps g ON u.id_usuario = g.id_usuario
+    WHERE g.fecha_captura >= NOW() - INTERVAL '30 days'
+    GROUP BY u.id_usuario, dp.nombre, dp.apellido
+    HAVING COUNT(g.id_gps) > 5 AND (MAX(g.latitud)-MIN(g.latitud)) < 0.01 AND (MAX(g.longitud)-MIN(g.longitud)) < 0.01;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION usuarios_riesgo_cardiometabolico()
+RETURNS TABLE (
+    id_usuario UUID,
+    nombre VARCHAR(150),
+    apellido VARCHAR(150),
+    bmi DECIMAL(5,2),
+    colesterol BOOLEAN,
+    colesterol_alto BOOLEAN,
+    consumo_sal DECIMAL(5,2),
+    nivel_actividad_fisica VARCHAR(20),
+    medicamentos VARCHAR[]
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT u.id_usuario, dp.nombre, dp.apellido, hm.bmi, hm.colesterol, hm.colesterol_alto, ev.consumo_sal, ev.nivel_actividad_fisica,
+    ARRAY_AGG(m.nombre) AS medicamentos
+    FROM Usuario u
+    JOIN Datos_Personales dp ON u.id_usuario = dp.id_usuario
+    JOIN Historial_Medico hm ON u.id_usuario = hm.id_usuario
+    JOIN Historial_Medicamento hm_med ON hm.id_historial = hm_med.id_historial
+    JOIN Medicamento m ON hm_med.id_medicamento = m.id_medicamento
+    JOIN Estilo_Vida ev ON u.id_usuario = ev.id_usuario
+    WHERE hm.bmi > 25 AND (hm.colesterol = TRUE OR hm.colesterol_alto = TRUE) AND ev.consumo_sal > 5
+    GROUP BY u.id_usuario, dp.nombre, dp.apellido, hm.bmi, hm.colesterol, hm.colesterol_alto, ev.consumo_sal, ev.nivel_actividad_fisica
+    ORDER BY hm.bmi DESC, ev.consumo_sal DESC;
+END;
+$$ LANGUAGE plpgsql;
