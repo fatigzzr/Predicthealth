@@ -1,0 +1,872 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="12dp"
+    android:background="@color/bg_dark">
+
+    <!-- Top title -->
+    <TextView
+        android:id="@+id/mainTitle"
+        android:text="PredictHealth"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="@color/accent"
+        android:layout_marginBottom="20dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <!-- ViewFlipper to hold all sections -->
+    <ViewFlipper
+        android:id="@+id/viewFlipper"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- Sección: Cuenta -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardSection"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:text="Log-In"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent"
+                        android:layout_marginBottom="16dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <EditText
+                        android:id="@+id/emailEditText"
+                        android:hint="Correo electrónico"
+                        android:inputType="textEmailAddress"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/InputStyle" />
+
+                    <EditText
+                        android:id="@+id/passwordEditText"
+                        android:hint="Contraseña"
+                        android:inputType="textPassword"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/InputStyle" />
+
+                </LinearLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Sección: Datos Personales -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardSection"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:text="Datos Personales"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent"
+                        android:layout_marginBottom="16dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <EditText
+                        android:id="@+id/nombreEditText"
+                        android:hint="Nombre"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/InputStyle" />
+
+                    <EditText
+                        android:id="@+id/apellidoEditText"
+                        android:hint="Apellido"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/InputStyle" />
+
+                    <TextView
+                        android:text="Fecha de nacimiento"
+                        android:textSize="16sp"
+                        android:textColor="@color/input_text"
+                        android:layout_marginBottom="12dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <EditText
+                        android:id="@+id/fechaEditText"
+                        android:hint="Seleccionar fecha"
+                        android:focusable="false"
+                        android:clickable="true"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/InputStyle" />
+
+                    <TextView
+                        android:id="@+id/edadDisplayTextView"
+                        android:text="Edad: --"
+                        android:textSize="16sp"
+                        android:textColor="@color/accent"
+                        android:layout_marginBottom="16dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <TextView
+                        android:text="Sexo"
+                        android:textSize="16sp"
+                        android:textColor="@color/input_text"
+                        android:layout_marginBottom="12dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <RadioGroup
+                        android:id="@+id/sexoRadioGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp">
+
+                        <RadioButton
+                            android:id="@+id/sexoHombreRadio"
+                            android:text="Hombre"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/sexoMujerRadio"
+                            android:text="Mujer"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/sexoOtroRadio"
+                            android:text="Otro"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                    </RadioGroup>
+
+                </LinearLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Sección: Historial Médico -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardSection"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:text="Historial Médico"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent"
+                        android:layout_marginBottom="16dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <TextView
+                        android:text="¿Padeces alguna de estas enfermedades?"
+                        android:textSize="16sp"
+                        android:textColor="@color/input_text"
+                        android:layout_marginBottom="12dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <CheckBox
+                        android:id="@+id/diabetesCheckBox"
+                        android:text="Diabetes"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                    <CheckBox
+                        android:id="@+id/hipertensionCheckBox"
+                        android:text="Hipertensión"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                    <CheckBox
+                        android:id="@+id/colesterolCheckBox"
+                        android:text="Colesterol"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                    <CheckBox
+                        android:id="@+id/colesterolAltoCheckBox"
+                        android:text="Colesterol Alto"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/input_bg"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:enabled="false" />
+
+                </LinearLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Sección: Historial Médico Detallado (BMI y siguientes) -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardSection"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:text="Historial Médico"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent"
+                        android:layout_marginBottom="16dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <TextView
+                        android:text="Índice de masa corporal"
+                        android:textSize="16sp"
+                        android:textColor="@color/input_text"
+                        android:layout_marginBottom="12dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <EditText
+                        android:id="@+id/bmiEditText"
+                        android:hint="IMC"
+                        android:inputType="numberDecimal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/InputStyle" />
+
+                    <TextView
+                        android:text="Presión arterial"
+                        android:textSize="16sp"
+                        android:textColor="@color/input_text"
+                        android:layout_marginBottom="12dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <RadioGroup
+                        android:id="@+id/presionRadioGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp">
+
+                        <RadioButton
+                            android:id="@+id/presionNormalRadio"
+                            android:text="Normal"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/presionPreHipertensionRadio"
+                            android:text="Pre-Hipertensión"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/presionHipertensionRadio"
+                            android:text="Hipertensión"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                    </RadioGroup>
+
+                    <TextView
+                        android:text="Estado general de salud"
+                        android:textSize="16sp"
+                        android:textColor="@color/input_text"
+                        android:layout_marginBottom="12dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <RadioGroup
+                        android:id="@+id/saludGeneralRadioGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp">
+
+                        <RadioButton
+                            android:id="@+id/saludMaloRadio"
+                            android:text="Malo"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/saludRegularRadio"
+                            android:text="Regular"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/saludBuenoRadio"
+                            android:text="Bueno"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/saludMuyBuenoRadio"
+                            android:text="Muy Bueno"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/saludExcelenteRadio"
+                            android:text="Excelente"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                    </RadioGroup>
+
+                </LinearLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Sección: Medicamentos -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardSection"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:text="Medicamentos (selecciona todas las que apliquen)"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="16dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                <CheckBox
+                    android:id="@+id/medicacionNingunaCheckBox"
+                    android:text="Ninguna"
+                    android:textColor="@color/input_text"
+                    android:buttonTint="@color/accent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp" />
+
+                <CheckBox
+                    android:id="@+id/medicacionBetaCheckBox"
+                    android:text="Beta blocker"
+                    android:textColor="@color/input_text"
+                    android:buttonTint="@color/accent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp" />
+
+                <CheckBox
+                    android:id="@+id/medicacionDiureticoCheckBox"
+                    android:text="Diurético"
+                    android:textColor="@color/input_text"
+                    android:buttonTint="@color/accent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp" />
+
+                <CheckBox
+                    android:id="@+id/medicacionAceCheckBox"
+                    android:text="ACE inhibitor"
+                    android:textColor="@color/input_text"
+                    android:buttonTint="@color/accent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp" />
+
+                    <CheckBox
+                        android:id="@+id/medicacionOtroCheckBox"
+                        android:text="Otro"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+                </LinearLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Sección: Historial Médico Padecimientos -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardSection"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:text="¿Ha padecido alguna de estas condiciónes?"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="16dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <CheckBox
+                        android:id="@+id/acvCheckBox"
+                        android:text="Accidente cerebrovascular (ACV)"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                    <CheckBox
+                        android:id="@+id/problemasCorazonCheckBox"
+                        android:text="Problemas del corazón"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+                </LinearLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Sección: Estilo de Vida -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardSection"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:text="Estilo de Vida"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent"
+                        android:layout_marginBottom="16dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                <TextView
+                    android:text="¿Consume frutas diariamente?"
+                    android:textSize="16sp"
+                    android:textColor="@color/input_text"
+                    android:layout_marginBottom="12dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <RadioGroup
+                    android:id="@+id/frutasRadioGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp">
+
+                    <RadioButton
+                        android:id="@+id/frutasSiRadio"
+                        android:text="Sí"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                    <RadioButton
+                        android:id="@+id/frutasNoRadio"
+                        android:text="No"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                </RadioGroup>
+
+                <TextView
+                    android:text="¿Consume verduras diariamente?"
+                    android:textSize="16sp"
+                    android:textColor="@color/input_text"
+                    android:layout_marginBottom="12dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <RadioGroup
+                    android:id="@+id/verdurasRadioGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp">
+
+                    <RadioButton
+                        android:id="@+id/verdurasSiRadio"
+                        android:text="Sí"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                    <RadioButton
+                        android:id="@+id/verdurasNoRadio"
+                        android:text="No"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                </RadioGroup>
+
+                </LinearLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Sección: Estilo de Vida - Parte 2 -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardSection"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:text="Estilo de Vida - Parte 2"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent"
+                        android:layout_marginBottom="16dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <EditText
+                        android:id="@+id/salEditText"
+                        android:hint="Cantidad de sal diaria (g)"
+                        android:inputType="number"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/InputStyle" />
+
+                <CheckBox
+                    android:id="@+id/fumaCheckBox"
+                    android:text="Fuma actualmente"
+                    android:textColor="@color/input_text"
+                    android:buttonTint="@color/accent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp" />
+
+                <CheckBox
+                    android:id="@+id/alcoholCheckBox"
+                    android:text="Consumo excesivo de alcohol"
+                    android:textColor="@color/input_text"
+                    android:buttonTint="@color/accent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp" />
+
+                <CheckBox
+                    android:id="@+id/dificultadMovCheckBox"
+                    android:text="Dificultad para caminar/desplazarse"
+                    android:textColor="@color/input_text"
+                    android:buttonTint="@color/accent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/horasSuenoEditText"
+                    android:hint="Horas promedio de sueño"
+                    android:inputType="number"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/InputStyle" />
+
+                <EditText
+                    android:id="@+id/nivelEstresEditText"
+                    android:hint="Nivel de estrés (0-10)"
+                    android:inputType="number"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/InputStyle" />
+
+                <EditText
+                    android:id="@+id/diasSaludMentalEditText"
+                    android:hint="Días con mala salud mental últimos 30 días"
+                    android:inputType="number"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/InputStyle" />
+
+                <EditText
+                    android:id="@+id/actividadFisicaEditText"
+                    android:hint="Nivel de actividad física"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/InputStyle" />
+
+                <CheckBox
+                    android:id="@+id/actividad3VecesCheckBox"
+                    android:text="Actividad física ≥3 veces por semana"
+                    android:textColor="@color/input_text"
+                    android:buttonTint="@color/accent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp" />
+
+                    <EditText
+                        android:id="@+id/diasSaludFisicaEditText"
+                        android:hint="Días con mala salud física últimos 30 días"
+                        android:inputType="number"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/InputStyle" />
+
+                </LinearLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Sección: Documentos -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardSection"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                <TextView
+                    android:text="Documentos Clínicos y Diagnóstico"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/accent"
+                    android:layout_marginBottom="16dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <EditText
+                    android:id="@+id/tipoDocumentoEditText"
+                    android:hint="Tipo de documento (Ej. HbA1c, Perfil Lipídico)"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/InputStyle" />
+
+                <EditText
+                    android:id="@+id/valorDocumentoEditText"
+                    android:hint="Valor numérico (si aplica)"
+                    android:inputType="numberDecimal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/InputStyle" />
+
+                <TextView
+                    android:text="Documentos de Tratamiento y Seguimiento"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/accent"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="16dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <EditText
+                    android:id="@+id/resumenVisitasEditText"
+                    android:hint="Resumen de visitas (Endocrinólogo, Cardiólogo, etc.)"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/InputStyle" />
+
+                <EditText
+                    android:id="@+id/diagnosticosConfirmadosEditText"
+                    android:hint="Diagnósticos confirmados"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/InputStyle" />
+
+                <EditText
+                    android:id="@+id/tratamientosEditText"
+                    android:hint="Tratamientos"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/InputStyle" />
+
+                    <EditText
+                        android:id="@+id/hallazgosEditText"
+                        android:hint="Hallazgos"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/InputStyle" />
+
+                </LinearLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+    </ViewFlipper>
+
+    <!-- Navigation buttons -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginTop="12dp">
+
+        <Button
+            android:id="@+id/prevButton"
+            android:text="Anterior"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="48dp"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="@color/accent_dark"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/nextButton"
+            android:text="Siguiente"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="@color/accent_dark"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <!-- Result display -->
+    <TextView
+        android:id="@+id/resultTextView"
+        android:text=""
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textSize="16sp"
+        android:textColor="@color/input_text"
+        android:padding="12dp"
+        android:background="@color/panel_dark"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp" />
+
+</LinearLayout>
