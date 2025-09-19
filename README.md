@@ -1,5 +1,5 @@
 # Predicthealth
-Plataforma de ia para predicción de enfermedades crónicas
+Plataforma de IA para predicción de enfermedades crónicas
 
 # Current Mahoraga:
 - App.js: httpOnly cookie is being simulated in 2 points
@@ -39,5 +39,3 @@ Plataforma de ia para predicción de enfermedades crónicas
 | Warning Amber | #FFC107 | Alerts, warnings                 |
 | Error Red     | #F44336 | Error messages, failed actions   |
 | Info Blue     | #2196F3 | Informational messages, tips     |
-
-
