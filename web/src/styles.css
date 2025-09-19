@@ -1,0 +1,305 @@
+/* --- General Body --- */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #132232; /* Midnight Blue */
+  color: #FFFFFF;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* --- Login Form --- */
+.login-form {
+  width: 400px;
+  padding: 24px;
+  border-radius: 12px;
+  background-color: #1F2A36; /* Charcoal panel */
+  box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+}
+
+.login-form input {
+  display: block;
+  width: 100%;
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid #9DB3C1;
+  border-radius: 4px;
+  background-color: #5B696F;
+  color: #FFFFFF;
+  box-sizing: border-box;
+}
+
+.login-form input:focus {
+  border-color: #ADC7EA;
+  outline: none;
+  box-shadow: 0 0 5px #ADC7EA;
+}
+
+.login-button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #ADC7EA;
+  color: #132232;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.login-button:hover {
+  background-color: #8BB8E3;
+}
+
+.button-container {
+  display: flex;
+  justify-content: center;
+}
+
+/* --- Fade Transitions --- */
+.fade-container {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.fade-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fade-out {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* --- Admin Dashboard --- */
+.admin-dashboard {
+  display: flex;
+  flex-direction: column;
+  width: 90vw;
+  max-width: 1200px;
+  margin: 0 auto; /* center horizontally */
+  padding: 20px 30px;
+  min-height: 80vh; /* full viewport height */
+  max-height: 80vh;
+  border-radius: 8px;
+  background-color: #1F2A36;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.dashboard-header h1 {
+  font-size: 1.8rem;
+  color: #ADC7EA;
+  margin: 0;
+}
+
+.dashboard-header select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: none;
+  background-color: #5B696F;
+  color: #FFFFFF;
+  font-size: 1rem;
+}
+
+.logout-button {
+  background-color: #F44336;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.logout-button:hover {
+  background-color: #D32F2F;
+}
+
+/* --- KPI Cards --- */
+.overview-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.kpi-card {
+  background-color: #1E2B38;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.kpi-card h4 {
+  margin: 0 0 10px 0;
+  font-size: 1.1rem;
+  color: #ADC7EA;
+}
+
+.kpi-card p {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #FFFFFF;
+}
+
+/* --- Charts --- */
+.charts-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.chart-card {
+  background-color: #1E2B38;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.chart-card h4 {
+  margin-bottom: 10px;
+  color: #ADC7EA;
+}
+
+/* --- Tabs --- */
+.tabs {
+  background-color: #1E2B38;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.tab-buttons {
+  display: flex;
+  background-color: #5B696F;
+}
+
+.tab-buttons button {
+  flex: 1;
+  padding: 12px 0;
+  background: none;
+  border: none;
+  color: #FFFFFF;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.tab-buttons button:hover {
+  background-color: #9DB3C1;
+  color: #132232;
+}
+
+.tab-buttons button.active {
+  background-color: #ADC7EA;
+  color: #132232;
+}
+
+.tab-content {
+  padding: 20px;
+  color: #FFFFFF;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Scrollable chart card */
+.chart-card.scrollable {
+  max-height: 400px;  /* adjust based on design */
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Nice scrollbar styling */
+.chart-card.scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chart-card.scrollable::-webkit-scrollbar-thumb {
+  background-color: #5B696F;
+  border-radius: 4px;
+}
+
+/* --- Collapsible Cards --- */
+.collapsible-card {
+  margin-bottom: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: #2A3B4D;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 12px 15px;
+  background-color: #1E2B38;
+  font-weight: bold;
+}
+
+.card-body {
+  padding: 12px 15px;
+  background-color: #2A3B4D;
+}
+
+/* --- Patient Cards --- */
+.patient-card {
+  border: 1px solid #9DB3C1;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 6px;
+  background-color: #1F2A36;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.patient-card h3 {
+  margin: 0 0 5px 0;
+  color: #FFFFFF;
+}
+
+.patient-card p {
+  margin: 3px 0;
+  color: #ADC7EA;
+}
+
+/* --- Form Titles --- */
+.form-title {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #FFFFFF;
+  font-weight: bold;
+}
+
+/* --- Risk Badge --- */
+span {
+  font-size: 0.8rem;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-weight: bold;
+}
+
+/* --- Scrollbar Customization --- */
+.tab-content::-webkit-scrollbar {
+  width: 8px;
+}
+.tab-content::-webkit-scrollbar-thumb {
+  background-color: #5B696F;
+  border-radius: 4px;
+}
+
+/* App container */
+#app-container {
+  width: 100%;
+  min-height: 100vh;
+}
