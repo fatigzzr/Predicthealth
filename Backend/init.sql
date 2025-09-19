@@ -5,6 +5,22 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'predicthealth')\gexec
 -- Conectar a la base de datos
 \c predicthealth;
 
+-- Crear usuario de aplicación y otorgar permisos (idempotente)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'predicthealth_user') THEN
+        CREATE ROLE predicthealth_user LOGIN PASSWORD '666' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+    END IF;
+END
+$$;
+
+GRANT CONNECT ON DATABASE predicthealth TO predicthealth_user;
+GRANT USAGE ON SCHEMA public TO predicthealth_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO predicthealth_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO predicthealth_user;
+GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO predicthealth_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO predicthealth_user;
+
 -- Habilitar la extensión para UUID
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
