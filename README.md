@@ -53,4 +53,4 @@ Plataforma de IA para predicción de enfermedades crónicas
 
 ---
 
-[drive](https://drive.google.com/drive/u/0/folders/1IMpgyBlC8rK01qJg5JJ2ua4tupmby4gT)
+[Drive del Equipo](https://drive.google.com/drive/u/0/folders/1IMpgyBlC8rK01qJg5JJ2ua4tupmby4gT)
