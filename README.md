@@ -1,7 +1,7 @@
 # Predicthealth
 Plataforma de ia para predicción de enfermedades crónicas
 
-# Current Mahoraga:
+# Current Temporary Solutions:
 - App.js: httpOnly cookie is being simulated in 2 points
 - LoginForm.jsx: fake httpOnly cookies
 - mockAuth.js: used for httpOnly mock

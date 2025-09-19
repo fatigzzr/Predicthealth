@@ -1,8 +1,11 @@
 package com.example.predicthealthandroid
 
+import android.app.DatePickerDialog
 import android.os.Bundle
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import java.text.SimpleDateFormat
+import java.util.*
 import com.example.predicthealthandroid.models.*
 import com.example.predicthealthandroid.network.RetrofitInstance
 import com.example.predicthealthandroid.network.PrediccionResponse
@@ -16,6 +19,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var nextButton: Button
     private lateinit var prevButton: Button
     private lateinit var resultTextView: TextView
+    private lateinit var fechaEditText: EditText
+    private lateinit var edadDisplayTextView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,6 +30,8 @@ class MainActivity : AppCompatActivity() {
         nextButton = findViewById(R.id.nextButton)
         prevButton = findViewById(R.id.prevButton)
         resultTextView = findViewById(R.id.resultTextView)
+        fechaEditText = findViewById(R.id.fechaEditText)
+        edadDisplayTextView = findViewById(R.id.edadDisplayTextView)
 
         nextButton.setOnClickListener {
             if (viewFlipper.displayedChild < viewFlipper.childCount - 1) {
@@ -53,6 +60,41 @@ class MainActivity : AppCompatActivity() {
                 colesterolAltoCheckBox.buttonTintList = getColorStateList(R.color.accent)
             }
         }
+
+        // Setup date picker
+        val calendar = Calendar.getInstance()
+        val datePickerListener = DatePickerDialog.OnDateSetListener { _, year, month, dayOfMonth ->
+            calendar.set(Calendar.YEAR, year)
+            calendar.set(Calendar.MONTH, month)
+            calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+            
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            fechaEditText.setText(dateFormat.format(calendar.time))
+            
+            // Calculate and display age
+            val currentDate = Calendar.getInstance()
+            val age = currentDate.get(Calendar.YEAR) - year
+            val monthDiff = currentDate.get(Calendar.MONTH) - month
+            val dayDiff = currentDate.get(Calendar.DAY_OF_MONTH) - dayOfMonth
+            
+            val finalAge = if (monthDiff < 0 || (monthDiff == 0 && dayDiff < 0)) {
+                age - 1
+            } else {
+                age
+            }
+            
+            edadDisplayTextView.text = "Edad: $finalAge"
+        }
+
+        fechaEditText.setOnClickListener {
+            DatePickerDialog(
+                this,
+                datePickerListener,
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+            ).show()
+        }
     }
     private fun sendFormulario() {
         // --- Usuario ---
@@ -61,8 +103,40 @@ class MainActivity : AppCompatActivity() {
         val nombre = findViewById<EditText>(R.id.nombreEditText).text.toString()
         val apellido = findViewById<EditText>(R.id.apellidoEditText).text.toString()
         val fechaNacimiento = findViewById<EditText>(R.id.fechaEditText).text.toString()
-        val sexo = findViewById<EditText>(R.id.sexoEditText).text.toString()
-        val edad = findViewById<EditText>(R.id.edadEditText).text.toString().toIntOrNull() ?: 0
+        
+        // Get sexo from RadioGroup
+        val sexoRadioGroup = findViewById<RadioGroup>(R.id.sexoRadioGroup)
+        val sexo = when (sexoRadioGroup.checkedRadioButtonId) {
+            R.id.sexoHombreRadio -> "Hombre"
+            R.id.sexoMujerRadio -> "Mujer"
+            R.id.sexoOtroRadio -> "Otro"
+            else -> ""
+        }
+        
+        // Calculate age from date of birth
+        val edad = if (fechaNacimiento.isNotEmpty()) {
+            try {
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val birthDate = dateFormat.parse(fechaNacimiento)
+                val currentDate = Calendar.getInstance()
+                val birthCalendar = Calendar.getInstance()
+                birthCalendar.time = birthDate
+                
+                val age = currentDate.get(Calendar.YEAR) - birthCalendar.get(Calendar.YEAR)
+                val monthDiff = currentDate.get(Calendar.MONTH) - birthCalendar.get(Calendar.MONTH)
+                val dayDiff = currentDate.get(Calendar.DAY_OF_MONTH) - birthCalendar.get(Calendar.DAY_OF_MONTH)
+                
+                if (monthDiff < 0 || (monthDiff == 0 && dayDiff < 0)) {
+                    age - 1
+                } else {
+                    age
+                }
+            } catch (e: Exception) {
+                0
+            }
+        } else {
+            0
+        }
 
         val usuario = Usuario(email, password, nombre, apellido, fechaNacimiento, sexo, edad)
 
@@ -73,8 +147,24 @@ class MainActivity : AppCompatActivity() {
         val colesterolAlto = findViewById<CheckBox>(R.id.colesterolAltoCheckBox).isChecked
 
         val bmi = findViewById<EditText>(R.id.bmiEditText).text.toString().toFloatOrNull() ?: 0f
-        val presion = findViewById<EditText>(R.id.presionEditText).text.toString()
-        val saludGeneral = findViewById<EditText>(R.id.saludGeneralEditText).text.toString()
+        // Get selected blood pressure status from RadioGroup
+        val presionRadioGroup = findViewById<RadioGroup>(R.id.presionRadioGroup)
+        val presion = when (presionRadioGroup.checkedRadioButtonId) {
+            R.id.presionNormalRadio -> "Normal"
+            R.id.presionPreHipertensionRadio -> "Pre-Hipertensión"
+            R.id.presionHipertensionRadio -> "Hipertensión"
+            else -> ""
+        }
+        // Get selected health status from RadioGroup
+        val saludGeneralRadioGroup = findViewById<RadioGroup>(R.id.saludGeneralRadioGroup)
+        val saludGeneral = when (saludGeneralRadioGroup.checkedRadioButtonId) {
+            R.id.saludMaloRadio -> "Malo"
+            R.id.saludRegularRadio -> "Regular"
+            R.id.saludBuenoRadio -> "Bueno"
+            R.id.saludMuyBuenoRadio -> "Muy Bueno"
+            R.id.saludExcelenteRadio -> "Excelente"
+            else -> ""
+        }
 
         // --- Medicamentos (opción múltiple) ---
         val medicacion = mutableListOf<String>()
@@ -94,8 +184,21 @@ class MainActivity : AppCompatActivity() {
         )
 
         // --- Estilo de vida ---
-        val consumeFrutas = findViewById<CheckBox>(R.id.frutasCheckBox).isChecked
-        val consumeVerduras = findViewById<CheckBox>(R.id.verdurasCheckBox).isChecked
+        // Get fruit consumption from RadioGroup
+        val frutasRadioGroup = findViewById<RadioGroup>(R.id.frutasRadioGroup)
+        val consumeFrutas = when (frutasRadioGroup.checkedRadioButtonId) {
+            R.id.frutasSiRadio -> true
+            R.id.frutasNoRadio -> false
+            else -> false
+        }
+        
+        // Get vegetable consumption from RadioGroup
+        val verdurasRadioGroup = findViewById<RadioGroup>(R.id.verdurasRadioGroup)
+        val consumeVerduras = when (verdurasRadioGroup.checkedRadioButtonId) {
+            R.id.verdurasSiRadio -> true
+            R.id.verdurasNoRadio -> false
+            else -> false
+        }
         val salDiaria = findViewById<EditText>(R.id.salEditText).text.toString().toIntOrNull() ?: 0
         val fuma = findViewById<CheckBox>(R.id.fumaCheckBox).isChecked
         val alcoholExceso = findViewById<CheckBox>(R.id.alcoholCheckBox).isChecked

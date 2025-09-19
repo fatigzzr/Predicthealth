@@ -10,7 +10,7 @@
     <!-- Top title -->
     <TextView
         android:id="@+id/mainTitle"
-        android:text="Crear cuenta"
+        android:text="PredictHealth"
         android:textSize="28sp"
         android:textStyle="bold"
         android:textColor="@color/accent"
@@ -42,7 +42,7 @@
                     android:layout_height="wrap_content">
 
                     <TextView
-                        android:text="Cuenta"
+                        android:text="Log-In"
                         android:textSize="20sp"
                         android:textStyle="bold"
                         android:textColor="@color/accent"
@@ -109,28 +109,74 @@
                         android:layout_height="wrap_content"
                         style="@style/InputStyle" />
 
+                    <TextView
+                        android:text="Fecha de nacimiento"
+                        android:textSize="16sp"
+                        android:textColor="@color/input_text"
+                        android:layout_marginBottom="12dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
                     <EditText
                         android:id="@+id/fechaEditText"
-                        android:hint="Fecha de nacimiento (YYYY-MM-DD)"
-                        android:inputType="date"
+                        android:hint="Seleccionar fecha"
+                        android:focusable="false"
+                        android:clickable="true"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         style="@style/InputStyle" />
 
-                    <EditText
-                        android:id="@+id/sexoEditText"
-                        android:hint="Sexo (M/F)"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        style="@style/InputStyle" />
+                    <TextView
+                        android:id="@+id/edadDisplayTextView"
+                        android:text="Edad: --"
+                        android:textSize="16sp"
+                        android:textColor="@color/accent"
+                        android:layout_marginBottom="16dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
 
-                    <EditText
-                        android:id="@+id/edadEditText"
-                        android:hint="Edad"
-                        android:inputType="number"
+                    <TextView
+                        android:text="Sexo"
+                        android:textSize="16sp"
+                        android:textColor="@color/input_text"
+                        android:layout_marginBottom="12dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <RadioGroup
+                        android:id="@+id/sexoRadioGroup"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        style="@style/InputStyle" />
+                        android:layout_marginBottom="8dp">
+
+                        <RadioButton
+                            android:id="@+id/sexoHombreRadio"
+                            android:text="Hombre"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/sexoMujerRadio"
+                            android:text="Mujer"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/sexoOtroRadio"
+                            android:text="Otro"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                    </RadioGroup>
 
                 </LinearLayout>
             </ScrollView>
@@ -235,27 +281,125 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
 
+                    <TextView
+                        android:text="Índice de masa corporal"
+                        android:textSize="16sp"
+                        android:textColor="@color/input_text"
+                        android:layout_marginBottom="12dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
                     <EditText
                         android:id="@+id/bmiEditText"
-                        android:hint="Índice de masa corporal (IMC)"
+                        android:hint="IMC"
                         android:inputType="numberDecimal"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         style="@style/InputStyle" />
 
-                    <EditText
-                        android:id="@+id/presionEditText"
-                        android:hint="Presión arterial"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        style="@style/InputStyle" />
+                    <TextView
+                        android:text="Presión arterial"
+                        android:textSize="16sp"
+                        android:textColor="@color/input_text"
+                        android:layout_marginBottom="12dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
 
-                    <EditText
-                        android:id="@+id/saludGeneralEditText"
-                        android:hint="Estado general de salud"
+                    <RadioGroup
+                        android:id="@+id/presionRadioGroup"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        style="@style/InputStyle" />
+                        android:layout_marginBottom="8dp">
+
+                        <RadioButton
+                            android:id="@+id/presionNormalRadio"
+                            android:text="Normal"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/presionPreHipertensionRadio"
+                            android:text="Pre-Hipertensión"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/presionHipertensionRadio"
+                            android:text="Hipertensión"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                    </RadioGroup>
+
+                    <TextView
+                        android:text="Estado general de salud"
+                        android:textSize="16sp"
+                        android:textColor="@color/input_text"
+                        android:layout_marginBottom="12dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <RadioGroup
+                        android:id="@+id/saludGeneralRadioGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp">
+
+                        <RadioButton
+                            android:id="@+id/saludMaloRadio"
+                            android:text="Malo"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/saludRegularRadio"
+                            android:text="Regular"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/saludBuenoRadio"
+                            android:text="Bueno"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/saludMuyBuenoRadio"
+                            android:text="Muy Bueno"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                        <RadioButton
+                            android:id="@+id/saludExcelenteRadio"
+                            android:text="Excelente"
+                            android:textColor="@color/input_text"
+                            android:buttonTint="@color/accent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp" />
+
+                    </RadioGroup>
 
                 </LinearLayout>
             </ScrollView>
@@ -407,31 +551,110 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
 
-                <CheckBox
-                    android:id="@+id/frutasCheckBox"
-                    android:text="Consumo diario de frutas"
+                <TextView
+                    android:text="¿Consume frutas diariamente?"
+                    android:textSize="16sp"
                     android:textColor="@color/input_text"
-                    android:buttonTint="@color/accent"
+                    android:layout_marginBottom="12dp"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_height="wrap_content" />
 
-                <CheckBox
-                    android:id="@+id/verdurasCheckBox"
-                    android:text="Consumo diario de verduras"
-                    android:textColor="@color/input_text"
-                    android:buttonTint="@color/accent"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp" />
-
-                <EditText
-                    android:id="@+id/salEditText"
-                    android:hint="Cantidad de sal diaria (g)"
-                    android:inputType="number"
+                <RadioGroup
+                    android:id="@+id/frutasRadioGroup"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    style="@style/InputStyle" />
+                    android:layout_marginBottom="16dp">
+
+                    <RadioButton
+                        android:id="@+id/frutasSiRadio"
+                        android:text="Sí"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                    <RadioButton
+                        android:id="@+id/frutasNoRadio"
+                        android:text="No"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                </RadioGroup>
+
+                <TextView
+                    android:text="¿Consume verduras diariamente?"
+                    android:textSize="16sp"
+                    android:textColor="@color/input_text"
+                    android:layout_marginBottom="12dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <RadioGroup
+                    android:id="@+id/verdurasRadioGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp">
+
+                    <RadioButton
+                        android:id="@+id/verdurasSiRadio"
+                        android:text="Sí"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                    <RadioButton
+                        android:id="@+id/verdurasNoRadio"
+                        android:text="No"
+                        android:textColor="@color/input_text"
+                        android:buttonTint="@color/accent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                </RadioGroup>
+
+                </LinearLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Sección: Estilo de Vida - Parte 2 -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardSection"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:text="Estilo de Vida - Parte 2"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent"
+                        android:layout_marginBottom="16dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <EditText
+                        android:id="@+id/salEditText"
+                        android:hint="Cantidad de sal diaria (g)"
+                        android:inputType="number"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/InputStyle" />
 
                 <CheckBox
                     android:id="@+id/fumaCheckBox"
@@ -623,7 +846,7 @@
             android:layout_weight="1"
             android:layout_height="48dp"
             android:layout_marginStart="8dp"
-            android:backgroundTint="@color/accent"
+            android:backgroundTint="@color/accent_dark"
             android:textColor="@color/white"
             android:textSize="16sp"
             android:textStyle="bold" />
