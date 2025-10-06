@@ -1,51 +1,25 @@
+// LoginForm.js
 import { useState } from "react";
-import authService from "../services/authService";
-import { login } from "../services/mockAuth";
+import { login } from "../services/authService";
 
 function LoginForm({ onLoginSuccess }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [contraseña, setContraseña] = useState("");
   const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Mahoraga: fake httpOnly cookies
-    setError("");
-    try {
-      const result = await login(username, password); // session-aware login
-      if (result.success) {
-        onLoginSuccess(); // triggers fade to dashboard
-      } else {
-        setError("Invalid credentials");
-      }
-    } catch (err) {
-      setError("Network error");
-    } finally {
-    }
+    const success = await login(email, contraseña);
+    if (success) onLoginSuccess();
+    else setError("Invalid credentials");
   };
 
   return (
-    <form onSubmit={handleSubmit} className="login-form">
-      <h2 className="form-title">Login</h2>
-      <input
-        type="text"
-        placeholder="Username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        required
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
-      {error && <div className="error">{error}</div>}
-      <div className="button-container">
-        <button type="submit" className="login-button">Login</button>
-    </div>
-
+    <form onSubmit={handleSubmit}>
+      <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
+      <input type="password" value={contraseña} onChange={e => setContraseña(e.target.value)} placeholder="Contraseña" />
+      <button type="submit">Login</button>
+      {error && <p>{error}</p>}
     </form>
   );
 }
