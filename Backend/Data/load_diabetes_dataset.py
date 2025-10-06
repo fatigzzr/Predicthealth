@@ -18,17 +18,17 @@ def hash_password(password):
     return generate_password_hash(password, method='pbkdf2:sha256')
 
 def generate_sql_commands(df_combined):
-    """Generar comandos SQL de inserción"""
+    """Generar comandos SQL de inserción para la nueva estructura init_new.sql"""
     
     sql_commands = []
     
     # Agregar comentario
     sql_commands.append("-- Comandos SQL generados automáticamente del dataset CDC Diabetes")
-    sql_commands.append("-- Copia estos comandos y pégalos al final de tu init.sql")
+    sql_commands.append("-- Compatible con init_new.sql")
     sql_commands.append("")
     
-    # Limitar a 1000 registros para un archivo SQL manejable
-    sample_size = min(1000, len(df_combined))
+    # Limitar a 100 registros para un archivo SQL manejable
+    sample_size = min(100, len(df_combined))
     df_sample = df_combined.head(sample_size)
     
     print(f"Generando comandos SQL para {sample_size} registros...")
@@ -41,80 +41,117 @@ def generate_sql_commands(df_combined):
         # Generar email único para este registro
         email = f"user_{i+1}@cdc-diabetes.com"
         
-        # 1. Insertar usuario con contraseña hasheada
+        # 1. Insertar usuario con contraseña hasheada (nueva estructura)
         sql_commands.append(f"-- Usuario {i+1}")
-        # Generar contraseña hasheada para este usuario
         plain_password = "password123"
         hashed_password = hash_password(plain_password)
-        sql_commands.append(f"INSERT INTO Usuario (email, contraseña) VALUES ('{email}', '{hashed_password}');")
+        sql_commands.append(f"INSERT INTO Usuario (id_rol, email, contraseña_hash) VALUES (1, '{email}', '{hashed_password}');")
         
-        # 2. Insertar datos personales
+        # 2. Insertar datos personales en tabla Paciente (nueva estructura)
         sex = row.get('Sex', None)
-        gender_boolean = sex == 1 if sex is not None else None  # True = Masculino, False = Femenino, None = NULL
         age = row.get('Age', None)
         
-        # Convertir age a entero si es string
+        # Convertir age a entero si es string o rango
+        birth_date = None
         if age is not None:
             try:
-                age = int(age)
-                # Generar fecha de nacimiento aproximada basada en la edad
-                birth_year = 2024 - age
-                birth_date = f"{birth_year}-01-01"
-            except (ValueError, TypeError):
-                age = None  # NULL si no se puede convertir
-                birth_date = "NULL"
-        else:
-            birth_date = "NULL"
+                # Si es un número directo
+                if isinstance(age, (int, float)):
+                    age = int(age)
+                    birth_year = 2024 - age
+                    birth_date = f"{birth_year}-01-01"
+                # Si es un rango de texto (ej: "65 to 69", "80 or older")
+                elif isinstance(age, str):
+                    age_str = age.lower().strip()
+                    if "80 or older" in age_str:
+                        age = 85  # Usar 85 como edad representativa
+                    elif "to" in age_str:
+                        # Extraer el primer número del rango
+                        age = int(age_str.split()[0])
+                    else:
+                        # Intentar convertir directamente
+                        age = int(age_str)
+                    
+                    birth_year = 2024 - age
+                    birth_date = f"{birth_year}-01-01"
+            except (ValueError, TypeError, AttributeError):
+                age = None
+                birth_date = None
+        
+        # Si no tenemos edad, generar una fecha de nacimiento por defecto (edad promedio 45 años)
+        if birth_date is None:
+            birth_year = 2024 - 45  # Edad promedio
+            birth_date = f"{birth_year}-01-01"
         
         first_name = f"Usuario_{i+1}"
         last_name = f"CDC_{i+1}"
         
-        # Manejar valores NULL correctamente en SQL
-        birth_date_sql = f"'{birth_date}'" if birth_date != "NULL" else "NULL"
-        age_sql = str(age) if age is not None else "NULL"
-        sex_sql = str(gender_boolean) if gender_boolean is not None else "NULL"
+        # Mapear sexo a formato correcto (M/F)
+        sexo_sql = "'M'" if sex == 1 else "'F'" if sex == 0 else "NULL"
+        birth_date_sql = f"'{birth_date}'"  # Ahora siempre tenemos una fecha válida
         
         sql_commands.append(f"""
-INSERT INTO Datos_Personales (nombre, apellido, fecha_nacimiento, sexo, id_usuario)
-VALUES ('{first_name}', '{last_name}', {birth_date_sql}, {sex_sql}, (SELECT id_usuario FROM Usuario WHERE email = '{email}'));""")
+INSERT INTO Paciente (id_usuario, nombre, apellido, fecha_nacimiento, sexo)
+SELECT id_usuario, '{first_name}', '{last_name}', {birth_date_sql}, {sexo_sql}
+FROM Usuario 
+WHERE email = '{email}';""")
         
-        # 3. Insertar historial médico
+        # 3. Insertar historial médico usando Tipo_Medicion (nueva estructura)
         diabetes = row.get('Diabetes_binary', None)
         high_bp = row.get('HighBP', None)
-        high_chol = row.get('HighChol', None)  # -> colesterol_alto
-        chol_check = row.get('CholCheck', None)  # -> colesterol
+        high_chol = row.get('HighChol', None)
+        chol_check = row.get('CholCheck', None)
         bmi = row.get('BMI', None)
         stroke = row.get('Stroke', None)
         heart_disease = row.get('HeartDiseaseorAttack', None)
-        gen_hlth = row.get('GenHlth', None)  # -> salud_general
+        gen_hlth = row.get('GenHlth', None)
         
-        # Mapear presión arterial basada en HighBP
-        presion_arterial = "Alta" if high_bp == 1 else "Normal" if high_bp == 0 else None
+        # Insertar mediciones individuales usando Historial_Medico
+        if chol_check is not None:
+            sql_commands.append(f"""
+INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha)
+SELECT u.id_usuario, 1, '{bool(chol_check)}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
         
-        # Mapear salud general basada en GenHlth (1=Excelente, 2=Muy bueno, 3=Bueno, 4=Regular, 5=Malo)
-        salud_general_map = {
-            1: "Excelente",
-            2: "Muy bueno", 
-            3: "Bueno",
-            4: "Regular",
-            5: "Malo"
-        }
-        salud_general = salud_general_map.get(gen_hlth, None) if gen_hlth is not None else None
+        if high_chol is not None:
+            sql_commands.append(f"""
+INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha)
+SELECT u.id_usuario, 2, '{bool(high_chol)}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
         
-        # Convertir valores a SQL apropiado
-        chol_check_sql = str(bool(chol_check)) if chol_check is not None else "NULL"
-        high_chol_sql = str(bool(high_chol)) if high_chol is not None else "NULL"
-        bmi_sql = str(bmi) if bmi is not None else "NULL"
-        presion_arterial_sql = f"'{presion_arterial}'" if presion_arterial is not None else "NULL"
-        stroke_sql = str(bool(stroke)) if stroke is not None else "NULL"
-        heart_disease_sql = str(bool(heart_disease)) if heart_disease is not None else "NULL"
-        salud_general_sql = f"'{salud_general}'" if salud_general is not None else "NULL"
+        if bmi is not None:
+            sql_commands.append(f"""
+INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha)
+SELECT u.id_usuario, 3, '{bmi}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
         
-        sql_commands.append(f"""
-INSERT INTO Historial_Medico (colesterol, colesterol_alto, bmi, presion_arterial, acv, problemas_corazon, salud_general, id_usuario)
-SELECT {chol_check_sql}, {high_chol_sql}, {bmi_sql}, {presion_arterial_sql}, {stroke_sql}, {heart_disease_sql}, {salud_general_sql}, id_usuario 
-FROM Usuario 
-WHERE email = '{email}';""")
+        if high_bp is not None:
+            presion_arterial = "Alta" if high_bp == 1 else "Normal"
+            sql_commands.append(f"""
+INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha)
+SELECT u.id_usuario, 4, '{presion_arterial}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
+        
+        if stroke is not None:
+            sql_commands.append(f"""
+INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha)
+SELECT u.id_usuario, 5, '{bool(stroke)}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
+        
+        if heart_disease is not None:
+            sql_commands.append(f"""
+INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha)
+SELECT u.id_usuario, 6, '{bool(heart_disease)}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
+        
+        if gen_hlth is not None:
+            salud_general_map = {1: "Excelente", 2: "Muy bueno", 3: "Bueno", 4: "Regular", 5: "Malo"}
+            salud_general = salud_general_map.get(gen_hlth, None)
+            if salud_general:
+                sql_commands.append(f"""
+INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha)
+SELECT u.id_usuario, 7, '{salud_general}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
         
         # Insertar relación con diabetes si aplica
         diabetes_binary = row.get('Diabetes_binary', None)
@@ -126,67 +163,89 @@ FROM Historial_Medico h
 JOIN Usuario u ON h.id_usuario = u.id_usuario
 WHERE u.email = '{email}';""")
         
-        # 4. Insertar estilo de vida
+        # 4. Insertar estilo de vida usando Respuesta_Estilo_Vida (nueva estructura)
         fruits = row.get('Fruits', None)
         vegetables = row.get('Veggies', None)
         heavy_drinker = row.get('HvyAlcoholConsump', None)
         smoker = row.get('Smoker', None)
-        physical_activity = row.get('PhysActivity', None)  # -> actividad_fisica
-        diff_walk = row.get('DiffWalk', None)  # -> dificultad_caminar
-        ment_hlth = row.get('MentHlth', None)  # -> dias_salud_mental
-        phys_hlth = row.get('PhysHlth', None)  # -> dias_salud_fisica
+        physical_activity = row.get('PhysActivity', None)
+        diff_walk = row.get('DiffWalk', None)
+        ment_hlth = row.get('MentHlth', None)
+        phys_hlth = row.get('PhysHlth', None)
         
-        # Mapear nivel de actividad física
-        nivel_actividad = "Alto" if physical_activity == 1 else "Bajo" if physical_activity == 0 else None
+        # Insertar respuestas individuales usando Respuesta_Estilo_Vida
+        if fruits is not None:
+            sql_commands.append(f"""
+INSERT INTO Respuesta_Estilo_Vida (id_usuario, id_pregunta, valor, fecha)
+SELECT u.id_usuario, 1, '{bool(fruits)}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
         
-        # Generar datos de sueño y estrés basados en otros factores
-        horas_dormir = 7.5 if (smoker == 0 and heavy_drinker == 0) else 6.0 if (smoker == 1 or heavy_drinker == 1) else None
-        nivel_estres = 3 if physical_activity == 0 else 2 if physical_activity == 1 else None
-        # Usar MentHlth directamente (días con buena salud mental en el último mes)
-        dias_salud_mental = ment_hlth
-        # Usar PhysHlth directamente (días con buena salud física en el último mes)
-        dias_salud_fisica = phys_hlth
+        if vegetables is not None:
+            sql_commands.append(f"""
+INSERT INTO Respuesta_Estilo_Vida (id_usuario, id_pregunta, valor, fecha)
+SELECT u.id_usuario, 2, '{bool(vegetables)}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
         
-        # Convertir valores de estilo de vida a SQL apropiado
-        fruits_sql = str(bool(fruits)) if fruits is not None else "NULL"
-        vegetables_sql = str(bool(vegetables)) if vegetables is not None else "NULL"
-        heavy_drinker_sql = str(bool(heavy_drinker)) if heavy_drinker is not None else "NULL"
-        smoker_sql = str(bool(smoker)) if smoker is not None else "NULL"
-        diff_walk_sql = str(bool(diff_walk)) if diff_walk is not None else "NULL"
-        horas_dormir_sql = str(horas_dormir) if horas_dormir is not None else "NULL"
-        nivel_estres_sql = str(nivel_estres) if nivel_estres is not None else "NULL"
-        dias_salud_mental_sql = str(dias_salud_mental) if dias_salud_mental is not None else "NULL"
-        nivel_actividad_sql = f"'{nivel_actividad}'" if nivel_actividad is not None else "NULL"
-        physical_activity_sql = str(bool(physical_activity)) if physical_activity is not None else "NULL"
-        dias_salud_fisica_sql = str(dias_salud_fisica) if dias_salud_fisica is not None else "NULL"
+        if smoker is not None:
+            sql_commands.append(f"""
+INSERT INTO Respuesta_Estilo_Vida (id_usuario, id_pregunta, valor, fecha)
+SELECT u.id_usuario, 4, '{bool(smoker)}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
         
-        sql_commands.append(f"""
-INSERT INTO Estilo_Vida (frutas, verduras, alcohol, tabaco, dificultad_caminar, horas_dormir, nivel_estres, dias_salud_mental, nivel_actividad_fisica, actividad_fisica, dias_salud_fisica, id_usuario)
-SELECT {fruits_sql}, {vegetables_sql}, {heavy_drinker_sql}, {smoker_sql}, {diff_walk_sql}, {horas_dormir_sql}, {nivel_estres_sql}, {dias_salud_mental_sql}, {nivel_actividad_sql}, {physical_activity_sql}, {dias_salud_fisica_sql}, id_usuario 
-FROM Usuario 
-WHERE email = '{email}';""")
+        if heavy_drinker is not None:
+            sql_commands.append(f"""
+INSERT INTO Respuesta_Estilo_Vida (id_usuario, id_pregunta, valor, fecha)
+SELECT u.id_usuario, 5, '{bool(heavy_drinker)}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
         
-        # 6. Insertar predicción basada en los datos
-        # Mapear Diabetes_binary ('Diabetic'/'Non-Diabetic') a boolean
-        diabetes_binary = row.get('Diabetes_binary', None)  # 'Diabetic' o 'Non-Diabetic' del dataset
-        prediccion_boolean = diabetes_binary == 'Diabetic' if diabetes_binary is not None else None  # True si es 'Diabetic', False si es 'Non-Diabetic', None si es NULL
+        if diff_walk is not None:
+            sql_commands.append(f"""
+INSERT INTO Respuesta_Estilo_Vida (id_usuario, id_pregunta, valor, fecha)
+SELECT u.id_usuario, 6, '{bool(diff_walk)}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
         
-        prediccion_sql = str(prediccion_boolean) if prediccion_boolean is not None else "NULL"
+        if ment_hlth is not None:
+            sql_commands.append(f"""
+INSERT INTO Respuesta_Estilo_Vida (id_usuario, id_pregunta, valor, fecha)
+SELECT u.id_usuario, 9, '{ment_hlth}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
         
-        sql_commands.append(f"""
-INSERT INTO Prediccion (prediccion, fecha, id_enfermedad, id_usuario)
-VALUES ({prediccion_sql}, CURRENT_TIMESTAMP, (SELECT id_enfermedad FROM Enfermedad WHERE nombre = 'Diabetes'), (SELECT id_usuario FROM Usuario WHERE email = '{email}'));""")
+        if phys_hlth is not None:
+            sql_commands.append(f"""
+INSERT INTO Respuesta_Estilo_Vida (id_usuario, id_pregunta, valor, fecha)
+SELECT u.id_usuario, 12, '{phys_hlth}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
+        
+        if physical_activity is not None:
+            sql_commands.append(f"""
+INSERT INTO Respuesta_Estilo_Vida (id_usuario, id_pregunta, valor, fecha)
+SELECT u.id_usuario, 11, '{bool(physical_activity)}', CURRENT_TIMESTAMP
+FROM Usuario u WHERE u.email = '{email}';""")
+        
+        # 5. Insertar predicción basada en los datos
+        diabetes_binary = row.get('Diabetes_binary', None)
+        prediccion_boolean = diabetes_binary == 'Diabetic' if diabetes_binary is not None else None
+        
+        if prediccion_boolean is not None:
+            sql_commands.append(f"""
+INSERT INTO Prediccion (id_enfermedad, id_usuario, prediccion, fecha, probabilidad)
+SELECT (SELECT id_enfermedad FROM Enfermedad WHERE nombre = 'Diabetes'), 
+       (SELECT id_usuario FROM Usuario WHERE email = '{email}'),
+       {prediccion_boolean}, 
+       CURRENT_TIMESTAMP,
+       {0.8 if prediccion_boolean else 0.2};""")
         
         sql_commands.append("")
     
-    # Escribir a archivo
-    with open('diabetes_sql_commands.txt', 'w', encoding='utf-8') as f:
+    # Escribir a archivo SQL
+    with open('diabetes_sql_commands.sql', 'w', encoding='utf-8') as f:
         for command in sql_commands:
             f.write(command + '\n')
     
-    print(f"✅ Comandos SQL generados en 'sql_commands.txt'")
+    print(f"✅ Comandos SQL generados en 'diabetes_sql_commands.sql'")
     print(f"✅ Total de comandos: {len(sql_commands)}")
-    print("✅ Copia el contenido de 'sql_commands.txt' y pégalo al final de tu init.sql")
+    print("✅ Compatible con init_new.sql")
+    print("✅ Ejecuta este archivo después de insert_data.sql")
 
 def main():
     import os
@@ -233,7 +292,7 @@ def main():
     print("\n✅ Datos cargados exitosamente")
     print("Los datos están disponibles en:")
     print("- df_combined: datos combinados")
-    print("- diabetes_sql_commands.txt: comandos SQL para insertar datos")
+    print("- diabetes_sql_commands.sql: comandos SQL para insertar datos")
 
 if __name__ == "__main__":
     main()
