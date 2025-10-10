@@ -12,9 +12,163 @@ import {
   Legend,
   ArcElement
 } from "chart.js";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import Papa from 'papaparse';
 import '../styles.css';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ArcElement);
+
+// Funciones de exportación
+const exportToPDF = async (sectionName, elementId) => {
+  try {
+    const element = document.getElementById(elementId);
+    if (!element) {
+      alert('No se encontró el elemento para exportar');
+      return;
+    }
+
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgWidth = 210;
+    const pageHeight = 295;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+
+    let position = 0;
+
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(`reporte-${sectionName}-${new Date().toISOString().split('T')[0]}.pdf`);
+  } catch (error) {
+    console.error('Error al exportar PDF:', error);
+    alert('Error al generar el PDF');
+  }
+};
+
+const exportToCSV = (data, sectionName) => {
+  try {
+    if (!data || data.length === 0) {
+      alert('No hay datos para exportar');
+      return;
+    }
+
+    let processedData = data;
+
+    // Si los datos son arrays de arrays (como signos vitales), convertirlos a objetos
+    if (Array.isArray(data) && data.length > 0 && Array.isArray(data[0])) {
+      if (sectionName === 'signos-vitales') {
+        processedData = data.map(item => ({
+          'ID Usuario': item[0],
+          'Fecha': item[1],
+          'ID Postura': item[2],
+          'Frecuencia Cardíaca Promedio': item[3] || 0,
+          'Saturación Oxígeno Promedio': item[4] || 0,
+          'Mediciones HR/Día': item[5] || 0,
+          'Mediciones SpO2/Día': item[6] || 0
+        }));
+      } else if (sectionName === 'monitoreo-pa') {
+        processedData = data.map(item => ({
+          'ID Usuario': item[0],
+          'Fecha': item[1],
+          'PA Sistólica': item[2],
+          'PA Diastólica': item[3],
+          'Postura': item[4]
+        }));
+      } else if (sectionName === 'laboratorio') {
+        processedData = data.map(item => ({
+          'ID Usuario': item[0],
+          'Fecha': item[1],
+          'Analito': item[2],
+          'Valor': item[3],
+          'Unidad': item[4]
+        }));
+      }
+    }
+
+    // Configurar opciones para Papa.unparse
+    const csvOptions = {
+      header: true,
+      delimiter: ',',
+      newline: '\n',
+      quotes: true,
+      quoteChar: '"',
+      escapeChar: '"'
+    };
+
+    const csv = Papa.unparse(processedData, csvOptions);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `reporte-${sectionName}-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (error) {
+    console.error('Error al exportar CSV:', error);
+    alert('Error al generar el CSV');
+  }
+};
+
+// Componente de botones de exportación
+function ExportButtons({ sectionName, sectionId, data }) {
+  return (
+    <div style={{ display: 'flex', gap: '10px' }}>
+      <button 
+        onClick={() => exportToPDF(sectionName, sectionId)}
+        style={{
+          padding: '8px 16px',
+          backgroundColor: '#ADC7EA',
+          color: '#1F2A36',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          transition: 'background-color 0.3s',
+          fontWeight: '500'
+        }}
+        onMouseOver={(e) => e.target.style.backgroundColor = '#9DB3C1'}
+        onMouseOut={(e) => e.target.style.backgroundColor = '#ADC7EA'}
+      >
+        Exportar PDF
+      </button>
+      <button 
+        onClick={() => exportToCSV(data, sectionName)}
+        style={{
+          padding: '8px 16px',
+          backgroundColor: '#ADC7EA',
+          color: '#1F2A36',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          transition: 'background-color 0.3s',
+          fontWeight: '500'
+        }}
+        onMouseOver={(e) => e.target.style.backgroundColor = '#9DB3C1'}
+        onMouseOut={(e) => e.target.style.backgroundColor = '#ADC7EA'}
+      >
+        Exportar CSV
+      </button>
+    </div>
+  );
+}
 
 // Tabs Component
 function Tabs({ children }) {
@@ -876,8 +1030,15 @@ export default function ReportesAnalisis() {
       </div>
 
       {activeSection === 'monitoreo-pa' && (
-        <div className="table-card">
-          <h4>Monitoreo PA</h4>
+        <div className="table-card" id="monitoreo-pa-section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h4>Monitoreo PA</h4>
+            <ExportButtons 
+              sectionName="monitoreo-pa" 
+              sectionId="monitoreo-pa-section" 
+              data={processedData} 
+            />
+          </div>
           
           <div className="filters-container">
             <div className="date-filter">
@@ -1026,8 +1187,15 @@ export default function ReportesAnalisis() {
       )}
 
       {activeSection === 'signos-vitales' && (
-        <div className="table-card">
-          <h4>Signos Vitales</h4>
+        <div className="table-card" id="signos-vitales-section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h4>Signos Vitales</h4>
+            <ExportButtons 
+              sectionName="signos-vitales" 
+              sectionId="signos-vitales-section" 
+              data={signosVitalesData} 
+            />
+          </div>
           
           <div className="filters-container">
             <div className="date-filter">
@@ -1194,8 +1362,15 @@ export default function ReportesAnalisis() {
       )}
 
       {activeSection === 'laboratorio' && (
-        <div className="table-card">
-          <h4>Laboratorio</h4>
+        <div className="table-card" id="laboratorio-section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h4>Laboratorio</h4>
+            <ExportButtons 
+              sectionName="laboratorio" 
+              sectionId="laboratorio-section" 
+              data={labFilteredData} 
+            />
+          </div>
           
           <div className="filters-container">
             <div className="date-filter">
