@@ -8,12 +8,14 @@ PredictHealth es un sistema integral de salud predictiva que combina datos biom�
 
 ### Características Principales
 
-- **32 tablas** organizadas en un modelo relacional completo
+- **32+ tablas** organizadas en un modelo relacional completo
 - **Extensiones PostgreSQL**: uuid-ossp, pgcrypto
 - **Vistas especializadas** para dashboards y monitoreo
 - **Procedimientos almacenados** para automatización
 - **Auditoría completa** de todas las operaciones
 - **Soporte para datos geográficos** (GPS)
+- **Sistema de alertas automáticas** para valores anómalos
+- **Integración con datasets reales** (CDC Diabetes, Kaggle Hypertension)
 
 ### Entidades Principales
 
@@ -47,10 +49,17 @@ PredictHealth es un sistema integral de salud predictiva que combina datos biom�
 
 ### Prerrequisitos
 
-- PostgreSQL 12+ 
-- Usuario con permisos de superusuario o CREATEDB
-- Python 3.8+ (para scripts de datos)
-- Werkzeug (para hash de contraseñas)
+- **PostgreSQL 12+** con extensiones uuid-ossp y pgcrypto
+- **Usuario con permisos** de superusuario o CREATEDB
+- **Python 3.8+** (para scripts de datos)
+- **Dependencias Python** (ver requirements.txt)
+
+### Instalación de Dependencias Python
+
+```bash
+cd "Base de Datos/Data"
+pip install -r requirements.txt
+```
 
 ### Configuración Completa
 
@@ -61,19 +70,19 @@ psql -U postgres
 
 2. **Ejecutar el script de inicialización completo**:
 ```bash
-\i Backend/init.sql
+\i "Base de Datos/init.sql"
 ```
 
 3. **Cargar datos de diabetes** (opcional):
 ```bash
-cd Backend/Data
+cd "Base de Datos/Data"
 python load_diabetes_dataset.py
 psql -d predicthealth -f diabetes_sql_commands.sql
 ```
 
 4. **Cargar datos de hipertensión** (opcional):
 ```bash
-cd Backend/Data
+cd "Base de Datos/Data"
 python load_hypertension_dataset.py
 psql -d predicthealth -f hypertension_sql_commands.sql
 ```
@@ -83,6 +92,22 @@ psql -d predicthealth -f hypertension_sql_commands.sql
 \c predicthealth
 \dt
 SELECT COUNT(*) FROM Usuario;
+```
+
+### Estructura de Archivos
+
+```
+Base de Datos/
+├── init.sql                    # Script principal de inicialización
+├── README.md                   # Este archivo
+└── Data/
+    ├── requirements.txt        # Dependencias Python
+    ├── load_diabetes_dataset.py    # Script para cargar datos CDC
+    ├── load_hypertension_dataset.py # Script para cargar datos Kaggle
+    ├── cdc_diabetes_combined.csv    # Dataset CDC (243,532 registros)
+    ├── hypertension_dataset.csv     # Dataset Kaggle (1,985 registros)
+    ├── diabetes_sql_commands.sql    # Comandos SQL generados
+    └── hypertension_sql_commands.sql # Comandos SQL generados
 ```
 
 ## 📊 Vistas de Dashboard
@@ -195,28 +220,64 @@ CALL insertar_resultado_lab(1, 'GLUC', 95.5);
 - Validaciones de tipos de datos
 - Constraints de dominio
 
-## 📊 Scripts de Datos
+## 📊 Scripts de Carga de Datos
 
 ### Dataset de Diabetes (CDC)
-- **Archivo**: `Data/cdc_diabetes_combined.csv`
-- **Registros**: 243,532 pacientes
-- **Script**: `load_diabetes_dataset.py`
-- **Salida**: `diabetes_sql_commands.sql`
-- **Usuarios generados**: 100 (muestra representativa)
+- **📁 Archivo**: `Data/cdc_diabetes_combined.csv`
+- **📊 Registros**: 243,532 pacientes
+- **🐍 Script**: `load_diabetes_dataset.py`
+- **📄 Salida**: `diabetes_sql_commands.sql`
+- **👥 Usuarios generados**: 100 (muestra representativa)
+- **🎯 Enfermedad**: Diabetes tipo 2
+- **📅 Período**: Datos del CDC 2020-2022
 
-### Dataset de Hipertensión
-- **Archivo**: `Data/hypertension_dataset.csv`
-- **Registros**: 1,985 pacientes
-- **Script**: `load_hypertension_dataset.py`
-- **Salida**: `hypertension_sql_commands.sql`
-- **Usuarios generados**: 100 (muestra representativa)
+### Dataset de Hipertensión (Kaggle)
+- **📁 Archivo**: `Data/hypertension_dataset.csv`
+- **📊 Registros**: 1,985 pacientes
+- **🐍 Script**: `load_hypertension_dataset.py`
+- **📄 Salida**: `hypertension_sql_commands.sql`
+- **👥 Usuarios generados**: 100 (muestra representativa)
+- **🎯 Enfermedad**: Hipertensión arterial
+- **📅 Período**: Datos de Kaggle 2023
 
 ### Características de los Scripts
-- ✅ **Compatibilidad**: Totalmente compatibles con `init.sql`
-- ✅ **Fechas reales**: Calcula fechas de nacimiento basadas en edad
-- ✅ **Contraseñas seguras**: Hash PBKDF2 con Werkzeug
-- ✅ **Datos realistas**: Mapeo correcto de valores del dataset
-- ✅ **Integridad**: Manejo correcto de valores NULL y tipos de datos
+
+#### ✅ **Compatibilidad Total**
+- **init.sql**: Completamente compatible con la estructura de base de datos
+- **Relaciones**: Todas las foreign keys respetadas
+- **Tipos de datos**: Mapeo correcto de tipos PostgreSQL
+
+#### ✅ **Procesamiento de Datos**
+- **Fechas reales**: Calcula fechas de nacimiento basadas en edad actual
+- **Contraseñas seguras**: Hash PBKDF2 con Werkzeug (mismo que el sistema)
+- **Datos realistas**: Mapeo correcto de valores del dataset original
+- **Manejo de NULL**: Valores faltantes manejados apropiadamente
+
+#### ✅ **Datos Generados**
+- **Usuarios**: 200 usuarios con credenciales válidas
+- **Pacientes**: Información demográfica completa
+- **Historial médico**: Registros médicos históricos
+- **Estilo de vida**: Respuestas a cuestionarios de salud
+- **Predicciones**: Probabilidades de riesgo calculadas
+
+### Uso de los Scripts
+
+```bash
+# 1. Instalar dependencias
+cd "Base de Datos/Data"
+pip install -r requirements.txt
+
+# 2. Cargar datos de diabetes
+python load_diabetes_dataset.py
+psql -d predicthealth -f diabetes_sql_commands.sql
+
+# 3. Cargar datos de hipertensión
+python load_hypertension_dataset.py
+psql -d predicthealth -f hypertension_sql_commands.sql
+
+# 4. Verificar carga
+psql -d predicthealth -c "SELECT COUNT(*) FROM Usuario;"
+```
 
 ## ✅ Sistema Completamente Funcional
 
@@ -229,39 +290,47 @@ CALL insertar_resultado_lab(1, 'GLUC', 95.5);
 
 ## 📋 Estructura de Tablas
 
-### Tablas Principales (32 total)
+### Tablas Principales (32+ total)
 
-| Categoría | Tablas |
-|-----------|--------|
-| **Usuarios** | Usuario, Paciente, Rol |
-| **Médicas** | Historial_Medico, Signo_Vital, Enfermedad, Medicamento |
-| **IA/ML** | Prediccion, Modelo, Recomendacion |
-| **Documentos** | Documento_Subido, Extracciones_Nlp, Resultado_Lab |
-| **Geolocalización** | Registros_GPS, Fuente_GPS |
-| **Auditoría** | Registro_Auditoria, Refresh_Token |
-| **Catálogos** | Unidad, Tipo_Medicion, Analito, etc. |
+| Categoría | Tablas | Descripción |
+|-----------|--------|-------------|
+| **👤 Usuarios** | Usuario, Paciente, Rol | Sistema de autenticación y perfiles |
+| **🏥 Médicas** | Historial_Medico, Signo_Vital, Enfermedad, Medicamento | Datos médicos y farmacológicos |
+| **🤖 IA/ML** | Prediccion, Modelo, Recomendacion | Inteligencia artificial y predicciones |
+| **📄 Documentos** | Documento_Subido, Extracciones_Nlp, Resultado_Lab | Procesamiento de documentos médicos |
+| **📍 Geolocalización** | Registros_GPS, Fuente_GPS | Datos de ubicación del usuario |
+| **🔍 Auditoría** | Registro_Auditoria, Refresh_Token | Seguridad y trazabilidad |
+| **📊 Catálogos** | Unidad, Tipo_Medicion, Analito, etc. | Datos de referencia del sistema |
 
-### Datos Insertados (17 tablas con contenido)
+### Datos de Prueba Disponibles
 
-| Tabla | Registros | Descripción |
-|-------|-----------|-------------|
-| **Rol** | 2 | Admin, Paciente |
-| **Usuario** | 200 | 100 diabetes + 100 hipertensión |
-| **Paciente** | 200 | Datos demográficos completos |
-| **Enfermedad** | 2 | Diabetes, Hipertensión |
-| **Recomendacion** | 17 | Sugerencias de salud |
-| **Documento** | 6 | Tipos de documentos médicos |
-| **Entidad** | 32 | Catálogo de entidades del sistema |
-| **Unidad** | 9 | Unidades de medida |
-| **Tipo_Medicion** | 7 | Tipos de mediciones médicas |
-| **Consulta** | 9 | Tipos de consultas |
-| **Postura** | 1 | Postura para mediciones |
-| **Analito** | 5 | Parámetros de laboratorio |
-| **Dispositivo** | 2 | Omron, Fitbit |
-| **Tipo_Medicion** | 7 | Tipos de mediciones |
-| **Medicamento** | 5 | Medicamentos comunes |
-| **Pregunta** | 12 | Preguntas de estilo de vida |
-| **Documento_Enfermedad** | 7 | Relaciones documento-enfermedad |
+| Tabla | Registros | Fuente | Descripción |
+|-------|-----------|--------|-------------|
+| **Rol** | 2 | Manual | Admin, Paciente |
+| **Usuario** | 200 | CDC + Kaggle | 100 diabetes + 100 hipertensión |
+| **Paciente** | 200 | CDC + Kaggle | Datos demográficos reales |
+| **Enfermedad** | 2 | Manual | Diabetes, Hipertensión |
+| **Recomendacion** | 17 | Manual | Sugerencias de salud personalizadas |
+| **Documento** | 6 | Manual | Tipos de documentos médicos |
+| **Entidad** | 32 | Manual | Catálogo de entidades del sistema |
+| **Unidad** | 9 | Manual | Unidades de medida médicas |
+| **Tipo_Medicion** | 7 | Manual | Tipos de mediciones médicas |
+| **Consulta** | 9 | Manual | Tipos de consultas médicas |
+| **Postura** | 1 | Manual | Postura para mediciones |
+| **Analito** | 5 | Manual | Parámetros de laboratorio |
+| **Dispositivo** | 2 | Manual | Omron, Fitbit |
+| **Medicamento** | 5 | Manual | Medicamentos comunes |
+| **Pregunta** | 12 | Manual | Preguntas de estilo de vida |
+| **Documento_Enfermedad** | 7 | Manual | Relaciones documento-enfermedad |
+
+### Características de los Datos
+
+- **✅ Datos reales**: Basados en datasets CDC y Kaggle
+- **✅ Fechas calculadas**: Edades convertidas a fechas de nacimiento reales
+- **✅ Contraseñas seguras**: Hash PBKDF2 con Werkzeug
+- **✅ Integridad referencial**: Todas las relaciones respetadas
+- **✅ Datos médicos**: Historial médico y respuestas de estilo de vida
+- **✅ Predicciones**: Probabilidades de riesgo calculadas
 
 ## 🛠️ Mantenimiento
 
@@ -327,72 +396,9 @@ psql predicthealth < backup_predicthealth.sql
 - **Prediccion**: 200 registros (1 por usuario)
 - **Signo_Vital**: Datos de prueba con alertas automáticas
 
-## 🔍 Ejemplos de Consultas Útiles
-
-### Verificar Estado del Sistema
-```sql
--- Conteo de usuarios por tipo
-SELECT 
-    CASE 
-        WHEN email LIKE '%diabetes%' THEN 'Diabetes'
-        WHEN email LIKE '%hypertension%' THEN 'Hipertensión'
-        ELSE 'Otro'
-    END as tipo,
-    COUNT(*) as usuarios
-FROM Usuario 
-GROUP BY tipo;
-
--- Verificar alertas generadas
-SELECT * FROM Registro_Auditoria 
-WHERE accion = 'CREATE' 
-ORDER BY fecha_hora DESC;
-```
-
-### Análisis de Salud
-```sql
--- Usuarios con mayor riesgo de diabetes
-SELECT u.email, p.nombre, pr.probabilidad
-FROM Usuario u
-JOIN Paciente p ON u.id_usuario = p.id_usuario
-JOIN Prediccion pr ON u.id_usuario = pr.id_usuario
-WHERE pr.probabilidad > 0.5
-ORDER BY pr.probabilidad DESC;
-
--- Resumen de presión arterial por usuario
-SELECT 
-    u.email,
-    AVG(sv.valor) as pa_promedio,
-    MIN(sv.valor) as pa_min,
-    MAX(sv.valor) as pa_max
-FROM Usuario u
-JOIN Signo_Vital sv ON u.id_usuario = sv.id_usuario
-JOIN Tipo_Signo_Vital t ON sv.id_tipo = t.id_tipo
-WHERE t.nombre = 'BP_sistolica'
-GROUP BY u.email;
-```
-
-### Monitoreo de Alertas
-```sql
--- Alertas de PA alta en las últimas 24 horas
-SELECT 
-    u.email,
-    ra.fecha_hora,
-    ra.detalles->>'valor' as valor_pa,
-    ra.detalles->>'mensaje' as mensaje
-FROM Registro_Auditoria ra
-JOIN Usuario u ON ra.id_usuario = u.id_usuario
-WHERE ra.accion = 'CREATE'
-  AND ra.fecha_hora >= NOW() - INTERVAL '24 hours'
-ORDER BY ra.fecha_hora DESC;
-```
-
-## 📞 Soporte
-
-Para soporte técnico o consultas sobre la implementación, contactar al equipo de desarrollo.
-
 ---
 
 **Versión**: 2.0  
-**Última actualización**: Octubre 2025  
+**Última actualización**: Octubre 2025
 **Compatibilidad**: PostgreSQL 12+  
 **Estado**: ✅ Completamente Funcional

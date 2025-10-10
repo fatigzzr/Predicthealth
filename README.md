@@ -1,59 +1,101 @@
-# Predicthealth
-Plataforma de IA para predicción de enfermedades crónicas
+# PredictHealth - Sistema de Salud Predictiva
 
-# Current Temporary Solutions:
-- App.js: httpOnly cookie is being simulated in 2 points
-- LoginForm.jsx: fake httpOnly cookies
-- mockAuth.js: used for httpOnly mock
+Plataforma integral de IA para predicción de enfermedades crónicas (diabetes e hipertensión) con análisis de datos biométricos, historial médico y estilo de vida.
 
-# Backend
-- init.sql: script de inicialización de PostgreSQL (crea BD/esquema, índices y funciones, y carga datos)
-- Acceso: predicthealth_user, 666
+## 🏗️ Arquitectura del Sistema
 
-# Documentación:
-- [Arquitectura de sistema](https://lucid.app/lucidchart/e8a4c780-8b4f-4ca2-8605-5b6e3927194d/edit?invitationId=inv_925c84d6-c21d-43af-ba4d-35265cca643f)
+### Componentes Principales
+- **🌐 Frontend Web**: React.js con dashboard administrativo
+- **📱 App Móvil**: Android nativo (Kotlin)
+- **⚙️ Backend**: Flask (Python) con API REST
+- **🗄️ Base de Datos**: PostgreSQL con 32+ tablas
+- **🤖 IA/ML**: Modelos predictivos para diabetes e hipertensión
+
+### Estructura del Proyecto
+```
+Predicthealth/
+├── app/
+│   ├── web/          # Frontend React
+│   └── android/       # App Android
+├── Backend/           # API Flask
+└── Base de Datos/     # PostgreSQL + Scripts
+```
+
+## 🚀 Instalación Rápida
+
+### Prerrequisitos
+- PostgreSQL 12+
+- Python 3.8+
+- Node.js 16+
+- Android Studio (para app móvil)
+
+### Configuración Base de Datos
+```bash
+# 1. Inicializar base de datos
+psql -U postgres -f "Base de Datos/init.sql"
+
+# 2. Cargar datos de prueba (opcional)
+cd "Base de Datos/Data"
+pip install -r requirements.txt
+python load_diabetes_dataset.py
+python load_hypertension_dataset.py
+```
+
+### Configuración Backend
+```bash
+cd Backend
+pip install -r requirements.txt
+python app.py
+```
+
+### Configuración Frontend
+```bash
+cd app/web
+npm install
+npm start
+```
+
+## 📊 Características Principales
+
+- **👥 Gestión de Usuarios**: Sistema de autenticación con roles
+- **📈 Dashboards**: Visualización de métricas de salud en tiempo real
+- **🚨 Alertas Automáticas**: Detección de valores anómalos
+- **📄 Procesamiento de Documentos**: NLP para extracción de datos médicos
+- **📍 Geolocalización**: Seguimiento de ubicación del usuario
+- **🔍 Auditoría Completa**: Trazabilidad de todas las operaciones
+
+## 🎨 Paleta de Colores
+
+| Color | Hex | Uso |
+|-------|-----|-----|
+| Midnight Blue | #132232 | Fondo principal |
+| Snow White | #FFFFFF | Texto en fondos oscuros |
+| Sky Blue | #ADC7EA | Botones y enlaces |
+| Success Green | #4CAF50 | Confirmaciones |
+| Warning Amber | #FFC107 | Alertas |
+| Error Red | #F44336 | Errores |
+
+## 📚 Documentación
+
+- [Arquitectura del Sistema](https://lucid.app/lucidchart/e8a4c780-8b4f-4ca2-8605-5b6e3927194d/edit?invitationId=inv_925c84d6-c21d-43af-ba4d-35265cca643f)
 - [Modelo E-R](https://docs.google.com/document/d/1VXycVG1fAsWVyR-WUuyAO9iuKRno-keRreiZjPSXJNE/edit?tab=t.0#heading=h.y19w7r73ouiy)
-- [Estructuras para la Obtención de datos](https://docs.google.com/document/d/1DDVxPYFhKs7FMCuM7HOlUwLIojpXSd_S73FzS5eaxjw/edit?tab=t.0#heading=h.5vs05pkyy3tq)
-- [Definición de DML de la Base de Datos (vistas, indices, y procedimientos almacenados)](https://docs.google.com/document/d/1rEvLP03b2Vg-RNRP1V1NPEwThnwyppSAWdXHW_kgzj4/edit?tab=t.0#heading=h.ju9obmyylsaz)
+- [Base de Datos](Base%20de%20Datos/README.md) - Documentación completa de BD
 
-# Obtención de datos
-- [CDC Diabetes Health Indicators (Hugging Face)](https://huggingface.co/datasets/Bena345/cdc-diabetes-health-indicators)
-- [Hypertension Risk Prediction (Kaggle)](https://www.kaggle.com/datasets/miadul/hypertension-risk-prediction-dataset?utm_source=chatgpt.com)
+## 📊 Datasets Utilizados
 
-# Color Palette
+- **CDC Diabetes**: 243,532 registros de indicadores de salud
+- **Kaggle Hypertension**: 1,985 registros de predicción de hipertensión
 
-### **Primary Colors**
+## 🔧 Acceso de Desarrollo
 
-| Name          | Hex     | Usage                                    |
-| ------------- | ------- | ---------------------------------------- |
-| Midnight Blue | #132232 | Primary background, header, sidebar      |
-| Snow White    | #FFFFFF | Text on dark backgrounds, cards, buttons |
+### Credenciales del Sistema
+- **👤 Usuario Admin**: `admin@admin.com` / `admin`
+- **🗄️ Base de Datos**: `predicthealth_user` / `666`
 
-### **Secondary / Accent Colors**
-
-| Name       | Hex     | Usage                                       |
-| ---------- | ------- | ------------------------------------------- |
-| Sky Blue   | #ADC7EA | Buttons, highlights, links                  |
-| Slate Gray | #5B696F | Secondary text, borders, muted cards        |
-| Mist Gray  | #9DB3C1 | Backgrounds for cards, panels, hover states |
-
-### **Accessibility / Contrast Adjustments**
-
-| Name       | Hex     | Usage                                                                             |
-| ---------- | ------- | --------------------------------------------------------------------------------- |
-| Soft Sky   | #8BB8E3 | For colorblind-friendly buttons and highlights, stronger contrast than ADC7EA     |
-| Charcoal   | #1F2A36 | Darker text on light backgrounds, contrast with Snow White                        |
-| Light Mist | #E6EEF5 | Background panels, secondary sections to separate content without strong contrast |
-
-### **Additional Accent / Feedback Colors**
-
-| Name          | Hex     | Usage                            |
-| ------------- | ------- | -------------------------------- |
-| Success Green | #4CAF50 | Positive feedback, confirmations |
-| Warning Amber | #FFC107 | Alerts, warnings                 |
-| Error Red     | #F44336 | Error messages, failed actions   |
-| Info Blue     | #2196F3 | Informational messages, tips     |
+### Puertos
+- **Puerto Backend**: 5000
+- **Puerto Frontend**: 3000
 
 ---
 
-[Drive del Equipo](https://drive.google.com/drive/u/0/folders/1IMpgyBlC8rK01qJg5JJ2ua4tupmby4gT)
+**Versión**: 2.0 | **Estado**: ✅ Funcional | **Última actualización**: Diciembre 2024
