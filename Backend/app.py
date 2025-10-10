@@ -847,22 +847,38 @@ def get_dashboard_monitoreo_pa_stats():
         # Convertir datos a objetos con propiedades nombradas
         processed_data = []
         for item in data:
-            processed_data.append({
-                "id_usuario": item[0],
-                "fecha": item[1],
-                "id_postura": item[2],
-                "id_dispositivo": item[3],
-                "bp_sistolica_promedio": item[4],
-                "bp_sistolica_min": item[5],
-                "bp_sistolica_max": item[6],
-                "bp_diastolica_promedio": item[7],
-                "bp_diastolica_min": item[8],
-                "bp_diastolica_max": item[9]
-            })
+            try:
+                # Asegurar que los valores numéricos sean convertidos correctamente
+                processed_data.append({
+                    "id_usuario": item[0],
+                    "fecha": item[1].isoformat() if item[1] else None,
+                    "id_postura": item[2],
+                    "id_dispositivo": item[3],
+                    "bp_sistolica_promedio": float(item[4]) if item[4] is not None else None,
+                    "bp_sistolica_min": float(item[5]) if item[5] is not None else None,
+                    "bp_sistolica_max": float(item[6]) if item[6] is not None else None,
+                    "bp_diastolica_promedio": float(item[7]) if item[7] is not None else None,
+                    "bp_diastolica_min": float(item[8]) if item[8] is not None else None,
+                    "bp_diastolica_max": float(item[9]) if item[9] is not None else None
+                })
+            except (ValueError, TypeError) as e:
+                # Si hay error en la conversión, usar valores por defecto
+                processed_data.append({
+                    "id_usuario": item[0],
+                    "fecha": item[1].isoformat() if item[1] else None,
+                    "id_postura": item[2],
+                    "id_dispositivo": item[3],
+                    "bp_sistolica_promedio": None,
+                    "bp_sistolica_min": None,
+                    "bp_sistolica_max": None,
+                    "bp_diastolica_promedio": None,
+                    "bp_diastolica_min": None,
+                    "bp_diastolica_max": None
+                })
         
-        # Calcular estadísticas
-        all_systolic = [item["bp_sistolica_promedio"] for item in processed_data if item["bp_sistolica_promedio"]]
-        all_diastolic = [item["bp_diastolica_promedio"] for item in processed_data if item["bp_diastolica_promedio"]]
+        # Calcular estadísticas - filtrar valores None
+        all_systolic = [item["bp_sistolica_promedio"] for item in processed_data if item["bp_sistolica_promedio"] is not None]
+        all_diastolic = [item["bp_diastolica_promedio"] for item in processed_data if item["bp_diastolica_promedio"] is not None]
         
         stats = {
             "totalRegistros": len(processed_data),
@@ -878,7 +894,7 @@ def get_dashboard_monitoreo_pa_stats():
             "success": True,
             "dashboard": "monitoreo-pa-stats",
             "stats": stats
-        }, "dashboard_monitoreo_pa_stats")
+        })
         
     except psycopg2.Error as e:
         if conn:
@@ -1105,6 +1121,7 @@ def get_dashboard_lab_charts():
         conn = get_db_conn()
         cur = conn.cursor()
         
+        # Usar transacción para manejar el cursor
         cur.execute("BEGIN;")
         cur.execute("CALL sp_dashboard_lab('cursor_result');")
         cur.execute("FETCH ALL FROM cursor_result;")
@@ -1159,6 +1176,8 @@ def get_dashboard_lab_charts():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1493,7 +1512,7 @@ def get_dashboard_signos_vitales_stats():
                     "saturacionOxigenoMin": 0,
                     "saturacionOxigenoMax": 0
                 }
-            }, "dashboard_signos_vitales_stats")
+            })
         
         # Convertir datos a objetos con propiedades nombradas
         processed_data = []
@@ -1524,7 +1543,7 @@ def get_dashboard_signos_vitales_stats():
             "success": True,
             "dashboard": "signos-vitales-stats",
             "stats": stats
-        }, "dashboard_signos_vitales_stats")
+        })
         
     except psycopg2.Error as e:
         if conn:
@@ -1532,6 +1551,326 @@ def get_dashboard_signos_vitales_stats():
         return jsonify({"error": f"db_error: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": f"processing_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+# -----------------------------------------------------------------------------
+# Dashboard KPIs endpoints - Indicadores Clave de Rendimiento
+# -----------------------------------------------------------------------------
+
+@app.route("/api/dashboard/kpis", methods=["GET"])
+@auth_required
+def get_dashboard_kpis():
+    """Dashboard KPIs: Indicadores Clave de Rendimiento"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar transacción para manejar el cursor
+        cur.execute("BEGIN;")
+        cur.execute("CALL sp_dashboard_kpis('cursor_result');")
+        cur.execute("FETCH ALL FROM cursor_result;")
+        data = cur.fetchall()
+        cur.execute("COMMIT;")
+        
+        if not data:
+            return jsonify({
+                "success": True,
+                "dashboard": "kpis",
+                "data": {
+                    "documentos_subidos": 0,
+                    "predicciones_generadas": 0,
+                    "registros_medicos": 0,
+                    "respuestas_estilo_vida": 0,
+                    "signos_vitales_registrados": 0,
+                    "total_usuarios": 0,
+                    "usuarios_activos_30_dias": 0,
+                    "usuarios_activos_7_dias": 0,
+                    "usuarios_nuevos_30_dias": 0,
+                    "documentos_esta_semana": 0,
+                    "predicciones_esta_semana": 0,
+                    "registros_medicos_esta_semana": 0,
+                    "fecha_actualizacion": None
+                }
+            })
+        
+        # Procesar datos
+        row = data[0]
+        kpis_data = {
+            "documentos_subidos": row[0],
+            "predicciones_generadas": row[1],
+            "registros_medicos": row[2],
+            "respuestas_estilo_vida": row[3],
+            "signos_vitales_registrados": row[4],
+            "total_usuarios": row[5],
+            "usuarios_activos_30_dias": row[6],
+            "usuarios_activos_7_dias": row[7],
+            "usuarios_nuevos_30_dias": row[8],
+            "documentos_esta_semana": row[9],
+            "predicciones_esta_semana": row[10],
+            "registros_medicos_esta_semana": row[11],
+            "fecha_actualizacion": row[12].isoformat() if row[12] else None
+        }
+        
+        return jsonify({
+            "success": True,
+            "dashboard": "kpis",
+            "data": kpis_data
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+@app.route("/api/dashboard/kpis/usuarios-por-rol", methods=["GET"])
+@auth_required
+def get_dashboard_usuarios_por_rol():
+    """Dashboard KPIs: Usuarios por Rol"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar transacción para manejar el cursor
+        cur.execute("BEGIN;")
+        cur.execute("CALL sp_dashboard_usuarios_por_rol('cursor_result');")
+        cur.execute("FETCH ALL FROM cursor_result;")
+        data = cur.fetchall()
+        cur.execute("COMMIT;")
+        
+        # Procesar datos
+        processed_data = []
+        for row in data:
+            processed_data.append({
+                "rol": row[0],
+                "cantidad": row[1],
+                "porcentaje": float(row[2]) if row[2] else 0
+            })
+        
+        return jsonify({
+            "success": True,
+            "dashboard": "usuarios-por-rol",
+            "data": processed_data,
+            "total": len(processed_data)
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+@app.route("/api/dashboard/kpis/frecuencia-diaria", methods=["GET"])
+@auth_required
+def get_dashboard_frecuencia_diaria():
+    """Dashboard KPIs: Frecuencia Diaria de Actualización"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar transacción para manejar el cursor
+        cur.execute("BEGIN;")
+        cur.execute("CALL sp_dashboard_frecuencia_diaria('cursor_result');")
+        cur.execute("FETCH ALL FROM cursor_result;")
+        data = cur.fetchall()
+        cur.execute("COMMIT;")
+        
+        # Procesar datos
+        processed_data = []
+        for row in data:
+            processed_data.append({
+                "fecha": row[0].isoformat() if row[0] else None,
+                "cantidad": row[1],
+                "tipo_contenido": row[2]
+            })
+        
+        return jsonify({
+            "success": True,
+            "dashboard": "frecuencia-diaria",
+            "data": processed_data,
+            "total": len(processed_data)
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+@app.route("/api/dashboard/kpis/crecimiento-semanal", methods=["GET"])
+@auth_required
+def get_dashboard_crecimiento_semanal():
+    """Dashboard KPIs: Crecimiento Semanal"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar transacción para manejar el cursor
+        cur.execute("BEGIN;")
+        cur.execute("CALL sp_dashboard_crecimiento_semanal('cursor_result');")
+        cur.execute("FETCH ALL FROM cursor_result;")
+        data = cur.fetchall()
+        cur.execute("COMMIT;")
+        
+        # Procesar datos
+        processed_data = []
+        for row in data:
+            processed_data.append({
+                "semana": row[0].isoformat() if row[0] else None,
+                "cantidad": row[1],
+                "tipo_contenido": row[2]
+            })
+        
+        return jsonify({
+            "success": True,
+            "dashboard": "crecimiento-semanal",
+            "data": processed_data,
+            "total": len(processed_data)
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+@app.route("/api/dashboard/kpis/actividad-usuarios", methods=["GET"])
+@auth_required
+def get_dashboard_actividad_usuarios():
+    """Dashboard KPIs: Actividad de Usuarios"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar transacción para manejar el cursor
+        cur.execute("BEGIN;")
+        cur.execute("CALL sp_dashboard_actividad_usuarios('cursor_result');")
+        cur.execute("FETCH ALL FROM cursor_result;")
+        data = cur.fetchall()
+        cur.execute("COMMIT;")
+        
+        # Procesar datos
+        processed_data = []
+        for row in data:
+            processed_data.append({
+                "fecha": row[0].isoformat() if row[0] else None,
+                "usuarios_activos": row[1],
+                "usuarios_nuevos": row[2]
+            })
+        
+        return jsonify({
+            "success": True,
+            "dashboard": "actividad-usuarios",
+            "data": processed_data,
+            "total": len(processed_data)
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+@app.route("/api/dashboard/kpis/resumen-ejecutivo", methods=["GET"])
+@auth_required
+def get_dashboard_resumen_ejecutivo():
+    """Dashboard KPIs: Resumen Ejecutivo"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar transacción para manejar el cursor
+        cur.execute("BEGIN;")
+        cur.execute("CALL sp_dashboard_resumen_ejecutivo('cursor_result');")
+        cur.execute("FETCH ALL FROM cursor_result;")
+        data = cur.fetchall()
+        cur.execute("COMMIT;")
+        
+        if not data:
+            return jsonify({
+                "success": True,
+                "dashboard": "resumen-ejecutivo",
+                "data": {
+                    "total_usuarios": 0,
+                    "total_documentos": 0,
+                    "total_predicciones": 0,
+                    "total_registros_medicos": 0,
+                    "usuarios_activos_semana": 0,
+                    "documentos_semana": 0,
+                    "predicciones_semana": 0,
+                    "crecimiento_usuarios_porcentaje": 0,
+                    "crecimiento_documentos_porcentaje": 0,
+                    "fecha_actualizacion": None
+                }
+            })
+        
+        # Procesar datos
+        row = data[0]
+        resumen_data = {
+            "total_usuarios": row[0],
+            "total_documentos": row[1],
+            "total_predicciones": row[2],
+            "total_registros_medicos": row[3],
+            "usuarios_activos_semana": row[4],
+            "documentos_semana": row[5],
+            "predicciones_semana": row[6],
+            "crecimiento_usuarios_porcentaje": float(row[7]) if row[7] else 0,
+            "crecimiento_documentos_porcentaje": float(row[8]) if row[8] else 0,
+            "fecha_actualizacion": row[9].isoformat() if row[9] else None
+        }
+        
+        return jsonify({
+            "success": True,
+            "dashboard": "resumen-ejecutivo",
+            "data": resumen_data
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()

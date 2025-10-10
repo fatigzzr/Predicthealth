@@ -894,6 +894,223 @@ END;
 $$;
 
 -- =====================================
+-- VISTAS: Dashboard KPIs - Indicadores Clave de Rendimiento
+-- =====================================
+
+-- Vista consolidada de KPIs principales
+CREATE OR REPLACE VIEW dashboard_kpis AS
+SELECT 
+    -- KPI 1: Total de contenidos publicados
+    (SELECT COUNT(*) FROM Documento_Subido) as documentos_subidos,
+    (SELECT COUNT(*) FROM Prediccion) as predicciones_generadas,
+    (SELECT COUNT(*) FROM Historial_Medico) as registros_medicos,
+    (SELECT COUNT(*) FROM Respuesta_Estilo_Vida) as respuestas_estilo_vida,
+    (SELECT COUNT(*) FROM Signo_Vital) as signos_vitales_registrados,
+    
+    -- KPI 2: Número de usuarios activos
+    (SELECT COUNT(*) FROM Usuario) as total_usuarios,
+    (SELECT COUNT(*) FROM Usuario WHERE actualizado_en >= NOW() - INTERVAL '30 days') as usuarios_activos_30_dias,
+    (SELECT COUNT(*) FROM Usuario WHERE actualizado_en >= NOW() - INTERVAL '7 days') as usuarios_activos_7_dias,
+    (SELECT COUNT(*) FROM Usuario WHERE creado_en >= NOW() - INTERVAL '30 days') as usuarios_nuevos_30_dias,
+    
+    -- KPI 3: Frecuencia de actualización (últimos 7 días)
+    (SELECT COUNT(*) FROM Documento_Subido WHERE fecha_subido >= NOW() - INTERVAL '7 days') as documentos_esta_semana,
+    (SELECT COUNT(*) FROM Prediccion WHERE fecha >= NOW() - INTERVAL '7 days') as predicciones_esta_semana,
+    (SELECT COUNT(*) FROM Historial_Medico WHERE fecha >= NOW() - INTERVAL '7 days') as registros_medicos_esta_semana,
+    
+    -- Fecha de actualización
+    NOW() as fecha_actualizacion;
+
+-- Vista de usuarios por rol
+CREATE OR REPLACE VIEW dashboard_usuarios_por_rol AS
+SELECT 
+    r.nombre as rol, 
+    COUNT(u.id_usuario) as cantidad,
+    ROUND((COUNT(u.id_usuario) * 100.0 / (SELECT COUNT(*) FROM Usuario)), 2) as porcentaje
+FROM Rol r 
+LEFT JOIN Usuario u ON r.id_rol = u.id_rol 
+GROUP BY r.id_rol, r.nombre
+ORDER BY cantidad DESC;
+
+-- Vista de frecuencia de actualización por día (últimos 30 días)
+CREATE OR REPLACE VIEW dashboard_frecuencia_diaria AS
+SELECT 
+    DATE_TRUNC('day', fecha_subido) as fecha,
+    COUNT(*) as documentos_subidos,
+    'documentos' as tipo_contenido
+FROM Documento_Subido 
+WHERE fecha_subido >= NOW() - INTERVAL '30 days'
+GROUP BY DATE_TRUNC('day', fecha_subido)
+
+UNION ALL
+
+SELECT 
+    DATE_TRUNC('day', fecha) as fecha,
+    COUNT(*) as predicciones_generadas,
+    'predicciones' as tipo_contenido
+FROM Prediccion 
+WHERE fecha >= NOW() - INTERVAL '30 days'
+GROUP BY DATE_TRUNC('day', fecha)
+
+UNION ALL
+
+SELECT 
+    DATE_TRUNC('day', fecha) as fecha,
+    COUNT(*) as registros_medicos,
+    'registros_medicos' as tipo_contenido
+FROM Historial_Medico 
+WHERE fecha >= NOW() - INTERVAL '30 days'
+GROUP BY DATE_TRUNC('day', fecha)
+
+ORDER BY fecha DESC;
+
+-- Vista de crecimiento semanal
+CREATE OR REPLACE VIEW dashboard_crecimiento_semanal AS
+SELECT 
+    DATE_TRUNC('week', fecha_subido) as semana,
+    COUNT(*) as documentos_semana,
+    'documentos' as tipo_contenido
+FROM Documento_Subido 
+WHERE fecha_subido >= NOW() - INTERVAL '12 weeks'
+GROUP BY DATE_TRUNC('week', fecha_subido)
+
+UNION ALL
+
+SELECT 
+    DATE_TRUNC('week', fecha) as semana,
+    COUNT(*) as predicciones_semana,
+    'predicciones' as tipo_contenido
+FROM Prediccion 
+WHERE fecha >= NOW() - INTERVAL '12 weeks'
+GROUP BY DATE_TRUNC('week', fecha)
+
+ORDER BY semana DESC;
+
+-- Vista de actividad de usuarios por día
+CREATE OR REPLACE VIEW dashboard_actividad_usuarios AS
+SELECT 
+    DATE_TRUNC('day', actualizado_en) as fecha,
+    COUNT(*) as usuarios_activos,
+    COUNT(CASE WHEN creado_en >= DATE_TRUNC('day', actualizado_en) THEN 1 END) as usuarios_nuevos
+FROM Usuario 
+WHERE actualizado_en >= NOW() - INTERVAL '30 days'
+GROUP BY DATE_TRUNC('day', actualizado_en)
+ORDER BY fecha DESC;
+
+-- Vista de resumen ejecutivo
+CREATE OR REPLACE VIEW dashboard_resumen_ejecutivo AS
+SELECT 
+    -- Totales generales
+    (SELECT COUNT(*) FROM Usuario) as total_usuarios,
+    (SELECT COUNT(*) FROM Documento_Subido) as total_documentos,
+    (SELECT COUNT(*) FROM Prediccion) as total_predicciones,
+    (SELECT COUNT(*) FROM Historial_Medico) as total_registros_medicos,
+    
+    -- Actividad reciente
+    (SELECT COUNT(*) FROM Usuario WHERE actualizado_en >= NOW() - INTERVAL '7 days') as usuarios_activos_semana,
+    (SELECT COUNT(*) FROM Documento_Subido WHERE fecha_subido >= NOW() - INTERVAL '7 days') as documentos_semana,
+    (SELECT COUNT(*) FROM Prediccion WHERE fecha >= NOW() - INTERVAL '7 days') as predicciones_semana,
+    
+    -- Tendencias
+    ROUND(
+        (SELECT COUNT(*) FROM Usuario WHERE creado_en >= NOW() - INTERVAL '30 days') * 100.0 / 
+        NULLIF((SELECT COUNT(*) FROM Usuario WHERE creado_en >= NOW() - INTERVAL '60 days'), 0), 2
+    ) as crecimiento_usuarios_porcentaje,
+    
+    ROUND(
+        (SELECT COUNT(*) FROM Documento_Subido WHERE fecha_subido >= NOW() - INTERVAL '30 days') * 100.0 / 
+        NULLIF((SELECT COUNT(*) FROM Documento_Subido WHERE fecha_subido >= NOW() - INTERVAL '60 days'), 0), 2
+    ) as crecimiento_documentos_porcentaje,
+    
+    -- Fecha de actualización
+    NOW() as fecha_actualizacion;
+
+-- Comentarios de las vistas
+COMMENT ON VIEW dashboard_kpis IS 'Vista consolidada de KPIs principales del sistema';
+COMMENT ON VIEW dashboard_usuarios_por_rol IS 'Distribución de usuarios por rol con porcentajes';
+COMMENT ON VIEW dashboard_frecuencia_diaria IS 'Frecuencia de actualización de contenido por día (últimos 30 días)';
+COMMENT ON VIEW dashboard_crecimiento_semanal IS 'Crecimiento semanal de contenido (últimas 12 semanas)';
+COMMENT ON VIEW dashboard_actividad_usuarios IS 'Actividad diaria de usuarios (últimos 30 días)';
+COMMENT ON VIEW dashboard_resumen_ejecutivo IS 'Resumen ejecutivo con métricas clave y tendencias';
+
+-- =====================================
+-- STORED PROCEDURES: Dashboard KPIs - Indicadores Clave de Rendimiento
+-- =====================================
+
+-- SP 1: KPIs principales
+CREATE OR REPLACE PROCEDURE sp_dashboard_kpis(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_kpis;
+END;
+$$;
+
+-- SP 2: Usuarios por rol
+CREATE OR REPLACE PROCEDURE sp_dashboard_usuarios_por_rol(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_usuarios_por_rol;
+END;
+$$;
+
+-- SP 3: Frecuencia diaria
+CREATE OR REPLACE PROCEDURE sp_dashboard_frecuencia_diaria(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_frecuencia_diaria;
+END;
+$$;
+
+-- SP 4: Crecimiento semanal
+CREATE OR REPLACE PROCEDURE sp_dashboard_crecimiento_semanal(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_crecimiento_semanal;
+END;
+$$;
+
+-- SP 5: Actividad de usuarios
+CREATE OR REPLACE PROCEDURE sp_dashboard_actividad_usuarios(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_actividad_usuarios;
+END;
+$$;
+
+-- SP 6: Resumen ejecutivo
+CREATE OR REPLACE PROCEDURE sp_dashboard_resumen_ejecutivo(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_resumen_ejecutivo;
+END;
+$$;
+
+
+-- =====================================
 -- Procedimiento: Insertar Signo Vital y alertas automáticas
 -- =====================================
 CREATE OR REPLACE PROCEDURE insertar_signo_vital(
@@ -14409,4 +14626,5 @@ SELECT (SELECT id_enfermedad FROM Enfermedad WHERE nombre = 'Hipertensión'),
        False, 
        CURRENT_TIMESTAMP, 
        0.2;
+
 

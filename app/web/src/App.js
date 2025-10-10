@@ -4,13 +4,14 @@ import LoginForm from "./components/LoginForm";
 import AdminDashboard from "./components/AdminDashboard";
 import DatabaseTables from "./components/DatabaseTables";
 import ReportesAnalisis from "./components/ReportesAnalisis";
+import KPIs from "./components/KPIs";
 import authService from "./services/authService";
 
 function App() {
   const [showLogin, setShowLogin] = useState(true);
   const [fade, setFade] = useState(false);     // initial false for fade-in
   const [initialized, setInitialized] = useState(false);
-  const [currentView, setCurrentView] = useState("dashboard"); // "dashboard", "database", or "reportes"
+  const [currentView, setCurrentView] = useState("dashboard"); // "dashboard", "database", "reportes", or "kpis"
 
   // Check "session" on mount
   useEffect(() => {
@@ -87,6 +88,12 @@ function App() {
               >
                 Reportes y Análisis
               </button>
+              <button 
+                className={`nav-button ${currentView === "kpis" ? "active" : ""}`}
+                onClick={() => setCurrentView("kpis")}
+              >
+                KPIs
+              </button>
             </div>
             <button className="logout-button" onClick={handleLogout}>
               Log Out
@@ -96,7 +103,8 @@ function App() {
           <div className={`fade-container ${fade ? "fade-in" : "fade-out"} dashboard-fade`}>
             {currentView === "dashboard" ? <AdminDashboard /> : 
              currentView === "database" ? <DatabaseTables /> : 
-             <ReportesAnalisis />}
+             currentView === "reportes" ? <ReportesAnalisis /> :
+             <KPIs />}
           </div>
         </>
       )}

@@ -361,3 +361,203 @@ INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha) VALUES
 (4, 2, 'True', NOW() - INTERVAL '15 days'),
 (4, 6, 'True', NOW() - INTERVAL '15 days'),
 (4, 5, 'True', NOW() - INTERVAL '15 days');
+
+-- =====================================
+-- DATOS PARA DASHBOARD DE ACTIVIDAD DE USUARIOS
+-- =====================================
+
+-- Actualizar fechas de usuarios existentes para simular actividad diaria
+-- Usuario 2 - Actividad reciente (últimos 7 días)
+UPDATE Usuario SET 
+    actualizado_en = NOW() - INTERVAL '1 day' + INTERVAL '14:30:00',
+    creado_en = NOW() - INTERVAL '5 days' + INTERVAL '09:15:00'
+WHERE id_usuario = 2;
+
+-- Usuario 3 - Actividad hace 2 días
+UPDATE Usuario SET 
+    actualizado_en = NOW() - INTERVAL '2 days' + INTERVAL '16:45:00',
+    creado_en = NOW() - INTERVAL '8 days' + INTERVAL '11:20:00'
+WHERE id_usuario = 3;
+
+-- Usuario 4 - Actividad hace 3 días
+UPDATE Usuario SET 
+    actualizado_en = NOW() - INTERVAL '3 days' + INTERVAL '10:15:00',
+    creado_en = NOW() - INTERVAL '12 days' + INTERVAL '08:30:00'
+WHERE id_usuario = 4;
+
+-- Usuario 5 - Actividad hace 4 días
+UPDATE Usuario SET 
+    actualizado_en = NOW() - INTERVAL '4 days' + INTERVAL '13:20:00',
+    creado_en = NOW() - INTERVAL '15 days' + INTERVAL '15:45:00'
+WHERE id_usuario = 5;
+
+-- Crear usuarios adicionales para simular actividad diaria variada
+-- Usuario 6 - Actividad hace 5 días (Doctor)
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'maria.gonzalez@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '5 days' + INTERVAL '12:30:00', 
+ NOW() - INTERVAL '5 days' + INTERVAL '12:30:00');
+
+-- Usuario 7 - Actividad hace 6 días (Doctor)
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'carlos.lopez@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '6 days' + INTERVAL '14:15:00', 
+ NOW() - INTERVAL '6 days' + INTERVAL '14:15:00');
+
+-- Usuario 8 - Doctor (hace 7 días)
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'ana.martinez@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '7 days' + INTERVAL '16:45:00', 
+ NOW() - INTERVAL '7 days' + INTERVAL '16:45:00');
+
+-- Usuario 9 - Administrador (hace 10 días)
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(3, 'roberto.hernandez@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '10 days' + INTERVAL '09:30:00', 
+ NOW() - INTERVAL '10 days' + INTERVAL '09:30:00');
+
+-- Usuario 10 - Analista (hace 12 días)
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(4, 'laura.sanchez@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '12 days' + INTERVAL '11:45:00', 
+ NOW() - INTERVAL '12 days' + INTERVAL '11:45:00');
+
+-- Usuario 11 - Doctor (hace 15 días)
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'diego.ramirez@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '15 days' + INTERVAL '13:20:00', 
+ NOW() - INTERVAL '15 days' + INTERVAL '13:20:00');
+
+-- Usuario 12 - Doctor (hace 18 días)
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'patricia.flores@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '18 days' + INTERVAL '15:10:00', 
+ NOW() - INTERVAL '18 days' + INTERVAL '15:10:00');
+
+-- Usuario 13 - Administrador (hace 20 días)
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(3, 'miguel.torres@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '20 days' + INTERVAL '10:25:00', 
+ NOW() - INTERVAL '20 days' + INTERVAL '10:25:00');
+
+-- Usuario 14 - Analista (hace 25 días)
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(4, 'sofia.vargas@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '25 days' + INTERVAL '14:50:00', 
+ NOW() - INTERVAL '25 days' + INTERVAL '14:50:00');
+
+-- Usuario 15 - Doctor (hace 28 días)
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'fernando.morales@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '28 days' + INTERVAL '12:15:00', 
+ NOW() - INTERVAL '28 days' + INTERVAL '12:15:00');
+
+-- Simular actividad adicional en días específicos
+-- Día hace 1 día - Más usuarios activos
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'carmen.jimenez@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '1 day' + INTERVAL '08:30:00', 
+ NOW() - INTERVAL '1 day' + INTERVAL '08:30:00'),
+(3, 'jorge.castro@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '1 day' + INTERVAL '10:45:00', 
+ NOW() - INTERVAL '1 day' + INTERVAL '10:45:00');
+
+-- Día hace 2 días - Pico de actividad
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'isabel.ruiz@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '2 days' + INTERVAL '09:15:00', 
+ NOW() - INTERVAL '2 days' + INTERVAL '09:15:00'),
+(2, 'antonio.mendoza@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '2 days' + INTERVAL '11:30:00', 
+ NOW() - INTERVAL '2 days' + INTERVAL '11:30:00'),
+(4, 'elena.silva@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '2 days' + INTERVAL '13:45:00', 
+ NOW() - INTERVAL '2 days' + INTERVAL '13:45:00');
+
+-- Día hace 3 días - Actividad moderada
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'ricardo.perez@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '3 days' + INTERVAL '14:20:00', 
+ NOW() - INTERVAL '3 days' + INTERVAL '14:20:00'),
+(3, 'valentina.rojas@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '3 days' + INTERVAL '16:35:00', 
+ NOW() - INTERVAL '3 days' + INTERVAL '16:35:00');
+
+-- Día hace 4 días - Actividad baja
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'gabriel.ortega@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '4 days' + INTERVAL '12:10:00', 
+ NOW() - INTERVAL '4 days' + INTERVAL '12:10:00');
+
+-- Día hace 5 días - Actividad moderada
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'natalia.guerrero@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '5 days' + INTERVAL '15:25:00', 
+ NOW() - INTERVAL '5 days' + INTERVAL '15:25:00'),
+(4, 'hector.vega@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '5 days' + INTERVAL '17:40:00', 
+ NOW() - INTERVAL '5 days' + INTERVAL '17:40:00');
+
+-- Día hace 6 días - Actividad alta
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'adriana.molina@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '6 days' + INTERVAL '10:15:00', 
+ NOW() - INTERVAL '6 days' + INTERVAL '10:15:00'),
+(2, 'oscar.herrera@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '6 days' + INTERVAL '12:30:00', 
+ NOW() - INTERVAL '6 days' + INTERVAL '12:30:00'),
+(3, 'claudia.reyes@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '6 days' + INTERVAL '14:45:00', 
+ NOW() - INTERVAL '6 days' + INTERVAL '14:45:00');
+
+-- Día hace 7 días - Actividad moderada
+INSERT INTO Usuario (id_rol, email, contraseña_hash, creado_en, actualizado_en) VALUES
+(2, 'raul.campos@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '7 days' + INTERVAL '11:20:00', 
+ NOW() - INTERVAL '7 days' + INTERVAL '11:20:00'),
+(4, 'monica.luna@test.com', crypt('password123', gen_salt('bf')), 
+ NOW() - INTERVAL '7 days' + INTERVAL '13:35:00', 
+ NOW() - INTERVAL '7 days' + INTERVAL '13:35:00');
+
+-- Simular actualizaciones de usuarios existentes en diferentes días
+-- Usuario 2 - Actualización hace 1 día
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '1 day' + INTERVAL '16:30:00' WHERE id_usuario = 2;
+
+-- Usuario 3 - Actualización hace 2 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '2 days' + INTERVAL '18:15:00' WHERE id_usuario = 3;
+
+-- Usuario 4 - Actualización hace 3 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '3 days' + INTERVAL '14:45:00' WHERE id_usuario = 4;
+
+-- Usuario 5 - Actualización hace 4 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '4 days' + INTERVAL '12:20:00' WHERE id_usuario = 5;
+
+-- Usuario 6 - Actualización hace 5 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '5 days' + INTERVAL '15:10:00' WHERE id_usuario = 6;
+
+-- Usuario 7 - Actualización hace 6 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '6 days' + INTERVAL '17:25:00' WHERE id_usuario = 7;
+
+-- Usuario 8 - Actualización hace 7 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '7 days' + INTERVAL '19:40:00' WHERE id_usuario = 8;
+
+-- Usuario 9 - Actualización hace 10 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '10 days' + INTERVAL '11:15:00' WHERE id_usuario = 9;
+
+-- Usuario 10 - Actualización hace 12 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '12 days' + INTERVAL '13:30:00' WHERE id_usuario = 10;
+
+-- Usuario 11 - Actualización hace 15 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '15 days' + INTERVAL '15:45:00' WHERE id_usuario = 11;
+
+-- Usuario 12 - Actualización hace 18 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '18 days' + INTERVAL '17:20:00' WHERE id_usuario = 12;
+
+-- Usuario 13 - Actualización hace 20 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '20 days' + INTERVAL '12:35:00' WHERE id_usuario = 13;
+
+-- Usuario 14 - Actualización hace 25 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '25 days' + INTERVAL '16:50:00' WHERE id_usuario = 14;
+
+-- Usuario 15 - Actualización hace 28 días
+UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '28 days' + INTERVAL '14:25:00' WHERE id_usuario = 15;
