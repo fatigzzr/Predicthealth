@@ -47,7 +47,7 @@ export default function AdminDashboard({ patients }) {
       throw new Error('No hay token de autenticación');
     }
 
-    const response = await fetch(`${API_BASE_URL}/dashboard/kpis/predicciones-por-mes`, {
+      const response = await fetch(`${API_BASE_URL}/dashboard/graficos/predicciones-por-mes`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -74,7 +74,7 @@ export default function AdminDashboard({ patients }) {
       throw new Error('No hay token de autenticación');
     }
 
-    const response = await fetch(`${API_BASE_URL}/dashboard/kpis/distribucion-enfermedades`, {
+      const response = await fetch(`${API_BASE_URL}/dashboard/graficos/distribucion-enfermedades`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -102,7 +102,7 @@ export default function AdminDashboard({ patients }) {
         throw new Error('No hay token de autenticación');
       }
 
-      const response = await fetch(`${API_BASE_URL}/dashboard/kpis/estado-documentos`, {
+      const response = await fetch(`${API_BASE_URL}/dashboard/graficos/estado-documentos`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -134,7 +134,7 @@ export default function AdminDashboard({ patients }) {
         throw new Error('No hay token de autenticación');
       }
 
-      const response = await fetch(`${API_BASE_URL}/dashboard/kpis/distribucion-demografica`, {
+      const response = await fetch(`${API_BASE_URL}/dashboard/graficos/distribucion-demografica`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -166,7 +166,7 @@ export default function AdminDashboard({ patients }) {
         throw new Error('No hay token de autenticación');
       }
 
-      const response = await fetch(`${API_BASE_URL}/dashboard/kpis/crecimiento-acumulado-usuarios`, {
+      const response = await fetch(`${API_BASE_URL}/dashboard/graficos/crecimiento-acumulado-usuarios`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -198,7 +198,7 @@ export default function AdminDashboard({ patients }) {
         throw new Error('No hay token de autenticación');
       }
 
-      const response = await fetch(`${API_BASE_URL}/dashboard/kpis/top-usuarios-activos`, {
+      const response = await fetch(`${API_BASE_URL}/dashboard/graficos/top-usuarios-activos`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -237,12 +237,12 @@ export default function AdminDashboard({ patients }) {
     
     // Intentar cargar cada endpoint individualmente
     const endpoints = [
-      { name: 'predicciones-por-mes', setter: setPrediccionesPorMes },
-      { name: 'distribucion-enfermedades', setter: setDistribucionEnfermedades },
-      { name: 'estado-documentos', setter: setEstadoDocumentos },
-      { name: 'distribucion-demografica', setter: setDistribucionDemografica },
-      { name: 'crecimiento-acumulado-usuarios', setter: setCrecimientoUsuarios },
-      { name: 'top-usuarios-activos', setter: setTopUsuariosActivos }
+      { name: 'graficos/predicciones-por-mes', setter: setPrediccionesPorMes },
+      { name: 'graficos/distribucion-enfermedades', setter: setDistribucionEnfermedades },
+      { name: 'graficos/estado-documentos', setter: setEstadoDocumentos },
+      { name: 'graficos/distribucion-demografica', setter: setDistribucionDemografica },
+      { name: 'graficos/crecimiento-acumulado-usuarios', setter: setCrecimientoUsuarios },
+      { name: 'graficos/top-usuarios-activos', setter: setTopUsuariosActivos }
     ];
     
     let hasError = false;
@@ -255,9 +255,9 @@ export default function AdminDashboard({ patients }) {
           throw new Error('No hay token de autenticación');
         }
 
-        console.log(`Intentando conectar a: ${API_BASE_URL}/dashboard/kpis/${endpoint.name}`);
+        console.log(`Intentando conectar a: ${API_BASE_URL}/dashboard/${endpoint.name}`);
         
-        const response = await fetch(`${API_BASE_URL}/dashboard/kpis/${endpoint.name}`, {
+        const response = await fetch(`${API_BASE_URL}/dashboard/${endpoint.name}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,

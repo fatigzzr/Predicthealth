@@ -1979,7 +1979,7 @@ def get_dashboard_resumen_ejecutivo():
 # NUEVOS ENDPOINTS PARA LAS 6 GRÁFICAS
 # =====================================
 
-@app.route("/api/dashboard/kpis/predicciones-por-mes", methods=["GET"])
+@app.route("/api/dashboard/graficos/predicciones-por-mes", methods=["GET"])
 @auth_required
 def get_dashboard_predicciones_por_mes():
     """Dashboard KPIs: Predicciones por Mes (Líneas)"""
@@ -2024,7 +2024,7 @@ def get_dashboard_predicciones_por_mes():
             put_db_conn(conn)
 
 
-@app.route("/api/dashboard/kpis/distribucion-enfermedades", methods=["GET"])
+@app.route("/api/dashboard/graficos/distribucion-enfermedades", methods=["GET"])
 @auth_required
 def get_dashboard_distribucion_enfermedades():
     """Dashboard KPIs: Distribución de Enfermedades (Pastel)"""
@@ -2067,7 +2067,7 @@ def get_dashboard_distribucion_enfermedades():
             put_db_conn(conn)
 
 
-@app.route("/api/dashboard/kpis/estado-documentos", methods=["GET"])
+@app.route("/api/dashboard/graficos/estado-documentos", methods=["GET"])
 @auth_required
 def get_dashboard_estado_documentos():
     """Dashboard KPIs: Estado de Documentos (Barras Apiladas)"""
@@ -2110,7 +2110,7 @@ def get_dashboard_estado_documentos():
             put_db_conn(conn)
 
 
-@app.route("/api/dashboard/kpis/distribucion-demografica", methods=["GET"])
+@app.route("/api/dashboard/graficos/distribucion-demografica", methods=["GET"])
 @auth_required
 def get_dashboard_distribucion_demografica():
     """Dashboard KPIs: Distribución Demográfica (Barras Horizontales)"""
@@ -2153,7 +2153,7 @@ def get_dashboard_distribucion_demografica():
             put_db_conn(conn)
 
 
-@app.route("/api/dashboard/kpis/crecimiento-acumulado-usuarios", methods=["GET"])
+@app.route("/api/dashboard/graficos/crecimiento-acumulado-usuarios", methods=["GET"])
 @auth_required
 def get_dashboard_crecimiento_acumulado_usuarios():
     """Dashboard KPIs: Crecimiento Acumulado de Usuarios (Área)"""
@@ -2197,7 +2197,7 @@ def get_dashboard_crecimiento_acumulado_usuarios():
             put_db_conn(conn)
 
 
-@app.route("/api/dashboard/kpis/top-usuarios-activos", methods=["GET"])
+@app.route("/api/dashboard/graficos/top-usuarios-activos", methods=["GET"])
 @auth_required
 def get_dashboard_top_usuarios_activos():
     """Dashboard KPIs: Top 5 Usuarios Más Activos (Barras Verticales)"""
