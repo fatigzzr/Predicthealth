@@ -1034,6 +1034,116 @@ COMMENT ON VIEW dashboard_actividad_usuarios IS 'Actividad diaria de usuarios (�
 COMMENT ON VIEW dashboard_resumen_ejecutivo IS 'Resumen ejecutivo con métricas clave y tendencias';
 
 -- =====================================
+-- VISTAS ADICIONALES PARA GRÁFICAS DEL DASHBOARD
+-- =====================================
+
+-- Vista 1: Predicciones por Mes (Líneas)
+CREATE OR REPLACE VIEW vista_predicciones_por_mes AS
+SELECT 
+    DATE_TRUNC('month', fecha) as mes,
+    COUNT(*) as total_predicciones,
+    AVG(probabilidad) as probabilidad_promedio,
+    COUNT(CASE WHEN prediccion = true THEN 1 END) as predicciones_positivas,
+    COUNT(CASE WHEN prediccion = false THEN 1 END) as predicciones_negativas
+FROM Prediccion 
+GROUP BY DATE_TRUNC('month', fecha)
+ORDER BY mes;
+
+-- Vista 2: Distribución de Enfermedades (Pastel)
+CREATE OR REPLACE VIEW vista_distribucion_enfermedades AS
+SELECT 
+    e.nombre as enfermedad,
+    COUNT(he.id_enfermedad) as casos,
+    ROUND(
+        (COUNT(he.id_enfermedad) * 100.0 / 
+         (SELECT COUNT(*) FROM Historial_Enfermedad)), 2
+    ) as porcentaje
+FROM Enfermedad e
+LEFT JOIN Historial_Enfermedad he ON e.id_enfermedad = he.id_enfermedad
+GROUP BY e.nombre, e.id_enfermedad
+ORDER BY casos DESC;
+
+-- Vista 3: Estado de Documentos (Barras Apiladas)
+CREATE OR REPLACE VIEW vista_estado_documentos AS
+SELECT 
+    CASE 
+        WHEN texto_raw IS NOT NULL THEN 'Procesado'
+        ELSE 'Pendiente'
+    END as estado,
+    COUNT(*) as cantidad,
+    ROUND(
+        (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM Documento_Subido)), 2
+    ) as porcentaje
+FROM Documento_Subido
+GROUP BY estado
+ORDER BY cantidad DESC;
+
+-- Vista 4: Distribución Demográfica (Barras Horizontales)
+CREATE OR REPLACE VIEW vista_distribucion_demografica AS
+SELECT 
+    COALESCE(sexo, 'No especificado') as sexo,
+    CASE 
+        WHEN EXTRACT(YEAR FROM AGE(fecha_nacimiento)) < 30 THEN '< 30'
+        WHEN EXTRACT(YEAR FROM AGE(fecha_nacimiento)) < 50 THEN '30-50'
+        WHEN EXTRACT(YEAR FROM AGE(fecha_nacimiento)) < 70 THEN '50-70'
+        ELSE '> 70'
+    END as grupo_edad,
+    COUNT(*) as cantidad
+FROM Paciente 
+GROUP BY sexo, grupo_edad
+ORDER BY sexo, grupo_edad;
+
+-- Vista 5: Crecimiento Acumulado de Usuarios (Área)
+CREATE OR REPLACE VIEW vista_crecimiento_acumulado_usuarios AS
+WITH usuarios_por_mes AS (
+    SELECT 
+        DATE_TRUNC('month', creado_en) as mes,
+        COUNT(*) as usuarios_nuevos
+    FROM Usuario 
+    GROUP BY DATE_TRUNC('month', creado_en)
+),
+usuarios_acumulados AS (
+    SELECT 
+        mes,
+        usuarios_nuevos,
+        SUM(usuarios_nuevos) OVER (ORDER BY mes) as usuarios_acumulados
+    FROM usuarios_por_mes
+)
+SELECT 
+    mes,
+    usuarios_nuevos,
+    usuarios_acumulados,
+    LAG(usuarios_acumulados, 1, 0) OVER (ORDER BY mes) as usuarios_anterior_mes
+FROM usuarios_acumulados
+ORDER BY mes;
+
+-- Vista 6: Top 5 Usuarios Más Activos (Barras Verticales)
+CREATE OR REPLACE VIEW vista_top_usuarios_activos AS
+SELECT 
+    u.id_usuario,
+    CONCAT(p.nombre, ' ', p.apellido) as usuario,
+    COUNT(ds.id_subido) as documentos_subidos,
+    COUNT(pred.id_prediccion) as predicciones_realizadas,
+    COUNT(sv.id_vital) as signos_vitales_registrados,
+    (COUNT(ds.id_subido) + COUNT(pred.id_prediccion) + COUNT(sv.id_vital)) as actividad_total
+FROM Usuario u
+JOIN Paciente p ON u.id_usuario = p.id_usuario
+LEFT JOIN Documento_Subido ds ON u.id_usuario = ds.id_usuario
+LEFT JOIN Prediccion pred ON u.id_usuario = pred.id_usuario
+LEFT JOIN Signo_Vital sv ON u.id_usuario = sv.id_usuario
+GROUP BY u.id_usuario, p.nombre, p.apellido
+ORDER BY actividad_total DESC
+LIMIT 5;
+
+-- Comentarios de las nuevas vistas
+COMMENT ON VIEW vista_predicciones_por_mes IS 'Predicciones generadas por mes para gráficos de líneas';
+COMMENT ON VIEW vista_distribucion_enfermedades IS 'Distribución de enfermedades para gráficos de pastel';
+COMMENT ON VIEW vista_estado_documentos IS 'Estado de documentos (procesados vs pendientes) para gráficos de barras apiladas';
+COMMENT ON VIEW vista_distribucion_demografica IS 'Distribución demográfica por edad y género para gráficos de barras horizontales';
+COMMENT ON VIEW vista_crecimiento_acumulado_usuarios IS 'Crecimiento acumulado de usuarios para gráficos de área';
+COMMENT ON VIEW vista_top_usuarios_activos IS 'Top 5 usuarios más activos para gráficos de barras verticales';
+
+-- =====================================
 -- STORED PROCEDURES: Dashboard KPIs - Indicadores Clave de Rendimiento
 -- =====================================
 
@@ -1106,6 +1216,82 @@ AS $$
 BEGIN
     OPEN p_result FOR
     SELECT * FROM dashboard_resumen_ejecutivo;
+END;
+$$;
+
+-- =====================================
+-- STORED PROCEDURES: Nuevas Gráficas del Dashboard
+-- =====================================
+
+-- SP 7: Predicciones por Mes (Líneas)
+CREATE OR REPLACE PROCEDURE sp_dashboard_predicciones_por_mes(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_predicciones_por_mes;
+END;
+$$;
+
+-- SP 8: Distribución de Enfermedades (Pastel)
+CREATE OR REPLACE PROCEDURE sp_dashboard_distribucion_enfermedades(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_distribucion_enfermedades;
+END;
+$$;
+
+-- SP 9: Estado de Documentos (Barras Apiladas)
+CREATE OR REPLACE PROCEDURE sp_dashboard_estado_documentos(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_estado_documentos;
+END;
+$$;
+
+-- SP 10: Distribución Demográfica (Barras Horizontales)
+CREATE OR REPLACE PROCEDURE sp_dashboard_distribucion_demografica(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_distribucion_demografica;
+END;
+$$;
+
+-- SP 11: Crecimiento Acumulado de Usuarios (Área)
+CREATE OR REPLACE PROCEDURE sp_dashboard_crecimiento_acumulado_usuarios(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_crecimiento_acumulado_usuarios;
+END;
+$$;
+
+-- SP 12: Top 5 Usuarios Más Activos (Barras Verticales)
+CREATE OR REPLACE PROCEDURE sp_dashboard_top_usuarios_activos(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_top_usuarios_activos;
 END;
 $$;
 
@@ -14626,5 +14812,4 @@ SELECT (SELECT id_enfermedad FROM Enfermedad WHERE nombre = 'Hipertensión'),
        False, 
        CURRENT_TIMESTAMP, 
        0.2;
-
 

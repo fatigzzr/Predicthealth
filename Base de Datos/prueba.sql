@@ -561,3 +561,367 @@ UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '25 days' + INTERVAL '16:50
 
 -- Usuario 15 - Actualización hace 28 días
 UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '28 days' + INTERVAL '14:25:00' WHERE id_usuario = 15;
+
+-- =====================================
+-- INSERTAR MODELOS NECESARIOS
+-- =====================================
+
+-- Insertar modelos si no existen
+INSERT INTO Modelo (nombre, version, umbral, descripcion, referencia_entrada)
+VALUES 
+    ('Modelo Base Diabetes', '1.0', 0.5, 'Modelo base para predicción de diabetes', 'Características demográficas y de salud'),
+    ('Modelo Base Hipertensión', '1.0', 0.5, 'Modelo base para predicción de hipertensión', 'Características demográficas y de salud')
+ON CONFLICT DO NOTHING;
+
+-- =====================================
+-- DATOS DUMMY PARA PREDICCIONES POR MES
+-- =====================================
+
+-- Insertar predicciones para diferentes meses
+-- Enero 2025 - Diabetes
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-01-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 45;
+
+-- Enero 2025 - Hipertensión
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-01-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 45;
+
+-- Febrero 2025 - Diabetes
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-02-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 52;
+
+-- Febrero 2025 - Hipertensión
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-02-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 52;
+
+-- Marzo 2025 - Diabetes
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-03-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 38;
+
+-- Marzo 2025 - Hipertensión
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-03-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 38;
+
+-- Abril 2025 - Diabetes
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-04-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 67;
+
+-- Abril 2025 - Hipertensión
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-04-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 67;
+
+-- Mayo 2025 - Diabetes
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-05-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 73;
+
+-- Mayo 2025 - Hipertensión
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-05-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 73;
+
+-- Junio 2025 - Diabetes
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-06-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 89;
+
+-- Junio 2025 - Hipertensión
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-06-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 89;
+
+-- Julio 2025 - Diabetes
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-07-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 95;
+
+-- Julio 2025 - Hipertensión
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-07-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 95;
+
+-- Agosto 2025 - Diabetes
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-08-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 112;
+
+-- Agosto 2025 - Hipertensión
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-08-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 112;
+
+-- Septiembre 2025 - Diabetes
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-09-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 128;
+
+-- Septiembre 2025 - Hipertensión
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-09-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 128;
+
+-- Octubre 2025 - Diabetes (datos adicionales)
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-10-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 25;
+
+-- Octubre 2025 - Hipertensión (datos adicionales)
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-10-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 25;
+
+-- Noviembre 2025 - Diabetes
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-11-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 142;
+
+-- Noviembre 2025 - Hipertensión
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-11-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 142;
+
+-- Diciembre 2025 - Diabetes
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    1, -- Diabetes
+    u.id_usuario,
+    1, -- Modelo base
+    CASE WHEN random() > 0.6 THEN true ELSE false END,
+    '2025-12-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.3 + random() * 0.4
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 156;
+
+-- Diciembre 2025 - Hipertensión
+INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, fecha, probabilidad)
+SELECT 
+    2, -- Hipertensión
+    u.id_usuario,
+    2, -- Modelo base hipertensión
+    CASE WHEN random() > 0.7 THEN true ELSE false END,
+    '2025-12-15'::timestamp + (random() * 15)::int * INTERVAL '1 day',
+    0.2 + random() * 0.5
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 50
+LIMIT 156;
+
+-- =====================================
+-- DATOS DUMMY PARA ESTADO DE DOCUMENTOS
+-- =====================================
+
+-- Primero necesitamos insertar algunos documentos base
+INSERT INTO Documento (nombre)
+VALUES 
+    ('Laboratorio'),
+    ('Radiología'),
+    ('Historia Clínica'),
+    ('Receta Médica')
+ON CONFLICT DO NOTHING;
+
+-- Insertar documentos subidos con diferentes estados
+-- Documentos Procesados (150 registros) - CON texto_raw
+INSERT INTO Documento_Subido (id_usuario, id_documento, fecha_subido, texto_raw)
+SELECT 
+    u.id_usuario,
+    (SELECT id_documento FROM Documento ORDER BY random() LIMIT 1),
+    NOW() - (random() * 30)::int * INTERVAL '1 day',
+    'Contenido procesado del documento ' || generate_series(1, 3)
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 100
+LIMIT 150;
+
+-- Documentos Pendientes (80 registros) - SIN texto_raw (NULL)
+INSERT INTO Documento_Subido (id_usuario, id_documento, fecha_subido, texto_raw)
+SELECT 
+    u.id_usuario,
+    (SELECT id_documento FROM Documento ORDER BY random() LIMIT 1),
+    NOW() - (random() * 7)::int * INTERVAL '1 day',
+    NULL  -- Sin contenido = Pendiente
+FROM Usuario u
+WHERE u.id_usuario BETWEEN 1 AND 100
+LIMIT 80;

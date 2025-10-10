@@ -124,6 +124,27 @@ def get_entity_id_by_name(cur, entity_name):
         return None
 
 
+def execute_cursor_safely(cur, procedure_name, cursor_name='cursor_result'):
+    """
+    Ejecuta un stored procedure con cursor de forma segura.
+    Maneja automáticamente BEGIN, COMMIT y ROLLBACK.
+    """
+    try:
+        cur.execute("BEGIN;")
+        cur.execute(f"CALL {procedure_name}('{cursor_name}');")
+        cur.execute(f"FETCH ALL FROM {cursor_name};")
+        data = cur.fetchall()
+        cur.execute("COMMIT;")
+        return data
+    except Exception as cursor_error:
+        # Si hay error en el cursor, hacer rollback y re-lanzar
+        try:
+            cur.execute("ROLLBACK;")
+        except:
+            pass  # Ignorar errores de rollback
+        raise cursor_error
+
+
 # -----------------------------------------------------------------------------
 # Auth (JWT) and Login
 # -----------------------------------------------------------------------------
@@ -327,6 +348,10 @@ def get_entidades():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -553,6 +578,10 @@ def delete_record_by_id(entidad_name, pk_value):
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -675,6 +704,10 @@ def update_record_by_id(entidad_name, pk_value):
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -760,6 +793,10 @@ def insert_record(entidad_name):
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -804,6 +841,10 @@ def get_dashboard_monitoreo_pa():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -942,6 +983,10 @@ def get_dashboard_signos_vitales():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -982,6 +1027,10 @@ def get_dashboard_lab():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1104,6 +1153,10 @@ def get_dashboard_lab_stats():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1218,6 +1271,10 @@ def get_dashboard_estilo_vida():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1258,6 +1315,10 @@ def get_dashboard_predicciones():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1298,6 +1359,10 @@ def get_dashboard_medicacion():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1338,6 +1403,10 @@ def get_dashboard_documentos():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1378,6 +1447,10 @@ def get_dashboard_auditoria():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1474,6 +1547,10 @@ def get_dashboard_completo():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1628,6 +1705,10 @@ def get_dashboard_kpis():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1672,6 +1753,10 @@ def get_dashboard_usuarios_por_rol():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1716,6 +1801,10 @@ def get_dashboard_frecuencia_diaria():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1760,6 +1849,10 @@ def get_dashboard_crecimiento_semanal():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1804,6 +1897,10 @@ def get_dashboard_actividad_usuarios():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
@@ -1821,12 +1918,8 @@ def get_dashboard_resumen_ejecutivo():
         conn = get_db_conn()
         cur = conn.cursor()
         
-        # Usar transacción para manejar el cursor
-        cur.execute("BEGIN;")
-        cur.execute("CALL sp_dashboard_resumen_ejecutivo('cursor_result');")
-        cur.execute("FETCH ALL FROM cursor_result;")
-        data = cur.fetchall()
-        cur.execute("COMMIT;")
+        # Usar función helper para manejar cursor de forma segura
+        data = execute_cursor_safely(cur, 'sp_dashboard_resumen_ejecutivo', 'cursor_result')
         
         if not data:
             return jsonify({
@@ -1871,6 +1964,278 @@ def get_dashboard_resumen_ejecutivo():
         if conn:
             conn.rollback()
         return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+# =====================================
+# NUEVOS ENDPOINTS PARA LAS 6 GRÁFICAS
+# =====================================
+
+@app.route("/api/dashboard/kpis/predicciones-por-mes", methods=["GET"])
+@auth_required
+def get_dashboard_predicciones_por_mes():
+    """Dashboard KPIs: Predicciones por Mes (Líneas)"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar función helper para manejar cursor de forma segura
+        data = execute_cursor_safely(cur, 'sp_dashboard_predicciones_por_mes', 'result_cursor')
+        
+        # Convertir a formato JSON
+        result = []
+        for row in data:
+            result.append({
+                "mes": row[0].isoformat() if row[0] else None,
+                "total_predicciones": row[1],
+                "probabilidad_promedio": float(row[2]) if row[2] else 0,
+                "predicciones_positivas": row[3],
+                "predicciones_negativas": row[4]
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": result,
+            "message": "Datos de predicciones por mes obtenidos exitosamente"
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+@app.route("/api/dashboard/kpis/distribucion-enfermedades", methods=["GET"])
+@auth_required
+def get_dashboard_distribucion_enfermedades():
+    """Dashboard KPIs: Distribución de Enfermedades (Pastel)"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar función helper para manejar cursor de forma segura
+        data = execute_cursor_safely(cur, 'sp_dashboard_distribucion_enfermedades', 'result_cursor')
+        
+        # Convertir a formato JSON
+        result = []
+        for row in data:
+            result.append({
+                "enfermedad": row[0],
+                "casos": row[1],
+                "porcentaje": float(row[2]) if row[2] else 0
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": result,
+            "message": "Datos de distribución de enfermedades obtenidos exitosamente"
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+@app.route("/api/dashboard/kpis/estado-documentos", methods=["GET"])
+@auth_required
+def get_dashboard_estado_documentos():
+    """Dashboard KPIs: Estado de Documentos (Barras Apiladas)"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar función helper para manejar cursor de forma segura
+        data = execute_cursor_safely(cur, 'sp_dashboard_estado_documentos', 'result_cursor')
+        
+        # Convertir a formato JSON
+        result = []
+        for row in data:
+            result.append({
+                "estado": row[0],
+                "cantidad": row[1],
+                "porcentaje": float(row[2]) if row[2] else 0
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": result,
+            "message": "Datos de estado de documentos obtenidos exitosamente"
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+@app.route("/api/dashboard/kpis/distribucion-demografica", methods=["GET"])
+@auth_required
+def get_dashboard_distribucion_demografica():
+    """Dashboard KPIs: Distribución Demográfica (Barras Horizontales)"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar función helper para manejar cursor de forma segura
+        data = execute_cursor_safely(cur, 'sp_dashboard_distribucion_demografica', 'result_cursor')
+        
+        # Convertir a formato JSON
+        result = []
+        for row in data:
+            result.append({
+                "sexo": row[0],
+                "grupo_edad": row[1],
+                "cantidad": row[2]
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": result,
+            "message": "Datos de distribución demográfica obtenidos exitosamente"
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+@app.route("/api/dashboard/kpis/crecimiento-acumulado-usuarios", methods=["GET"])
+@auth_required
+def get_dashboard_crecimiento_acumulado_usuarios():
+    """Dashboard KPIs: Crecimiento Acumulado de Usuarios (Área)"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar función helper para manejar cursor de forma segura
+        data = execute_cursor_safely(cur, 'sp_dashboard_crecimiento_acumulado_usuarios', 'result_cursor')
+        
+        # Convertir a formato JSON
+        result = []
+        for row in data:
+            result.append({
+                "mes": row[0].isoformat() if row[0] else None,
+                "usuarios_nuevos": row[1],
+                "usuarios_acumulados": row[2],
+                "usuarios_anterior_mes": row[3] if row[3] else 0
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": result,
+            "message": "Datos de crecimiento acumulado de usuarios obtenidos exitosamente"
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+@app.route("/api/dashboard/kpis/top-usuarios-activos", methods=["GET"])
+@auth_required
+def get_dashboard_top_usuarios_activos():
+    """Dashboard KPIs: Top 5 Usuarios Más Activos (Barras Verticales)"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar función helper para manejar cursor de forma segura
+        data = execute_cursor_safely(cur, 'sp_dashboard_top_usuarios_activos', 'result_cursor')
+        
+        # Convertir a formato JSON
+        result = []
+        for row in data:
+            result.append({
+                "id_usuario": row[0],
+                "usuario": row[1],
+                "documentos_subidos": row[2],
+                "predicciones_realizadas": row[3],
+                "signos_vitales_registrados": row[4],
+                "actividad_total": row[5]
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": result,
+            "message": "Datos de top usuarios activos obtenidos exitosamente"
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
     finally:
         if cur:
             cur.close()
