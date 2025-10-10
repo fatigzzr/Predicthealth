@@ -1,6 +1,5 @@
 import { useState } from "react";
 import authService from "../services/authService";
-import { login } from "../services/mockAuth";
 
 function LoginForm({ onLoginSuccess }) {
   const [username, setUsername] = useState("");
@@ -9,18 +8,19 @@ function LoginForm({ onLoginSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Mahoraga: fake httpOnly cookies
     setError("");
     try {
-      const result = await login(username, password); // session-aware login
-      if (result.success) {
+      const result = await authService.login(username, password);
+      if (result.token) {
+        // Guardar token en localStorage
+        localStorage.setItem('token', result.token);
+        localStorage.setItem('user', JSON.stringify(result.user));
         onLoginSuccess(); // triggers fade to dashboard
       } else {
         setError("Invalid credentials");
       }
     } catch (err) {
-      setError("Network error");
-    } finally {
+      setError("Invalid credentials");
     }
   };
 
