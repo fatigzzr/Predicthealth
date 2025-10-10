@@ -603,12 +603,27 @@ $$;
 CREATE OR REPLACE VIEW Dashboard_Estilo_Vida AS
 SELECT
     rv.id_usuario,
-    DATE_TRUNC('day', rv.fecha) AS fecha,
-    COUNT(rv.id_respuesta) AS total_respuestas,
+    p.id_pregunta,
+    p.pregunta,
+    u.unidad,
+    COUNT(*) AS total_respuestas,
+    MIN(rv.fecha) AS primera_respuesta,
+    MAX(rv.fecha) AS ultima_respuesta,
+    -- Para preguntas de tipo si/no
     SUM(CASE WHEN u.unidad = 'si/no' AND rv.valor = 'TRUE' THEN 1 ELSE 0 END) AS respuestas_si,
     SUM(CASE WHEN u.unidad = 'si/no' AND rv.valor = 'FALSE' THEN 1 ELSE 0 END) AS respuestas_no,
-    AVG(CASE WHEN u.unidad = 'número' THEN rv.valor::NUMERIC END) AS promedio_numero,
-    AVG(CASE WHEN u.unidad = 'escala' THEN rv.valor::NUMERIC END) AS promedio_escala
+    -- Para preguntas numéricas y de escala
+    AVG(CASE WHEN u.unidad IN ('número', 'escala') AND rv.valor ~ '^[0-9]+\.?[0-9]*$' THEN rv.valor::NUMERIC END) AS promedio_numerico,
+    MIN(CASE WHEN u.unidad IN ('número', 'escala') AND rv.valor ~ '^[0-9]+\.?[0-9]*$' THEN rv.valor::NUMERIC END) AS valor_minimo,
+    MAX(CASE WHEN u.unidad IN ('número', 'escala') AND rv.valor ~ '^[0-9]+\.?[0-9]*$' THEN rv.valor::NUMERIC END) AS valor_maximo,
+    -- Para preguntas de texto (categorías)
+    STRING_AGG(DISTINCT rv.valor, ', ' ORDER BY rv.valor) AS valores_unicos,
+    -- Porcentaje de respuestas positivas para preguntas si/no
+    CASE 
+        WHEN u.unidad = 'si/no' AND COUNT(*) > 0 THEN 
+            ROUND((SUM(CASE WHEN rv.valor = 'TRUE' THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)) * 100, 2)
+        ELSE NULL 
+    END AS porcentaje_si
 FROM
     Respuesta_Estilo_Vida rv
 JOIN
@@ -617,10 +632,12 @@ JOIN
     Unidad u ON p.id_unidad = u.id_unidad
 GROUP BY
     rv.id_usuario,
-    DATE_TRUNC('day', rv.fecha)
+    p.id_pregunta,
+    p.pregunta,
+    u.unidad
 ORDER BY
     rv.id_usuario,
-    fecha;
+    p.id_pregunta;
 
 -- =====================================
 -- STORED PROCEDURE: Dashboard 4 - Estilo de Vida

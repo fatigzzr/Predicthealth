@@ -97,6 +97,23 @@ const exportToCSV = (data, sectionName) => {
           'Valor': item[3],
           'Unidad': item[4]
         }));
+      } else if (sectionName === 'estilo-vida') {
+        processedData = data.map(item => ({
+          'ID Usuario': item[0],
+          'ID Pregunta': item[1],
+          'Pregunta': item[2],
+          'Unidad': item[3],
+          'Total Respuestas': item[4] || 0,
+          'Primera Respuesta': item[5] ? new Date(item[5]).toLocaleDateString() : 'N/A',
+          'Última Respuesta': item[6] ? new Date(item[6]).toLocaleDateString() : 'N/A',
+          'Respuestas Sí': item[7] || 0,
+          'Respuestas No': item[8] || 0,
+          'Promedio Numérico': item[9] ? parseFloat(item[9]).toFixed(2) : 'N/A',
+          'Valor Mínimo': item[10] ? parseFloat(item[10]).toFixed(2) : 'N/A',
+          'Valor Máximo': item[11] ? parseFloat(item[11]).toFixed(2) : 'N/A',
+          'Valores Únicos': item[12] || 'N/A',
+          'Porcentaje Sí': item[13] ? parseFloat(item[13]).toFixed(2) + '%' : 'N/A'
+        }));
       }
     }
 
@@ -321,6 +338,39 @@ function VitalSignsBadge({ type, value }) {
   );
 }
 
+// Participation Level Badge
+function ParticipationBadge({ value }) {
+  if (!value) return null;
+  
+  let text = "Baja";
+  let color = "#F44336";
+  
+  if (value >= 8) {
+    text = "Excelente";
+    color = "#4CAF50";
+  } else if (value >= 6) {
+    text = "Buena";
+    color = "#8BC34A";
+  } else if (value >= 4) {
+    text = "Moderada";
+    color = "#FF9800";
+  }
+  
+  return (
+    <span style={{
+      backgroundColor: color,
+      color: 'white',
+      padding: '2px 6px',
+      borderRadius: '4px',
+      fontSize: '10px',
+      fontWeight: 'bold',
+      marginLeft: '5px'
+    }}>
+      {text}
+    </span>
+  );
+}
+
 // Normal Ranges Reference Component
 function NormalRangesReference() {
   return (
@@ -358,11 +408,15 @@ export default function ReportesAnalisis() {
   const [labData, setLabData] = useState([]);
   const [labStats, setLabStats] = useState(null);
   const [labChartsData, setLabChartsData] = useState(null);
+  const [estiloVidaData, setEstiloVidaData] = useState([]);
+  const [estiloVidaStats, setEstiloVidaStats] = useState(null);
+  const [estiloVidaChartsData, setEstiloVidaChartsData] = useState(null);
   const [filterAnalito, setFilterAnalito] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dateRange, setDateRange] = useState('all');
   const [selectedUserId, setSelectedUserId] = useState('all');
+  const [selectedQuestion, setSelectedQuestion] = useState('all');
   const [activeSection, setActiveSection] = useState('monitoreo-pa');
 
   useEffect(() => {
@@ -373,8 +427,8 @@ export default function ReportesAnalisis() {
     try {
       const token = localStorage.getItem('token');
       
-      // Fetch monitoreo-pa, signos-vitales, and lab data in parallel
-      const [monitoreoDataResponse, monitoreoStatsResponse, signosVitalesDataResponse, signosVitalesStatsResponse, labDataResponse, labStatsResponse, labChartsResponse] = await Promise.all([
+      // Fetch monitoreo-pa, signos-vitales, lab, and estilo-vida data in parallel
+      const [monitoreoDataResponse, monitoreoStatsResponse, signosVitalesDataResponse, signosVitalesStatsResponse, labDataResponse, labStatsResponse, labChartsResponse, estiloVidaDataResponse, estiloVidaStatsResponse, estiloVidaChartsResponse] = await Promise.all([
         fetch('http://localhost:5001/api/dashboard/monitoreo-pa', {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -416,21 +470,53 @@ export default function ReportesAnalisis() {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
+        }),
+        fetch('http://localhost:5001/api/dashboard/estilo-vida', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }),
+        fetch('http://localhost:5001/api/dashboard/estilo-vida-stats', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }),
+        fetch('http://localhost:5001/api/dashboard/estilo-vida-charts', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         })
       ]);
 
-      if (!monitoreoDataResponse.ok || !monitoreoStatsResponse.ok || !signosVitalesDataResponse.ok || !signosVitalesStatsResponse.ok || !labDataResponse.ok || !labStatsResponse.ok || !labChartsResponse.ok) {
+      if (!monitoreoDataResponse.ok || !monitoreoStatsResponse.ok || !signosVitalesDataResponse.ok || !signosVitalesStatsResponse.ok || !labDataResponse.ok || !labStatsResponse.ok || !labChartsResponse.ok || !estiloVidaDataResponse.ok || !estiloVidaStatsResponse.ok || !estiloVidaChartsResponse.ok) {
         throw new Error('Error al cargar los datos');
       }
 
-      const [monitoreoDataResult, monitoreoStatsResult, signosVitalesDataResult, signosVitalesStatsResult, labDataResult, labStatsResult, labChartsResult] = await Promise.all([
+      // Check for 401 errors in any response
+      const responses = [monitoreoDataResponse, monitoreoStatsResponse, signosVitalesDataResponse, signosVitalesStatsResponse, labDataResponse, labStatsResponse, labChartsResponse, estiloVidaDataResponse, estiloVidaStatsResponse, estiloVidaChartsResponse];
+      
+      for (const response of responses) {
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          return;
+        }
+      }
+
+      const [monitoreoDataResult, monitoreoStatsResult, signosVitalesDataResult, signosVitalesStatsResult, labDataResult, labStatsResult, labChartsResult, estiloVidaDataResult, estiloVidaStatsResult, estiloVidaChartsResult] = await Promise.all([
         monitoreoDataResponse.json(),
         monitoreoStatsResponse.json(),
         signosVitalesDataResponse.json(),
         signosVitalesStatsResponse.json(),
         labDataResponse.json(),
         labStatsResponse.json(),
-        labChartsResponse.json()
+        labChartsResponse.json(),
+        estiloVidaDataResponse.json(),
+        estiloVidaStatsResponse.json(),
+        estiloVidaChartsResponse.json()
       ]);
 
       setMonitoreoData(monitoreoDataResult.data || []);
@@ -440,14 +526,26 @@ export default function ReportesAnalisis() {
       setLabData(labDataResult.data || []);
       setLabStats(labStatsResult.stats || null);
       setLabChartsData(labChartsResult.processedData || []);
+      setEstiloVidaData(estiloVidaDataResult.data || []);
+      setEstiloVidaStats(estiloVidaStatsResult.stats || null);
+      setEstiloVidaChartsData(estiloVidaChartsResult || null);
       
       // Debug logs
       console.log('Lab Charts Result:', labChartsResult);
       console.log('Lab Charts Data:', labChartsResult.processedData);
       console.log('Lab Stats Result:', labStatsResult);
     } catch (err) {
-      setError(err.message);
       console.error('Error fetching data:', err);
+      
+      // Check if it's a 401 Unauthorized error (token expired)
+      if (err.message.includes('401') || err.message.includes('UNAUTHORIZED') || err.message.includes('token_expired')) {
+        // Clear the token and redirect to login
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        return;
+      }
+      
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -1025,6 +1123,7 @@ export default function ReportesAnalisis() {
             <option value="monitoreo-pa">Monitoreo PA</option>
             <option value="signos-vitales">Signos Vitales</option>
             <option value="laboratorio">Laboratorio</option>
+            <option value="estilo-vida">Estilo de Vida</option>
           </select>
         </div>
       </div>
@@ -1579,6 +1678,381 @@ export default function ReportesAnalisis() {
                 <div className="no-data">
                   <h3>No hay datos disponibles</h3>
                   <p>No se encontraron registros de laboratorio.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeSection === 'estilo-vida' && (
+        <div className="table-card" id="estilo-vida-section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h4>Estilo de Vida</h4>
+            <ExportButtons 
+              sectionName="estilo-vida" 
+              sectionId="estilo-vida-section" 
+              data={estiloVidaData} 
+            />
+    </div>
+          
+          <div className="filters-container">
+            <div className="date-filter">
+              <label htmlFor="dateRange">Filtrar por período:</label>
+              <select 
+                id="dateRange" 
+                value={dateRange} 
+                onChange={(e) => setDateRange(e.target.value)}
+              >
+                <option value="all">Todas las fechas</option>
+                <option value="last7days_ultima">Últimos 7 días (última respuesta)</option>
+                <option value="last7days_primera">Últimos 7 días (primera respuesta)</option>
+                <option value="last14days_ultima">Últimos 14 días (última respuesta)</option>
+                <option value="last14days_primera">Últimos 14 días (primera respuesta)</option>
+                <option value="last30days_ultima">Últimos 30 días (última respuesta)</option>
+                <option value="last30days_primera">Últimos 30 días (primera respuesta)</option>
+              </select>
+            </div>
+            
+            <div className="user-filter">
+              <label htmlFor="userId">Filtrar por usuario:</label>
+              <select 
+                id="userId" 
+                value={selectedUserId} 
+                onChange={(e) => setSelectedUserId(e.target.value)}
+              >
+                <option value="all">Todos los usuarios</option>
+                {[...new Set(estiloVidaData.map(item => item[0]))].sort((a, b) => a - b).map(userId => (
+                  <option key={userId} value={userId}>Usuario {userId}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="user-filter">
+              <label htmlFor="questionId">Filtrar por pregunta:</label>
+              <select 
+                id="questionId" 
+                value={selectedQuestion} 
+                onChange={(e) => setSelectedQuestion(e.target.value)}
+              >
+                <option value="all">Todas las preguntas</option>
+                {estiloVidaData && estiloVidaData.length > 0 && 
+                  Array.from(new Set(estiloVidaData.map(item => `${item[1]}_${item[2]}`)))
+                    .map(questionKey => {
+                      const [id, question] = questionKey.split('_', 2);
+                      return (
+                        <option key={questionKey} value={questionKey}>{question}</option>
+                      );
+                    })
+                }
+              </select>
+            </div>
+          </div>
+          
+        {estiloVidaStats && (
+          <div className="overview-cards">
+            <div className="kpi-card">
+              <h4>Total Respuestas</h4>
+              <p>{estiloVidaStats.totalRespuestas}</p>
+            </div>
+            <div className="kpi-card">
+              <h4>Preguntas Únicas</h4>
+              <p>{estiloVidaStats.preguntasUnicas}</p>
+            </div>
+            <div className="kpi-card">
+              <h4>Usuarios Únicos</h4>
+              <p>{estiloVidaStats.usuariosUnicos}</p>
+            </div>
+            <div className="kpi-card">
+              <h4>Participación Promedio</h4>
+              <p>
+                {estiloVidaStats.totalRespuestas > 0 && estiloVidaStats.usuariosUnicos > 0 ? Math.round(estiloVidaStats.totalRespuestas / estiloVidaStats.usuariosUnicos) : 0} respuestas/usuario
+                <ParticipationBadge value={estiloVidaStats.totalRespuestas > 0 && estiloVidaStats.usuariosUnicos > 0 ? Math.round(estiloVidaStats.totalRespuestas / estiloVidaStats.usuariosUnicos) : 0} />
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Charts Section */}
+        {estiloVidaChartsData && estiloVidaChartsData.processedData && (() => {
+          // Aplicar filtros a los datos de gráficos
+          let filteredChartData = estiloVidaChartsData.processedData;
+          
+          // Filter by date range (using specified date type)
+          if (dateRange !== 'all') {
+            const now = new Date();
+            filteredChartData = filteredChartData.filter(item => {
+              let itemDate;
+              
+              // Determine which date to use based on the filter
+              if (dateRange.includes('_ultima')) {
+                itemDate = new Date(item.ultima_respuesta);
+              } else if (dateRange.includes('_primera')) {
+                itemDate = new Date(item.primera_respuesta);
+              } else {
+                itemDate = new Date(item.ultima_respuesta); // default to ultima_respuesta
+              }
+              
+              const daysDiff = Math.floor((now - itemDate) / (1000 * 60 * 60 * 24));
+              
+              switch (dateRange) {
+                case 'last7days_ultima':
+                case 'last7days_primera':
+                  return daysDiff <= 7;
+                case 'last14days_ultima':
+                case 'last14days_primera':
+                  return daysDiff <= 14;
+                case 'last30days_ultima':
+                case 'last30days_primera':
+                  return daysDiff <= 30;
+                default:
+                  return true;
+              }
+            });
+          }
+          
+          // Filter by user
+          if (selectedUserId !== 'all') {
+            filteredChartData = filteredChartData.filter(item => item.id_usuario === parseInt(selectedUserId));
+          }
+          
+          // Filter by question
+          if (selectedQuestion !== 'all') {
+            filteredChartData = filteredChartData.filter(item => {
+              const questionKey = `${item.id_pregunta}_${item.pregunta}`;
+              return questionKey === selectedQuestion;
+            });
+          }
+          
+          if (filteredChartData.length === 0) {
+            return (
+              <div className="charts-container">
+                <div className="chart-card">
+                  <h4>No hay datos para mostrar</h4>
+                  <p>No se encontraron datos que coincidan con los filtros seleccionados.</p>
+                </div>
+              </div>
+            );
+          }
+          
+          // Agrupar datos filtrados por pregunta
+          const preguntaGroups = {};
+          filteredChartData.forEach(item => {
+            const preguntaKey = `${item.id_pregunta}_${item.pregunta}`;
+            if (!preguntaGroups[preguntaKey]) {
+              preguntaGroups[preguntaKey] = {
+                pregunta: item.pregunta,
+                unidad: item.unidad,
+                respuestas_si: 0,
+                respuestas_no: 0,
+                promedio_numerico: 0,
+                porcentaje_si: 0,
+                count: 0
+              };
+            }
+            preguntaGroups[preguntaKey].respuestas_si += item.respuestas_si;
+            preguntaGroups[preguntaKey].respuestas_no += item.respuestas_no;
+            preguntaGroups[preguntaKey].promedio_numerico += item.promedio_numerico;
+            preguntaGroups[preguntaKey].porcentaje_si += item.porcentaje_si;
+            preguntaGroups[preguntaKey].count += 1;
+          });
+          
+          // Calcular promedios
+          Object.values(preguntaGroups).forEach(group => {
+            if (group.count > 0) {
+              group.promedio_numerico = group.promedio_numerico / group.count;
+              group.porcentaje_si = group.porcentaje_si / group.count;
+            }
+          });
+          
+          const sortedPreguntas = Object.values(preguntaGroups).sort((a, b) => a.pregunta.localeCompare(b.pregunta));
+          
+          // Datos para gráfico de barras - Promedios numéricos por pregunta
+          const preguntasNumericas = sortedPreguntas.filter(p => p.unidad === "número" || p.unidad === "escala");
+          const barData = {
+            labels: preguntasNumericas.map(() => ""),
+            datasets: preguntasNumericas.map((p, index) => ({
+              label: p.pregunta,
+              data: Array(preguntasNumericas.length).fill(0).map((_, i) => i === index ? p.promedio_numerico : 0),
+              backgroundColor: ["#4ECDC4", "#FF6B6B", "#45B7D1", "#96CEB4", "#FFA726", "#66BB6A", "#AB47BC", "#26A69A"][index % 8]
+            }))
+          };
+          
+          // Datos para gráfico de pastel - Distribución por tipo de pregunta
+          const tipoPreguntas = {};
+          filteredChartData.forEach(item => {
+            const tipo = item.unidad;
+            if (!tipoPreguntas[tipo]) {
+              tipoPreguntas[tipo] = 0;
+            }
+            tipoPreguntas[tipo] += 1;
+          });
+          
+          const pieData = {
+            labels: Object.keys(tipoPreguntas),
+            datasets: [
+              {
+                data: Object.values(tipoPreguntas),
+                backgroundColor: ["#4ECDC4", "#FF6B6B", "#45B7D1", "#96CEB4"],
+                borderColor: ["#4ECDC4", "#FF6B6B", "#45B7D1", "#96CEB4"],
+                borderWidth: 2
+              }
+            ]
+          };
+          
+          return (
+            <div className="charts-container">
+              <div className="chart-card">
+                <h4>Distribución de Valores Numéricos</h4>
+                <div style={{ height: '400px' }}>
+                  <Bar 
+                    data={barData} 
+                    options={{ 
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: { 
+                        legend: { display: true },
+                        title: { display: true, text: 'Distribución de Valores Numéricos por Pregunta' }
+                      },
+                      scales: {
+                        x: {
+                          title: { display: true, text: 'Preguntas' },
+                          offset: true,
+                          grid: {
+                            display: false
+                          }
+                        },
+                        y: {
+                          beginAtZero: true,
+                          title: { display: true, text: 'Valor Promedio' }
+                        }
+                      },
+                      elements: {
+                        bar: {
+                          borderWidth: 0,
+                          borderRadius: 4,
+                          borderSkipped: false,
+                        }
+                      }
+                    }} 
+                  />
+                </div>
+              </div>
+              
+              <div className="chart-card">
+                <h4>Distribución por Tipo de Pregunta</h4>
+                <div style={{ height: '400px' }}>
+                  <Pie 
+                    data={pieData} 
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { display: true, position: 'bottom' },
+                        title: { display: true, text: 'Distribución por Tipo de Pregunta' }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+          <div className="data-section">
+            <h4>Datos Detallados</h4>
+            <div className="data-container">
+              {estiloVidaData && estiloVidaData.length > 0 ? (
+                estiloVidaData
+                  .filter(item => {
+                    // Filter by date range (using ultima_respuesta)
+                    if (dateRange !== 'all') {
+                      const now = new Date();
+                      let itemDate;
+                      
+                      // Determine which date to use based on the filter
+                      if (dateRange.includes('_ultima')) {
+                        itemDate = new Date(item[6]); // ultima_respuesta
+                      } else if (dateRange.includes('_primera')) {
+                        itemDate = new Date(item[5]); // primera_respuesta
+                      } else {
+                        itemDate = new Date(item[6]); // default to ultima_respuesta
+                      }
+                      
+                      const daysDiff = Math.floor((now - itemDate) / (1000 * 60 * 60 * 24));
+                      
+                      switch (dateRange) {
+                        case 'last7days_ultima':
+                        case 'last7days_primera':
+                          return daysDiff <= 7;
+                        case 'last14days_ultima':
+                        case 'last14days_primera':
+                          return daysDiff <= 14;
+                        case 'last30days_ultima':
+                        case 'last30days_primera':
+                          return daysDiff <= 30;
+                        default:
+                          return true;
+                      }
+                    }
+                    // Filter by user
+                    if (selectedUserId !== 'all' && item[0] !== parseInt(selectedUserId)) return false;
+                    // Filter by question
+                    if (selectedQuestion !== 'all') {
+                      const questionKey = `${item[1]}_${item[2]}`;
+                      if (questionKey !== selectedQuestion) return false;
+                    }
+                    return true;
+                  })
+                  .map((item, index) => (
+                  <CollapsibleCard key={index} title={`Usuario ${item[0]} - ${item[2]} (${item[3]})`}>
+                    <div className="data-grid">
+                      <div className="data-item">
+                        <strong>Usuario ID:</strong> {item[0]}
+                      </div>
+                      <div className="data-item">
+                        <strong>Pregunta:</strong> {item[2]}
+                      </div>
+                      <div className="data-item">
+                        <strong>Unidad:</strong> {item[3]}
+                      </div>
+                      <div className="data-item">
+                        <strong>Total Respuestas:</strong> {item[4] || 0}
+                      </div>
+                      <div className="data-item">
+                        <strong>Primera Respuesta:</strong> {new Date(item[5]).toLocaleDateString('es-ES')}
+                      </div>
+                      <div className="data-item">
+                        <strong>Última Respuesta:</strong> {new Date(item[6]).toLocaleDateString('es-ES')}
+                      </div>
+                      <div className="data-item">
+                        <strong>Respuestas Sí:</strong> {item[7] || 0}
+                      </div>
+                      <div className="data-item">
+                        <strong>Respuestas No:</strong> {item[8] || 0}
+                      </div>
+                      <div className="data-item">
+                        <strong>Promedio Numérico:</strong> {item[9] ? parseFloat(item[9]).toFixed(2) : 'N/A'}
+                      </div>
+                      <div className="data-item">
+                        <strong>Valor Mínimo:</strong> {item[10] ? parseFloat(item[10]).toFixed(2) : 'N/A'}
+                      </div>
+                      <div className="data-item">
+                        <strong>Valor Máximo:</strong> {item[11] ? parseFloat(item[11]).toFixed(2) : 'N/A'}
+                      </div>
+                      <div className="data-item">
+                        <strong>Valores Únicos:</strong> {item[12] || 'N/A'}
+                      </div>
+                      <div className="data-item">
+                        <strong>Porcentaje Sí:</strong> {item[13] ? parseFloat(item[13]).toFixed(2) + '%' : 'N/A'}
+                      </div>
+                    </div>
+                  </CollapsibleCard>
+                  ))
+              ) : (
+                <div className="no-data">
+                  <h3>No hay datos disponibles</h3>
+                  <p>No se encontraron registros de estilo de vida.</p>
                 </div>
               )}
             </div>

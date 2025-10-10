@@ -1282,6 +1282,244 @@ def get_dashboard_estilo_vida():
             put_db_conn(conn)
 
 
+@app.route("/api/dashboard/estilo-vida-stats", methods=["GET"])
+@auth_required
+def get_dashboard_estilo_vida_stats():
+    """Dashboard: Estadísticas de Estilo de Vida"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar transacción para manejar el cursor
+        cur.execute("BEGIN;")
+        cur.execute("CALL sp_dashboard_estilo_vida('cursor_result');")
+        cur.execute("FETCH ALL FROM cursor_result;")
+        data = cur.fetchall()
+        cur.execute("COMMIT;")
+        
+        # Procesar datos para calcular estadísticas
+        if not data:
+            return jsonify({
+            "success": True,
+                "dashboard": "estilo-vida-stats",
+                "stats": {
+                    "totalRegistros": 0,
+                    "totalRespuestas": 0,
+                    "totalSi": 0,
+                    "totalNo": 0,
+                    "promedioNumerico": 0,
+                    "promedioEscala": 0,
+                    "porcentajeSi": 0,
+                    "porcentajeNo": 0
+                }
+            })
+        
+        # Calcular estadísticas con nueva estructura
+        # Estructura: [id_usuario, id_pregunta, pregunta, unidad, total_respuestas, primera_respuesta, ultima_respuesta, respuestas_si, respuestas_no, promedio_numerico, valor_minimo, valor_maximo, valores_unicos, porcentaje_si]
+        total_registros = len(data)
+        total_respuestas = sum(item[4] for item in data if item[4])  # total_respuestas
+        total_si = sum(item[7] for item in data if item[7])  # respuestas_si
+        total_no = sum(item[8] for item in data if item[8])  # respuestas_no
+        
+        # Calcular promedios numéricos
+        valores_numericos = [float(item[9]) for item in data if item[9] and item[9] is not None]
+        
+        promedio_numerico = sum(valores_numericos) / len(valores_numericos) if valores_numericos else 0
+        
+        # Calcular porcentajes
+        porcentaje_si = (total_si / total_respuestas * 100) if total_respuestas > 0 else 0
+        porcentaje_no = (total_no / total_respuestas * 100) if total_respuestas > 0 else 0
+        
+        # Estadísticas adicionales
+        preguntas_unicas = len(set(item[1] for item in data))  # id_pregunta
+        usuarios_unicos = len(set(item[0] for item in data))  # id_usuario
+        
+        return jsonify({
+            "success": True,
+            "dashboard": "estilo-vida-stats",
+            "stats": {
+                "totalRegistros": total_registros,
+                "totalRespuestas": total_respuestas,
+                "preguntasUnicas": preguntas_unicas,
+                "usuariosUnicos": usuarios_unicos,
+                "totalSi": total_si,
+                "totalNo": total_no,
+                "promedioNumerico": round(promedio_numerico, 2),
+                "porcentajeSi": round(porcentaje_si, 2),
+                "porcentajeNo": round(porcentaje_no, 2)
+            }
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
+@app.route("/api/dashboard/estilo-vida-charts", methods=["GET"])
+@auth_required
+def get_dashboard_estilo_vida_charts():
+    """Dashboard: Gráficos de Estilo de Vida"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Usar transacción para manejar el cursor
+        cur.execute("BEGIN;")
+        cur.execute("CALL sp_dashboard_estilo_vida('cursor_result');")
+        cur.execute("FETCH ALL FROM cursor_result;")
+        data = cur.fetchall()
+        cur.execute("COMMIT;")
+        
+        if not data:
+            return jsonify({
+                "success": True,
+                "dashboard": "estilo-vida-charts",
+                "lineData": {"labels": [], "datasets": []},
+                "barData": {"labels": [], "datasets": []},
+                "pieData": {"labels": [], "datasets": []},
+                "processedData": []
+            })
+        
+        # Procesar datos como objetos con nueva estructura
+        # Estructura: [id_usuario, id_pregunta, pregunta, unidad, total_respuestas, primera_respuesta, ultima_respuesta, respuestas_si, respuestas_no, promedio_numerico, valor_minimo, valor_maximo, valores_unicos, porcentaje_si]
+        processed_data = []
+        for item in data:
+            processed_data.append({
+                "id_usuario": item[0],
+                "id_pregunta": item[1],
+                "pregunta": item[2],
+                "unidad": item[3],
+                "total_respuestas": item[4] or 0,
+                "primera_respuesta": item[5].isoformat() if hasattr(item[5], 'isoformat') else str(item[5]),
+                "ultima_respuesta": item[6].isoformat() if hasattr(item[6], 'isoformat') else str(item[6]),
+                "respuestas_si": item[7] or 0,
+                "respuestas_no": item[8] or 0,
+                "promedio_numerico": float(item[9]) if item[9] and item[9] is not None else 0,
+                "valor_minimo": float(item[10]) if item[10] and item[10] is not None else 0,
+                "valor_maximo": float(item[11]) if item[11] and item[11] is not None else 0,
+                "valores_unicos": item[12] or "",
+                "porcentaje_si": float(item[13]) if item[13] and item[13] is not None else 0
+            })
+        
+        # Agrupar por pregunta para gráficos más útiles
+        pregunta_groups = {}
+        for item in processed_data:
+            pregunta_key = f"{item['id_pregunta']}_{item['pregunta'][:30]}"  # Truncar pregunta
+            if pregunta_key not in pregunta_groups:
+                pregunta_groups[pregunta_key] = {
+                    "pregunta": item["pregunta"],
+                    "unidad": item["unidad"],
+                    "total_respuestas": 0,
+                    "respuestas_si": 0,
+                    "respuestas_no": 0,
+                    "promedio_numerico": 0,
+                    "valor_minimo": float('inf'),
+                    "valor_maximo": 0,
+                    "porcentaje_si": 0,
+                    "count": 0
+                }
+            
+            pregunta_groups[pregunta_key]["total_respuestas"] += item["total_respuestas"]
+            pregunta_groups[pregunta_key]["respuestas_si"] += item["respuestas_si"]
+            pregunta_groups[pregunta_key]["respuestas_no"] += item["respuestas_no"]
+            pregunta_groups[pregunta_key]["promedio_numerico"] += item["promedio_numerico"]
+            pregunta_groups[pregunta_key]["valor_minimo"] = min(pregunta_groups[pregunta_key]["valor_minimo"], item["valor_minimo"]) if item["valor_minimo"] > 0 else pregunta_groups[pregunta_key]["valor_minimo"]
+            pregunta_groups[pregunta_key]["valor_maximo"] = max(pregunta_groups[pregunta_key]["valor_maximo"], item["valor_maximo"])
+            pregunta_groups[pregunta_key]["porcentaje_si"] += item["porcentaje_si"]
+            pregunta_groups[pregunta_key]["count"] += 1
+        
+        # Calcular promedios por pregunta
+        for group in pregunta_groups.values():
+            if group["count"] > 0:
+                group["promedio_numerico"] = group["promedio_numerico"] / group["count"]
+                group["porcentaje_si"] = group["porcentaje_si"] / group["count"]
+            if group["valor_minimo"] == float('inf'):
+                group["valor_minimo"] = 0
+        
+        # Ordenar por pregunta
+        sorted_preguntas = sorted(pregunta_groups.values(), key=lambda x: x["pregunta"])
+        
+        # Datos para gráfico de línea - Porcentaje de respuestas positivas por pregunta
+        line_data = {
+            "labels": [p["pregunta"][:20] + "..." if len(p["pregunta"]) > 20 else p["pregunta"] for p in sorted_preguntas],
+            "datasets": [
+                {
+                    "label": "Porcentaje de Respuestas Positivas (%)",
+                    "data": [p["porcentaje_si"] for p in sorted_preguntas],
+                    "borderColor": "#4ECDC4",
+                    "backgroundColor": "rgba(78, 205, 196, 0.1)",
+                    "tension": 0.1
+                }
+            ]
+        }
+        
+        # Datos para gráfico de barras - Promedios numéricos por pregunta
+        preguntas_numericas = [p for p in sorted_preguntas if p["unidad"] in ["número", "escala"] and p["promedio_numerico"] > 0]
+        bar_data = {
+            "labels": [p["pregunta"][:15] + "..." if len(p["pregunta"]) > 15 else p["pregunta"] for p in preguntas_numericas],
+            "datasets": [
+                {
+                    "label": "Promedio Numérico",
+                    "data": [p["promedio_numerico"] for p in preguntas_numericas],
+                    "backgroundColor": "#45B7D1"
+                }
+            ]
+        }
+        
+        # Datos para gráfico de pastel - Distribución de respuestas sí/no
+        total_si = sum(p["respuestas_si"] for p in sorted_preguntas)
+        total_no = sum(p["respuestas_no"] for p in sorted_preguntas)
+        
+        pie_data = {
+            "labels": ["Respuestas Sí", "Respuestas No"],
+            "datasets": [
+                {
+                    "data": [total_si, total_no],
+                    "backgroundColor": ["#4ECDC4", "#FF6B6B"],
+                    "borderColor": ["#4ECDC4", "#FF6B6B"],
+                    "borderWidth": 2
+                }
+            ]
+        }
+        
+        return jsonify({
+            "success": True,
+            "dashboard": "estilo-vida-charts",
+            "lineData": line_data,
+            "barData": bar_data,
+            "pieData": pie_data,
+            "processedData": processed_data
+        })
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"db_error: {str(e)}"}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"processing_error: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            put_db_conn(conn)
+
+
 @app.route("/api/dashboard/predicciones", methods=["GET"])
 @auth_required
 def get_dashboard_predicciones():
