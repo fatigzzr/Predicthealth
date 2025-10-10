@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import entityService from '../services/entityService';
+import RetryButton from './RetryButton';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorDisplay from './ErrorDisplay';
 import '../styles.css';
 
 export default function DatabaseTables() {
@@ -257,12 +260,14 @@ export default function DatabaseTables() {
   if (loading) {
     return (
       <div className="database-tables">
-        <div className="loading-container">
+        <div className="dashboard-header">
           <h1>Gestión de Base de Datos</h1>
-          <div className="loading-spinner">
-            <p>Cargando entidades...</p>
-          </div>
         </div>
+        <LoadingSpinner 
+          message="Cargando entidades de la base de datos..."
+          variant="dots"
+          size="large"
+        />
       </div>
     );
   }
@@ -271,15 +276,16 @@ export default function DatabaseTables() {
   if (error) {
     return (
       <div className="database-tables">
-        <div className="error-container">
+        <div className="dashboard-header">
           <h1>Gestión de Base de Datos</h1>
-          <div className="error-message">
-            <p>Error al cargar las entidades: {error}</p>
-            <button onClick={() => window.location.reload()}>
-              Reintentar
-            </button>
-          </div>
         </div>
+        <ErrorDisplay
+          title="Error al cargar las entidades"
+          message={error}
+          type="network"
+          onRetry={() => window.location.reload()}
+          showRetry={true}
+        />
       </div>
     );
   }

@@ -13,6 +13,11 @@ import {
   Legend,
   Filler
 } from 'chart.js';
+import RetryButton from './RetryButton';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorDisplay from './ErrorDisplay';
+import useRetry from '../hooks/useRetry';
+import retryService from '../services/retryService';
 import '../styles.css';
 
 ChartJS.register(
@@ -222,7 +227,7 @@ export default function AdminDashboard({ patients }) {
     }
   };
 
-  // Función para recargar datos
+  // Función para recargar datos con retry automático
   const reloadData = async () => {
     setLoading(true);
     setError(null);
@@ -235,7 +240,7 @@ export default function AdminDashboard({ patients }) {
     setCrecimientoUsuarios(null);
     setTopUsuariosActivos(null);
     
-    // Intentar cargar cada endpoint individualmente
+    // Intentar cargar cada endpoint individualmente con retry
     const endpoints = [
       { name: 'graficos/predicciones-por-mes', setter: setPrediccionesPorMes },
       { name: 'graficos/distribucion-enfermedades', setter: setDistribucionEnfermedades },
@@ -248,6 +253,9 @@ export default function AdminDashboard({ patients }) {
     let hasError = false;
     let errorMessage = '';
     
+    let loadedCount = 0;
+    const totalEndpoints = endpoints.length;
+    
     for (const endpoint of endpoints) {
       try {
         const token = localStorage.getItem('token');
@@ -257,29 +265,42 @@ export default function AdminDashboard({ patients }) {
 
         console.log(`Intentando conectar a: ${API_BASE_URL}/dashboard/${endpoint.name}`);
         
-        const response = await fetch(`${API_BASE_URL}/dashboard/${endpoint.name}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+        // Usar retryService para hacer fetch con retry automático
+        const result = await retryService.fetchJsonWithRetrySilent(
+          `${API_BASE_URL}/dashboard/${endpoint.name}`,
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          },
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+            onRetry: (attempt, error) => {
+              console.log(`Reintentando ${endpoint.name} (intento ${attempt + 1})...`);
+            }
           }
-        });
-
-        console.log(`Respuesta para ${endpoint.name}:`, response.status, response.statusText);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Error response body:`, errorText);
-          throw new Error(`Error ${response.status}: ${response.statusText} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        console.log(`Datos recibidos para ${endpoint.name}:`, data);
+        );
         
-        if (data.success) {
-          endpoint.setter(data.data);
+        console.log(`Resultado para ${endpoint.name}:`, result);
+        
+        if (result.success) {
+          if (result.data.success) {
+            endpoint.setter(result.data.data);
+            loadedCount++;
+            console.log(`✅ ${endpoint.name} cargado exitosamente (${loadedCount}/${totalEndpoints})`);
+            
+            // Si es el primer endpoint que se carga exitosamente, ocultar spinner
+            if (loadedCount === 1) {
+              setLoading(false);
+            }
+          } else {
+            throw new Error(result.data.error || 'Error al obtener datos');
+          }
         } else {
-          throw new Error(data.error || 'Error al obtener datos');
+          throw new Error(result.error);
         }
       } catch (err) {
         console.error(`Error fetching ${endpoint.name}:`, err);
@@ -293,6 +314,7 @@ export default function AdminDashboard({ patients }) {
       setError(errorMessage);
     }
     
+    // Asegurar que el loading se oculte al final
     setLoading(false);
   };
 
@@ -462,14 +484,16 @@ export default function AdminDashboard({ patients }) {
   } : null;
 
   if (loading) {
-  return (
-    <div className="admin-dashboard">
-      <div className="dashboard-header">
+    return (
+      <div className="admin-dashboard">
+        <div className="dashboard-header">
           <h1>Dashboard</h1>
         </div>
-        <div className="loading-container">
-          <h2>Cargando datos del dashboard...</h2>
-        </div>
+        <LoadingSpinner 
+          message="Cargando datos del dashboard..."
+          variant="dots"
+          size="large"
+        />
       </div>
     );
   }
@@ -480,15 +504,13 @@ export default function AdminDashboard({ patients }) {
         <div className="dashboard-header">
           <h1>Dashboard</h1>
         </div>
-        <div className="error-container">
-          <h2>Error al cargar los datos</h2>
-          <p>{error}</p>
-          <button 
-            onClick={reloadData}
-          >
-            Intentar nuevamente
-          </button>
-        </div>
+        <ErrorDisplay
+          title="Error al cargar los datos"
+          message={error}
+          type="network"
+          onRetry={reloadData}
+          showRetry={true}
+        />
       </div>
     );
   }

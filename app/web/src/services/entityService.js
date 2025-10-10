@@ -1,3 +1,5 @@
+import retryService from './retryService';
+
 const API_BASE_URL = 'http://localhost:5001/api';
 
 class EntityService {
@@ -7,33 +9,35 @@ class EntityService {
       throw new Error('No authentication token found');
     }
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/entidades`, {
+    const result = await retryService.fetchJsonWithRetrySilent(
+      `${API_BASE_URL}/entidades`,
+      {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token expirado o inválido
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      },
+      {
+        maxRetries: 3,
+        baseDelay: 1000,
+        onRetry: (attempt, error) => {
+          console.log(`Reintentando getEntidades (intento ${attempt + 1})...`);
         }
-        const errorData = await response.json().catch(() => ({ error: 'Network error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
+    );
 
-      return await response.json();
-    } catch (error) {
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        throw new Error('No se pudo conectar con el servicio. Intenta más tarde.');
+    if (!result.success) {
+      if (result.finalError && result.finalError.status === 401) {
+        // Token expirado o inválido
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
       }
-      throw error;
+      throw new Error(result.error);
     }
+
+    return result.data;
   }
 
   async getEntidadData(entidadName) {
@@ -42,33 +46,35 @@ class EntityService {
       throw new Error('No authentication token found');
     }
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/entidades/${entidadName}`, {
+    const result = await retryService.fetchJsonWithRetrySilent(
+      `${API_BASE_URL}/entidades/${entidadName}`,
+      {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token expirado o inválido
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      },
+      {
+        maxRetries: 3,
+        baseDelay: 1000,
+        onRetry: (attempt, error) => {
+          console.log(`Reintentando getEntidadData (intento ${attempt + 1})...`);
         }
-        const errorData = await response.json().catch(() => ({ error: 'Network error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
+    );
 
-      return await response.json();
-    } catch (error) {
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        throw new Error('No se pudo conectar con el servicio. Intenta más tarde.');
+    if (!result.success) {
+      if (result.finalError && result.finalError.status === 401) {
+        // Token expirado o inválido
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
       }
-      throw error;
+      throw new Error(result.error);
     }
+
+    return result.data;
   }
 
 
@@ -78,39 +84,38 @@ class EntityService {
       throw new Error('No authentication token found');
     }
 
-    try {
-      // Usar el endpoint genérico para insertar registros
-      console.log('Creating record for:', entidadName, '-> URL:', `${API_BASE_URL}/entidades/${entidadName}`);
-      const response = await fetch(`${API_BASE_URL}/entidades/${entidadName}`, {
+    console.log('Creating record for:', entidadName, '-> URL:', `${API_BASE_URL}/entidades/${entidadName}`);
+    
+    const result = await retryService.fetchJsonWithRetrySilent(
+      `${API_BASE_URL}/entidades/${entidadName}`,
+      {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(recordData)
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token expirado o inválido
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      },
+      {
+        maxRetries: 3,
+        baseDelay: 1000,
+        onRetry: (attempt, error) => {
+          console.log(`Reintentando createEntidadRecord (intento ${attempt + 1})...`);
         }
-        const errorData = await response.json().catch(() => ({ error: 'Network error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
+    );
 
-      return await response.json();
-    } catch (error) {
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        throw new Error('No se pudo conectar con el servicio. Intenta más tarde.');
+    if (!result.success) {
+      if (result.finalError && result.finalError.status === 401) {
+        // Token expirado o inválido
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
       }
-      if (error.message.includes('Load failed')) {
-        throw new Error('No se pudo realizar la acción. Intenta más tarde.');
-      }
-      throw error;
+      throw new Error(result.error);
     }
+
+    return result.data;
   }
 
   async getPkColumns(entidadName) {
@@ -119,23 +124,34 @@ class EntityService {
       throw new Error('No authentication token found');
     }
 
-    const resp = await fetch(`${API_BASE_URL}/entidades/${entidadName}/pk-columns`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    const result = await retryService.fetchJsonWithRetrySilent(
+      `${API_BASE_URL}/entidades/${entidadName}/pk-columns`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      },
+      {
+        maxRetries: 3,
+        baseDelay: 1000,
+        onRetry: (attempt, error) => {
+          console.log(`Reintentando getPkColumns (intento ${attempt + 1})...`);
+        }
       }
-    });
-    if (!resp.ok) {
-      if (resp.status === 401) {
+    );
+
+    if (!result.success) {
+      if (result.finalError && result.finalError.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
       }
-      const errorData = await resp.json().catch(() => ({ error: 'Network error' }));
-      throw new Error(errorData.error || `HTTP ${resp.status}: ${resp.statusText}`);
+      throw new Error(result.error);
     }
-    return await resp.json();
+
+    return result.data;
   }
 
   async deleteEntidadRecord(entidadName, rowOrId, columns) {
@@ -176,25 +192,34 @@ class EntityService {
         url = `${API_BASE_URL}/entidades/${encodeURIComponent(entidadName)}/0?${params.toString()}`;
       }
 
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const result = await retryService.fetchJsonWithRetrySilent(
+        url,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        },
+        {
+          maxRetries: 3,
+          baseDelay: 1000,
+          onRetry: (attempt, error) => {
+            console.log(`Reintentando deleteEntidadRecord (intento ${attempt + 1})...`);
+          }
         }
-      });
+      );
 
-      if (!response.ok) {
-        if (response.status === 401) {
+      if (!result.success) {
+        if (result.finalError && result.finalError.status === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
         }
-        const errorData = await response.json().catch(() => ({ error: 'Network error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(result.error);
       }
 
-      return await response.json();
+      return result.data;
     } catch (error) {
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         throw new Error('No se pudo conectar con el servicio. Intenta más tarde.');
@@ -250,25 +275,35 @@ class EntityService {
       url = `${API_BASE_URL}/entidades/${encodeURIComponent(entidadName)}/0?${params.toString()}`;
     }
 
-    const resp = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    const result = await retryService.fetchJsonWithRetrySilent(
+      url,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(changes)
       },
-      body: JSON.stringify(changes)
-    });
+      {
+        maxRetries: 3,
+        baseDelay: 1000,
+        onRetry: (attempt, error) => {
+          console.log(`Reintentando updateEntidadRecord (intento ${attempt + 1})...`);
+        }
+      }
+    );
 
-    if (!resp.ok) {
-      if (resp.status === 401) {
+    if (!result.success) {
+      if (result.finalError && result.finalError.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
       }
-      const errorData = await resp.json().catch(() => ({ error: 'Network error' }));
-      throw new Error(errorData.error || `HTTP ${resp.status}: ${resp.statusText}`);
+      throw new Error(result.error);
     }
-    return await resp.json();
+
+    return result.data;
   }
 }
 

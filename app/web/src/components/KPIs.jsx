@@ -12,6 +12,10 @@ import {
   BarElement,
   Title
 } from 'chart.js';
+import RetryButton from './RetryButton';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorDisplay from './ErrorDisplay';
+import retryService from '../services/retryService';
 import '../styles.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title);
@@ -315,9 +319,14 @@ export default function KPIs() {
   if (loading) {
     return (
       <div className="admin-dashboard">
-        <div className="loading-container">
-          <h2>Cargando datos de KPIs...</h2>
+        <div className="dashboard-header">
+          <h1>Indicadores Clave de Rendimiento (KPIs)</h1>
         </div>
+        <LoadingSpinner 
+          message="Cargando datos de KPIs..."
+          variant="dots"
+          size="large"
+        />
       </div>
     );
   }
@@ -325,11 +334,16 @@ export default function KPIs() {
   if (error) {
     return (
       <div className="admin-dashboard">
-        <div className="error-container">
-          <h2>Error al cargar los datos</h2>
-          <p>{error}</p>
-          <button onClick={fetchKPIsData}>Reintentar</button>
+        <div className="dashboard-header">
+          <h1>Indicadores Clave de Rendimiento (KPIs)</h1>
         </div>
+        <ErrorDisplay
+          title="Error al cargar los datos"
+          message={error}
+          type="network"
+          onRetry={fetchKPIsData}
+          showRetry={true}
+        />
       </div>
     );
   }

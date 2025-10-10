@@ -15,6 +15,10 @@ import {
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import Papa from 'papaparse';
+import RetryButton from './RetryButton';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorDisplay from './ErrorDisplay';
+import retryService from '../services/retryService';
 import '../styles.css';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ArcElement);
@@ -425,121 +429,104 @@ export default function ReportesAnalisis() {
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('token');
+      setLoading(true);
+      setError(null);
       
-      // Fetch monitoreo-pa, signos-vitales, lab, and estilo-vida data in parallel
-      const [monitoreoDataResponse, monitoreoStatsResponse, signosVitalesDataResponse, signosVitalesStatsResponse, labDataResponse, labStatsResponse, labChartsResponse, estiloVidaDataResponse, estiloVidaStatsResponse, estiloVidaChartsResponse] = await Promise.all([
-        fetch('http://localhost:5001/api/dashboard/monitoreo-pa', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }),
-        fetch('http://localhost:5001/api/dashboard/monitoreo-pa-stats', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }),
-        fetch('http://localhost:5001/api/dashboard/signos-vitales', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }),
-        fetch('http://localhost:5001/api/dashboard/signos-vitales-stats', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }),
-        fetch('http://localhost:5001/api/dashboard/lab', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }),
-        fetch('http://localhost:5001/api/dashboard/lab/stats', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }),
-        fetch('http://localhost:5001/api/dashboard/lab/charts', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }),
-        fetch('http://localhost:5001/api/dashboard/estilo-vida', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }),
-        fetch('http://localhost:5001/api/dashboard/estilo-vida-stats', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }),
-        fetch('http://localhost:5001/api/dashboard/estilo-vida-charts', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
-      ]);
-
-      if (!monitoreoDataResponse.ok || !monitoreoStatsResponse.ok || !signosVitalesDataResponse.ok || !signosVitalesStatsResponse.ok || !labDataResponse.ok || !labStatsResponse.ok || !labChartsResponse.ok || !estiloVidaDataResponse.ok || !estiloVidaStatsResponse.ok || !estiloVidaChartsResponse.ok) {
-        throw new Error('Error al cargar los datos');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No hay token de autenticación');
       }
 
-      // Check for 401 errors in any response
-      const responses = [monitoreoDataResponse, monitoreoStatsResponse, signosVitalesDataResponse, signosVitalesStatsResponse, labDataResponse, labStatsResponse, labChartsResponse, estiloVidaDataResponse, estiloVidaStatsResponse, estiloVidaChartsResponse];
+      // Definir todos los endpoints a cargar
+      const endpoints = [
+        { url: 'http://localhost:5001/api/dashboard/monitoreo-pa', setter: setMonitoreoData, dataKey: 'data' },
+        { url: 'http://localhost:5001/api/dashboard/monitoreo-pa-stats', setter: setStats, dataKey: 'stats' },
+        { url: 'http://localhost:5001/api/dashboard/signos-vitales', setter: setSignosVitalesData, dataKey: 'data' },
+        { url: 'http://localhost:5001/api/dashboard/signos-vitales-stats', setter: setSignosVitalesStats, dataKey: 'stats' },
+        { url: 'http://localhost:5001/api/dashboard/lab', setter: setLabData, dataKey: 'data' },
+        { url: 'http://localhost:5001/api/dashboard/lab/stats', setter: setLabStats, dataKey: 'stats' },
+        { url: 'http://localhost:5001/api/dashboard/lab/charts', setter: setLabChartsData, dataKey: 'processedData' },
+        { url: 'http://localhost:5001/api/dashboard/estilo-vida', setter: setEstiloVidaData, dataKey: 'data' },
+        { url: 'http://localhost:5001/api/dashboard/estilo-vida-stats', setter: setEstiloVidaStats, dataKey: 'stats' },
+        { url: 'http://localhost:5001/api/dashboard/estilo-vida-charts', setter: setEstiloVidaChartsData, dataKey: null }
+      ];
+
+      let hasError = false;
+      let errorMessage = '';
+
+      // Cargar cada endpoint con retry automático
+      let loadedCount = 0;
+      const totalEndpoints = endpoints.length;
       
-      for (const response of responses) {
-        if (response.status === 401) {
-          localStorage.removeItem('token');
-          window.location.href = '/login';
-          return;
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Cargando: ${endpoint.url}`);
+          
+          const result = await retryService.fetchJsonWithRetrySilent(
+            endpoint.url,
+            {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            },
+            {
+              maxRetries: 3,
+              baseDelay: 1000,
+              onRetry: (attempt, error) => {
+                console.log(`Reintentando ${endpoint.url} (intento ${attempt + 1})...`);
+              }
+            }
+          );
+
+          if (result.success) {
+            if (result.data.success) {
+              const data = endpoint.dataKey ? result.data[endpoint.dataKey] : result.data;
+              endpoint.setter(data || []);
+              loadedCount++;
+              console.log(`✅ Cargado exitosamente: ${endpoint.url} (${loadedCount}/${totalEndpoints})`);
+              
+              // Si es el primer endpoint que se carga exitosamente, ocultar spinner
+              if (loadedCount === 1) {
+                setLoading(false);
+              }
+            } else {
+              console.warn(`⚠️ Respuesta con error para ${endpoint.url}:`, result.data.error);
+              endpoint.setter([]);
+              hasError = true;
+              errorMessage = result.data.error || 'Error al obtener datos';
+            }
+          } else {
+            console.error(`❌ Error en ${endpoint.url}:`, result.error);
+            endpoint.setter([]);
+            hasError = true;
+            errorMessage = result.error;
+          }
+        } catch (err) {
+          console.error(`❌ Error crítico en ${endpoint.url}:`, err);
+          endpoint.setter([]);
+          hasError = true;
+          errorMessage = err.message;
         }
       }
 
-      const [monitoreoDataResult, monitoreoStatsResult, signosVitalesDataResult, signosVitalesStatsResult, labDataResult, labStatsResult, labChartsResult, estiloVidaDataResult, estiloVidaStatsResult, estiloVidaChartsResult] = await Promise.all([
-        monitoreoDataResponse.json(),
-        monitoreoStatsResponse.json(),
-        signosVitalesDataResponse.json(),
-        signosVitalesStatsResponse.json(),
-        labDataResponse.json(),
-        labStatsResponse.json(),
-        labChartsResponse.json(),
-        estiloVidaDataResponse.json(),
-        estiloVidaStatsResponse.json(),
-        estiloVidaChartsResponse.json()
-      ]);
+      // Verificar errores de autenticación
+      if (errorMessage.includes('401') || errorMessage.includes('token_expired')) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        return;
+      }
 
-      setMonitoreoData(monitoreoDataResult.data || []);
-      setStats(monitoreoStatsResult.stats || null);
-      setSignosVitalesData(signosVitalesDataResult.data || []);
-      setSignosVitalesStats(signosVitalesStatsResult.stats || null);
-      setLabData(labDataResult.data || []);
-      setLabStats(labStatsResult.stats || null);
-      setLabChartsData(labChartsResult.processedData || []);
-      setEstiloVidaData(estiloVidaDataResult.data || []);
-      setEstiloVidaStats(estiloVidaStatsResult.stats || null);
-      setEstiloVidaChartsData(estiloVidaChartsResult || null);
+      if (hasError) {
+        setError(errorMessage);
+      }
       
-      // Debug logs
-      console.log('Lab Charts Result:', labChartsResult);
-      console.log('Lab Charts Data:', labChartsResult.processedData);
-      console.log('Lab Stats Result:', labStatsResult);
+      console.log('✅ Carga de datos completada');
     } catch (err) {
-      console.error('Error fetching data:', err);
+      console.error('Error crítico en fetchData:', err);
       
-      // Check if it's a 401 Unauthorized error (token expired)
       if (err.message.includes('401') || err.message.includes('UNAUTHORIZED') || err.message.includes('token_expired')) {
-        // Clear the token and redirect to login
         localStorage.removeItem('token');
         window.location.href = '/login';
         return;
@@ -1089,9 +1076,14 @@ export default function ReportesAnalisis() {
   if (loading) {
     return (
       <div className="admin-dashboard">
-        <div className="loading-container">
-          <h2>Cargando datos de Monitoreo PA...</h2>
+        <div className="dashboard-header">
+          <h1>Reportes y Análisis</h1>
         </div>
+        <LoadingSpinner 
+          message="Cargando datos de reportes y análisis..."
+          variant="dots"
+          size="large"
+        />
       </div>
     );
   }
@@ -1099,11 +1091,16 @@ export default function ReportesAnalisis() {
   if (error) {
     return (
       <div className="admin-dashboard">
-        <div className="error-container">
-          <h2>Error al cargar los datos</h2>
-          <p>{error}</p>
-          <button onClick={fetchData}>Reintentar</button>
+        <div className="dashboard-header">
+          <h1>Reportes y Análisis</h1>
         </div>
+        <ErrorDisplay
+          title="Error al cargar los datos"
+          message={error}
+          type="network"
+          onRetry={fetchData}
+          showRetry={true}
+        />
       </div>
     );
   }
