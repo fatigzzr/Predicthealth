@@ -77,10 +77,10 @@ function App() {
                 Dashboard
               </button>
               <button 
-                className={`nav-button ${currentView === "database" ? "active" : ""}`}
-                onClick={() => setCurrentView("database")}
+                className={`nav-button ${currentView === "kpis" ? "active" : ""}`}
+                onClick={() => setCurrentView("kpis")}
               >
-                Base de Datos
+                KPIs
               </button>
               <button 
                 className={`nav-button ${currentView === "reportes" ? "active" : ""}`}
@@ -89,10 +89,10 @@ function App() {
                 Reportes y Análisis
               </button>
               <button 
-                className={`nav-button ${currentView === "kpis" ? "active" : ""}`}
-                onClick={() => setCurrentView("kpis")}
+                className={`nav-button ${currentView === "database" ? "active" : ""}`}
+                onClick={() => setCurrentView("database")}
               >
-                KPIs
+                Base de Datos
               </button>
             </div>
             <button className="logout-button" onClick={handleLogout}>
