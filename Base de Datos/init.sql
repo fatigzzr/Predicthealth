@@ -2028,19 +2028,11 @@ CREATE OR REPLACE PROCEDURE sp_get_audit_records(
     p_offset INTEGER DEFAULT 0,
     p_user_id INTEGER DEFAULT NULL,
     p_entity_id INTEGER DEFAULT NULL,
-    p_action VARCHAR(20) DEFAULT NULL
-) RETURNS TABLE (
-    id_registro INTEGER,
-    id_usuario INTEGER,
-    id_entidad INTEGER,
-    accion VARCHAR(20),
-    fecha_hora TIMESTAMP,
-    detalles JSONB,
-    usuario_email VARCHAR(255),
-    entidad_nombre VARCHAR(100)
+    p_action VARCHAR(20) DEFAULT NULL,
+    INOUT p_result REFCURSOR
 ) AS $$
 BEGIN
-    RETURN QUERY
+    OPEN p_result FOR
     SELECT 
         ra.id_registro,
         ra.id_usuario,
@@ -2065,20 +2057,12 @@ $$ LANGUAGE plpgsql;
 -- =====================================
 -- Procedimiento: Obtener estadísticas de auditoría
 -- =====================================
-CREATE OR REPLACE FUNCTION sp_get_audit_stats(
-    p_days INTEGER DEFAULT 30
-) RETURNS TABLE (
-    total_actions BIGINT,
-    login_count BIGINT,
-    create_count BIGINT,
-    read_count BIGINT,
-    update_count BIGINT,
-    delete_count BIGINT,
-    most_active_user VARCHAR(255),
-    most_accessed_entity VARCHAR(100)
+CREATE OR REPLACE PROCEDURE sp_get_audit_stats(
+    p_days INTEGER DEFAULT 30,
+    INOUT p_result REFCURSOR
 ) AS $$
 BEGIN
-    RETURN QUERY
+    OPEN p_result FOR
     WITH stats AS (
         SELECT 
             COUNT(*) as total,
