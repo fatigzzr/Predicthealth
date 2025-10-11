@@ -294,16 +294,23 @@ if [ "$PSQL_VERSION_NUM" -lt 14 ]; then
     
     # Actualizar PostgreSQL según el sistema operativo
     if command_exists apt; then
-        # Ubuntu/Debian - Usar repositorio oficial de PostgreSQL
-        print_status "Configurando repositorio oficial de PostgreSQL..."
+        # Ubuntu/Debian - Usar repositorio alternativo más confiable
+        print_status "Configurando repositorio alternativo de PostgreSQL..."
         sudo apt update
-        sudo apt install -y wget ca-certificates
-        wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-        echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+        sudo apt install -y wget ca-certificates gnupg lsb-release
+        
+        # Usar método más confiable para agregar la clave GPG
+        wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/postgresql-keyring.gpg] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+        
+        # Actualizar repositorios
         sudo apt update
         
         print_status "Instalando PostgreSQL 14..."
         sudo apt install -y postgresql-14 postgresql-client-14 postgresql-contrib-14
+        
+        # Configurar PostgreSQL 14 como servicio principal
+        sudo systemctl stop postgresql 2>/dev/null || true
         sudo systemctl start postgresql@14-main
         sudo systemctl enable postgresql@14-main
     elif command_exists yum; then
@@ -322,54 +329,65 @@ if [ "$PSQL_VERSION_NUM" -lt 14 ]; then
         sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
         sudo systemctl start postgresql-14
         sudo systemctl enable postgresql-14
-    else
-        print_warning "No se pudo actualizar PostgreSQL automáticamente con el método estándar"
-        print_status "Intentando con Docker..."
-        
-        # Verificar si Docker está disponible
-        if command_exists docker; then
-            print_status "Usando Docker para PostgreSQL 14..."
-            
-            # Detener PostgreSQL nativo
-            sudo systemctl stop postgresql 2>/dev/null || true
-            
-            # Crear directorio para datos de PostgreSQL
-            sudo mkdir -p /var/lib/postgresql-docker
-            sudo chown 999:999 /var/lib/postgresql-docker
-            
-            # Ejecutar PostgreSQL 14 en Docker
-            docker run -d \
-                --name postgres-14 \
-                -e POSTGRES_PASSWORD=666 \
-                -e POSTGRES_USER=predicthealth_user \
-                -e POSTGRES_DB=predicthealth \
-                -p 5432:5432 \
-                -v /var/lib/postgresql-docker:/var/lib/postgresql/data \
-                postgres:14
-            
-            # Esperar a que PostgreSQL esté listo
-            print_status "Esperando a que PostgreSQL esté listo..."
-            sleep 10
-            
-            # Verificar que Docker PostgreSQL esté funcionando
-            if docker ps | grep -q postgres-14; then
-                print_success "PostgreSQL 14 ejecutándose en Docker"
-                # Actualizar variables de entorno para usar Docker
-                export PGHOST=localhost
-                export PGPORT=5432
-            else
-                print_error "No se pudo iniciar PostgreSQL en Docker"
-                exit 1
-            fi
         else
-            print_error "Docker no está disponible y no se pudo actualizar PostgreSQL"
-            print_status "Por favor instala Docker o actualiza PostgreSQL manualmente:"
-            print_status "1. Instalar Docker: curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh"
-            print_status "2. O usar Google Cloud SQL (PostgreSQL 14+)"
-            print_status "3. O instalación manual desde source"
-            exit 1
+            print_warning "No se pudo actualizar PostgreSQL automáticamente con el método estándar"
+            print_status "Intentando con método alternativo..."
+            
+            # Intentar instalar PostgreSQL 14 desde paquetes disponibles
+            if command_exists apt; then
+                print_status "Intentando instalar PostgreSQL 14 desde paquetes disponibles..."
+                sudo apt update
+                sudo apt install -y postgresql-14 postgresql-client-14 postgresql-contrib-14 || {
+                    print_warning "PostgreSQL 14 no disponible en repositorios estándar"
+                    print_status "Intentando con Docker..."
+                    
+                    # Verificar si Docker está disponible
+                    if command_exists docker; then
+                        print_status "Usando Docker para PostgreSQL 14..."
+                        
+                        # Detener PostgreSQL nativo
+                        sudo systemctl stop postgresql 2>/dev/null || true
+                        
+                        # Crear directorio para datos de PostgreSQL
+                        sudo mkdir -p /var/lib/postgresql-docker
+                        sudo chown 999:999 /var/lib/postgresql-docker
+                        
+                        # Ejecutar PostgreSQL 14 en Docker
+                        docker run -d \
+                            --name postgres-14 \
+                            -e POSTGRES_PASSWORD=666 \
+                            -e POSTGRES_USER=predicthealth_user \
+                            -e POSTGRES_DB=predicthealth \
+                            -p 5432:5432 \
+                            -v /var/lib/postgresql-docker:/var/lib/postgresql/data \
+                            postgres:14
+                        
+                        # Esperar a que PostgreSQL esté listo
+                        print_status "Esperando a que PostgreSQL esté listo..."
+                        sleep 10
+                        
+                        # Verificar que Docker PostgreSQL esté funcionando
+                        if docker ps | grep -q postgres-14; then
+                            print_success "PostgreSQL 14 ejecutándose en Docker"
+                            # Actualizar variables de entorno para usar Docker
+                            export PGHOST=localhost
+                            export PGPORT=5432
+                        else
+                            print_error "No se pudo iniciar PostgreSQL en Docker"
+                            exit 1
+                        fi
+                    else
+                        print_error "Docker no está disponible y no se pudo actualizar PostgreSQL"
+                        print_status "Continuando con PostgreSQL 13 (puede tener limitaciones de compatibilidad)"
+                        print_warning "Algunas funciones pueden no estar disponibles con PostgreSQL 13"
+                    fi
+                }
+            else
+                print_error "No se pudo actualizar PostgreSQL automáticamente"
+                print_status "Continuando con PostgreSQL 13 (puede tener limitaciones de compatibilidad)"
+                print_warning "Algunas funciones pueden no estar disponibles con PostgreSQL 13"
+            fi
         fi
-    fi
     
     # Verificar que la actualización fue exitosa
     sleep 5
