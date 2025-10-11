@@ -181,6 +181,15 @@ if ! pg_isready -q 2>/dev/null; then
         if [ ! -d "/var/lib/postgresql/data" ] && [ ! -d "/var/lib/pgsql/data" ]; then
             print_status "Inicializando cluster de PostgreSQL..."
             
+            # Crear directorios con permisos correctos
+            print_status "Creando directorios con permisos correctos..."
+            sudo mkdir -p /var/lib/postgresql
+            sudo mkdir -p /var/lib/pgsql
+            sudo chown postgres:postgres /var/lib/postgresql
+            sudo chown postgres:postgres /var/lib/pgsql
+            sudo chmod 755 /var/lib/postgresql
+            sudo chmod 755 /var/lib/pgsql
+            
             # Intentar inicializar en /var/lib/postgresql/data primero
             if sudo -u postgres initdb -D /var/lib/postgresql/data 2>/dev/null; then
                 print_success "PostgreSQL inicializado en /var/lib/postgresql/data"
@@ -192,7 +201,9 @@ if ! pg_isready -q 2>/dev/null; then
                 print_success "PostgreSQL inicializado con postgresql-setup"
             else
                 print_error "No se pudo inicializar PostgreSQL con ningún método"
-                print_status "Intentando diagnóstico..."
+                print_status "Intentando diagnóstico con permisos corregidos..."
+                sudo chown -R postgres:postgres /var/lib/postgresql
+                sudo chown -R postgres:postgres /var/lib/pgsql
                 sudo -u postgres /usr/bin/initdb -D /var/lib/postgresql/data --auth-local=trust --auth-host=md5
             fi
         else
@@ -223,6 +234,12 @@ if ! pg_isready -q 2>/dev/null; then
             
             # Reinicializar desde cero con configuración específica
             print_status "Reinicializando PostgreSQL desde cero..."
+            
+            # Asegurar permisos correctos antes de reinicializar
+            sudo mkdir -p /var/lib/postgresql
+            sudo chown -R postgres:postgres /var/lib/postgresql
+            sudo chmod 755 /var/lib/postgresql
+            
             sudo -u postgres initdb -D /var/lib/postgresql/data --auth-local=trust --auth-host=md5 --encoding=UTF8 --locale=en_US.UTF-8
             
             # Configurar PostgreSQL para permitir conexiones locales
