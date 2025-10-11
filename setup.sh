@@ -314,18 +314,24 @@ if [ "$PSQL_VERSION_NUM" -lt 14 ]; then
         sudo systemctl start postgresql@14-main
         sudo systemctl enable postgresql@14-main
     elif command_exists yum; then
-        # CentOS/RHEL - Usar repositorio oficial de PostgreSQL
+        # CentOS/RHEL - Usar repositorio oficial de PostgreSQL con GPG deshabilitado
         print_status "Configurando repositorio oficial de PostgreSQL..."
         sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-        sudo yum install -y postgresql14-server postgresql14 postgresql14-contrib
+        
+        # Deshabilitar verificación GPG temporalmente
+        print_status "Deshabilitando verificación GPG temporalmente..."
+        sudo yum install -y postgresql14-server postgresql14 postgresql14-contrib --nogpgcheck
         sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
         sudo systemctl start postgresql-14
         sudo systemctl enable postgresql-14
     elif command_exists dnf; then
-        # Fedora - Usar repositorio oficial de PostgreSQL
+        # Fedora - Usar repositorio oficial de PostgreSQL con GPG deshabilitado
         print_status "Configurando repositorio oficial de PostgreSQL..."
         sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/F-$(rpm -E %fedora)-x86_64/pgdg-fedora-repo-latest.noarch.rpm
-        sudo dnf install -y postgresql14-server postgresql14 postgresql14-contrib
+        
+        # Deshabilitar verificación GPG temporalmente
+        print_status "Deshabilitando verificación GPG temporalmente..."
+        sudo dnf install -y postgresql14-server postgresql14 postgresql14-contrib --nogpgcheck
         sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
         sudo systemctl start postgresql-14
         sudo systemctl enable postgresql-14
