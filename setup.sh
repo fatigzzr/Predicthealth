@@ -333,6 +333,15 @@ if [ ! -f "$INIT_SQL_PATH" ]; then
     exit 1
 fi
 
+# Verificar y ajustar permisos para que postgres pueda acceder
+if ! sudo -u postgres test -r "$INIT_SQL_PATH" 2>/dev/null; then
+    print_status "Ajustando permisos para que postgres pueda acceder al archivo..."
+    sudo chmod 755 "$SCRIPT_DIR"
+    sudo chmod 755 "$SCRIPT_DIR/Base de Datos"
+    sudo chmod 644 "$INIT_SQL_PATH"
+    print_status "Permisos ajustados"
+fi
+
 # Detectar sistema operativo y usar el método apropiado
 if command_exists brew; then
     # macOS con Homebrew
