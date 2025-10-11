@@ -171,6 +171,16 @@ if ! pg_isready -q 2>/dev/null; then
     elif command_exists systemctl; then
         # Linux con systemd
         print_status "Configurando PostgreSQL en Linux..."
+        
+        # Verificar si PostgreSQL está inicializado
+        if [ ! -d "/var/lib/postgresql/data" ] && [ ! -d "/var/lib/pgsql/data" ]; then
+            print_status "Inicializando cluster de PostgreSQL..."
+            sudo -u postgres initdb -D /var/lib/postgresql/data 2>/dev/null || sudo -u postgres initdb -D /var/lib/pgsql/data 2>/dev/null || {
+                print_warning "No se pudo inicializar automáticamente. Intentando método alternativo..."
+                sudo postgresql-setup initdb 2>/dev/null || sudo -u postgres /usr/bin/initdb -D /var/lib/postgresql/data 2>/dev/null
+            }
+        fi
+        
         sudo systemctl start postgresql
         sudo systemctl enable postgresql
     elif command_exists service; then
@@ -189,7 +199,32 @@ if ! pg_isready -q 2>/dev/null; then
     
     if ! pg_isready -q; then
         print_error "PostgreSQL no se pudo configurar correctamente"
-        exit 1
+        print_status "Intentando diagnóstico adicional..."
+        
+        # Mostrar logs de PostgreSQL para diagnóstico
+        if command_exists journalctl; then
+            print_status "Últimos logs de PostgreSQL:"
+            journalctl -u postgresql.service --no-pager -n 10
+        fi
+        
+        # Intentar métodos alternativos de inicialización
+        print_status "Intentando métodos alternativos..."
+        sudo -u postgres /usr/bin/initdb -D /var/lib/postgresql/data --auth-local=trust --auth-host=md5 2>/dev/null || \
+        sudo -u postgres /usr/bin/initdb -D /var/lib/pgsql/data --auth-local=trust --auth-host=md5 2>/dev/null || \
+        sudo postgresql-setup --initdb 2>/dev/null
+        
+        # Intentar iniciar nuevamente
+        sudo systemctl start postgresql
+        sleep 3
+        
+        if ! pg_isready -q; then
+            print_error "PostgreSQL no se pudo configurar después de intentos adicionales"
+            print_status "Por favor configura PostgreSQL manualmente:"
+            print_status "1. sudo -u postgres initdb -D /var/lib/postgresql/data"
+            print_status "2. sudo systemctl start postgresql"
+            print_status "3. sudo systemctl enable postgresql"
+            exit 1
+        fi
     fi
 fi
 
@@ -231,6 +266,14 @@ if ! pg_isready -q; then
     
     # Intentar iniciar PostgreSQL (diferentes sistemas)
     if command_exists systemctl; then
+        # Verificar si PostgreSQL está inicializado antes de iniciar
+        if [ ! -d "/var/lib/postgresql/data" ] && [ ! -d "/var/lib/pgsql/data" ]; then
+            print_status "Inicializando cluster de PostgreSQL..."
+            sudo -u postgres initdb -D /var/lib/postgresql/data 2>/dev/null || sudo -u postgres initdb -D /var/lib/pgsql/data 2>/dev/null || {
+                print_warning "No se pudo inicializar automáticamente. Intentando método alternativo..."
+                sudo postgresql-setup initdb 2>/dev/null || sudo -u postgres /usr/bin/initdb -D /var/lib/postgresql/data 2>/dev/null
+            }
+        fi
         sudo systemctl start postgresql
     elif command_exists brew; then
         brew services start postgresql
