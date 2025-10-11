@@ -303,18 +303,37 @@ fi
 
 # Verificar compatibilidad de versión y actualizar si es necesario
 if [ "$PSQL_VERSION_NUM" -lt 14 ]; then
-    print_warning "PostgreSQL $PSQL_VERSION detectado. Se requiere PostgreSQL 14+ para funcionalidad completa."
-    print_status "Actualizando PostgreSQL a la versión 14..."
-    
-    # Detener PostgreSQL actual
-    print_status "Deteniendo PostgreSQL actual..."
-    if command_exists systemctl; then
-        sudo systemctl stop postgresql
-    elif command_exists brew; then
-        brew services stop postgresql
+    # Verificar si PostgreSQL 14 ya está instalado
+    if command_exists psql-14 && sudo systemctl is-active --quiet postgresql-14; then
+        print_success "PostgreSQL 14 ya está instalado y funcionando"
+        print_status "Configurando PostgreSQL 14 como versión activa..."
+        sudo systemctl stop postgresql 2>/dev/null || true
+        sudo systemctl start postgresql-14
+        sudo systemctl enable postgresql-14
+        
+        # Actualizar variables para usar PostgreSQL 14
+        PSQL_14_VERSION=$(psql-14 --version | awk '{print $3}')
+        PSQL_14_VERSION_NUM=$(echo $PSQL_14_VERSION | cut -d. -f1)
+        PSQL_VERSION=$PSQL_14_VERSION
+        PSQL_VERSION_NUM=$PSQL_14_VERSION_NUM
+        print_success "PostgreSQL $PSQL_VERSION ahora activo"
+    else
+        print_warning "PostgreSQL $PSQL_VERSION detectado. Se requiere PostgreSQL 14+ para funcionalidad completa."
+        print_status "Actualizando PostgreSQL a la versión 14..."
+        
+        # Detener PostgreSQL actual
+        print_status "Deteniendo PostgreSQL actual..."
+        if command_exists systemctl; then
+            sudo systemctl stop postgresql
+        elif command_exists brew; then
+            brew services stop postgresql
+        fi
     fi
-    
-    # Actualizar PostgreSQL según el sistema operativo
+else
+    print_success "PostgreSQL $PSQL_VERSION es compatible (versión 14+)"
+fi
+
+# Si llegamos aquí, PostgreSQL 14+ está funcionando
     if command_exists apt; then
         # Ubuntu/Debian - Usar repositorio alternativo más confiable
         print_status "Configurando repositorio alternativo de PostgreSQL..."
