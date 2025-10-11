@@ -63,6 +63,8 @@ sudo yum install -y postgresql14-server postgresql14 postgresql14-contrib --nogp
 sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
 sudo systemctl start postgresql-14
 sudo systemctl enable postgresql-14
+
+./setup.sh
 ```
 
 **📋 Notas Importantes:**
