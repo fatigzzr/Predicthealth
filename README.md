@@ -41,6 +41,36 @@ sudo chmod 755 "/home/fati/Predicthealth/Base de Datos"
 sudo chmod 644 "/home/fati/Predicthealth/Base de Datos/init.sql"
 ```
 
+**🔧 Instalación Manual de PostgreSQL 14 (Google Cloud)**
+Si el script automático falla, ejecuta estos pasos manualmente:
+
+```bash
+# 1. Detener PostgreSQL actual
+sudo systemctl stop postgresql
+
+# 2. Instalar PostgreSQL 14 con repositorio oficial
+sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+# 3. Instalar PostgreSQL 14 (bypass GPG signature)
+sudo yum install -y postgresql14-server postgresql14 postgresql14-contrib --nogpgcheck
+
+# 4. Inicializar base de datos
+sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
+
+# 5. Iniciar y habilitar PostgreSQL 14
+sudo systemctl start postgresql-14
+sudo systemctl enable postgresql-14
+
+# 6. Verificar instalación
+psql-14 --version
+```
+
+**📋 Notas Importantes:**
+- `--nogpgcheck` evita errores de verificación GPG
+- PostgreSQL 14 se instala en `/usr/pgsql-14/`
+- El servicio se llama `postgresql-14` (no `postgresql`)
+- Usar `psql-14` en lugar de `psql` para evitar warnings de versión
+
 **🌐 Configuración de Firewall para Google Cloud**
 Si estás usando Google Cloud y no puedes acceder desde la IP externa, configura las reglas de firewall:
 
