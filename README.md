@@ -92,8 +92,9 @@ npm start
 ## 📚 Documentación
 
 - [Arquitectura del Sistema](https://lucid.app/lucidchart/e8a4c780-8b4f-4ca2-8605-5b6e3927194d/edit?invitationId=inv_925c84d6-c21d-43af-ba4d-35265cca643f)
-- [Modelo E-R](https://docs.google.com/document/d/1VXycVG1fAsWVyR-WUuyAO9iuKRno-keRreiZjPSXJNE/edit?tab=t.0#heading=h.y19w7r73ouiy)
+- [Modelo E-R](https://drive.google.com/file/d/1X3nB96Gm1nfRHcJupab-oSa1GaDAEmRQ/view?usp=share_link)
 - [Base de Datos](Base%20de%20Datos/README.md) - Documentación completa de BD
+- [Backend API](Backend/README.md) - Documentación del backend Flask
 
 ## 📊 Datasets Utilizados
 
