@@ -300,56 +300,26 @@ else
 fi
 
 # Detectar la versión de PostgreSQL activa
-PSQL_VERSION=$(psql --version | awk '{print $3}')
-PSQL_VERSION_NUM=$(echo $PSQL_VERSION | cut -d. -f1)
-
-# Verificar si PostgreSQL 14 está disponible
+# Usar psql-14 si está disponible, sino usar psql estándar
 if command_exists psql-14; then
-    PSQL_14_VERSION=$(psql-14 --version | awk '{print $3}')
-    PSQL_14_VERSION_NUM=$(echo $PSQL_14_VERSION | cut -d. -f1)
-    print_success "PostgreSQL $PSQL_VERSION encontrado (activo) y PostgreSQL $PSQL_14_VERSION disponible"
-    
-    # Si PostgreSQL 14 está disponible, usarlo
-    if [ "$PSQL_14_VERSION_NUM" -ge 14 ]; then
-        print_status "Configurando PostgreSQL 14 como versión activa..."
-        sudo systemctl stop postgresql 2>/dev/null || true
-        sudo systemctl start postgresql-14
-        sudo systemctl enable postgresql-14
-        
-        # Actualizar variables para usar PostgreSQL 14
-        PSQL_VERSION=$PSQL_14_VERSION
-        PSQL_VERSION_NUM=$PSQL_14_VERSION_NUM
-        print_success "PostgreSQL $PSQL_VERSION ahora activo"
-    fi
+    PSQL_CMD="psql-14"
+    print_status "Usando psql-14 como cliente PostgreSQL"
 else
-    print_success "PostgreSQL $PSQL_VERSION encontrado y funcionando"
+    PSQL_CMD="psql"
+    print_warning "psql-14 no disponible, usando psql estándar"
 fi
 
-# Verificar compatibilidad de versión y actualizar si es necesario
+PSQL_VERSION=$($PSQL_CMD --version | awk '{print $3}')
+PSQL_VERSION_NUM=$(echo $PSQL_VERSION | cut -d. -f1)
+
+# Verificar compatibilidad de versión
 if [ "$PSQL_VERSION_NUM" -lt 14 ]; then
-    # Verificar si PostgreSQL 14 ya está instalado
-    if command_exists psql-14 && sudo systemctl is-active --quiet postgresql-14; then
-        print_success "PostgreSQL 14 ya está instalado y funcionando"
-        print_status "Configurando PostgreSQL 14 como versión activa..."
-        sudo systemctl stop postgresql 2>/dev/null || true
-        sudo systemctl start postgresql-14
-        sudo systemctl enable postgresql-14
-        
-        # Actualizar variables para usar PostgreSQL 14
-        PSQL_14_VERSION=$(psql-14 --version | awk '{print $3}')
-        PSQL_14_VERSION_NUM=$(echo $PSQL_14_VERSION | cut -d. -f1)
-        PSQL_VERSION=$PSQL_14_VERSION
-        PSQL_VERSION_NUM=$PSQL_14_VERSION_NUM
-        print_success "PostgreSQL $PSQL_VERSION ahora activo"
-    else
-        print_warning "PostgreSQL $PSQL_VERSION detectado. Se requiere PostgreSQL 14+ para funcionalidad completa."
-        print_status "PostgreSQL 14 no está disponible. Continuando con PostgreSQL $PSQL_VERSION (puede tener limitaciones)"
-        print_warning "Algunas funciones pueden no estar disponibles con PostgreSQL $PSQL_VERSION"
-    fi
+    print_warning "PostgreSQL $PSQL_VERSION detectado. Se requiere PostgreSQL 14+ para funcionalidad completa."
+    print_status "PostgreSQL 14 no está disponible. Continuando con PostgreSQL $PSQL_VERSION (puede tener limitaciones)"
+    print_warning "Algunas funciones pueden no estar disponibles con PostgreSQL $PSQL_VERSION"
 else
     print_success "PostgreSQL $PSQL_VERSION es compatible (versión 14+)"
 fi
-# PostgreSQL ya está configurado correctamente
 
 # Verificar pip
 if ! command_exists pip3; then
@@ -462,30 +432,31 @@ if ! sudo -u postgres test -r "$INIT_SQL_PATH" 2>/dev/null; then
     print_status "Permisos ajustados"
 fi
 
-# Ahora PostgreSQL 14+ está garantizado, usar el script estándar
+# Ejecutar init.sql con el cliente PostgreSQL correcto
 print_status "PostgreSQL $PSQL_VERSION detectado - compatible con todas las funciones"
+print_status "Ejecutando init.sql con $PSQL_CMD..."
 
 # Detectar sistema operativo y usar el método apropiado
 if command_exists brew; then
     # macOS con Homebrew
     print_status "Ejecutando en macOS con Homebrew..."
-    if psql -d postgres -f "$INIT_SQL_PATH"; then
+    if $PSQL_CMD -d postgres -f "$INIT_SQL_PATH"; then
         print_success "Script principal ejecutado correctamente en macOS"
     else
         print_error "No se pudo ejecutar el script en macOS"
         print_status "Por favor ejecuta manualmente:"
-        print_status "psql -d postgres -f '$INIT_SQL_PATH'"
+        print_status "$PSQL_CMD -d postgres -f '$INIT_SQL_PATH'"
         exit 1
     fi
 else
     # Entorno en la Nube (GCloud)
     print_status "Ejecutando en entorno en la nube (GCloud)..."
-    if sudo -u postgres psql -d postgres -f "$INIT_SQL_PATH"; then
+    if sudo -u postgres $PSQL_CMD -d postgres -f "$INIT_SQL_PATH"; then
         print_success "Script principal ejecutado correctamente en entorno en la nube"
     else
         print_error "No se pudo ejecutar el script en entorno en la nube"
         print_status "Por favor ejecuta manualmente:"
-        print_status "sudo -u postgres psql -d postgres -f '$INIT_SQL_PATH'"
+        print_status "sudo -u postgres $PSQL_CMD -d postgres -f '$INIT_SQL_PATH'"
         exit 1
     fi
 fi
@@ -500,15 +471,15 @@ if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     PRUEBA_SQL_PATH="$SCRIPT_DIR/Base de Datos/prueba.sql"
     if [ -f "$PRUEBA_SQL_PATH" ]; then
         print_status "Cargando datos de prueba..."
-        if psql -U predicthealth_user -d predicthealth -f "$PRUEBA_SQL_PATH"; then
+        if $PSQL_CMD -U predicthealth_user -d predicthealth -f "$PRUEBA_SQL_PATH"; then
             print_success "Datos de prueba cargados"
         else
             print_warning "No se pudo cargar datos de prueba. Verifica que la base de datos y usuario existan."
             print_status "Intenta manualmente:"
             if command_exists brew; then
-                print_status "psql -U predicthealth_user -d predicthealth -f '$PRUEBA_SQL_PATH'"
+                print_status "$PSQL_CMD -U predicthealth_user -d predicthealth -f '$PRUEBA_SQL_PATH'"
             else
-                print_status "sudo -u postgres psql -U predicthealth_user -d predicthealth -f '$PRUEBA_SQL_PATH'"
+                print_status "sudo -u postgres $PSQL_CMD -U predicthealth_user -d predicthealth -f '$PRUEBA_SQL_PATH'"
             fi
         fi
     else
