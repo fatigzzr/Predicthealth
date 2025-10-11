@@ -74,12 +74,42 @@ print_success "npm $(npm --version) encontrado"
 
 # Verificar PostgreSQL
 if ! command_exists psql; then
-    print_error "PostgreSQL no está instalado. Por favor instala PostgreSQL 12+"
-    print_status "Instrucciones de instalación:"
-    print_status "- macOS: brew install postgresql"
-    print_status "- Ubuntu/Debian: sudo apt install postgresql postgresql-contrib"
-    print_status "- CentOS/RHEL: sudo yum install postgresql-server postgresql-contrib"
-    exit 1
+    print_warning "PostgreSQL no está instalado. Intentando instalar automáticamente..."
+    
+    # Detectar sistema operativo e instalar PostgreSQL
+    if command_exists brew; then
+        # macOS con Homebrew
+        print_status "Instalando PostgreSQL en macOS..."
+        brew install postgresql
+    elif command_exists apt; then
+        # Ubuntu/Debian
+        print_status "Instalando PostgreSQL en Ubuntu/Debian..."
+        sudo apt update
+        sudo apt install -y postgresql postgresql-contrib
+    elif command_exists yum; then
+        # CentOS/RHEL
+        print_status "Instalando PostgreSQL en CentOS/RHEL..."
+        sudo yum install -y postgresql-server postgresql-contrib
+    elif command_exists dnf; then
+        # Fedora
+        print_status "Instalando PostgreSQL en Fedora..."
+        sudo dnf install -y postgresql-server postgresql-contrib
+    else
+        print_error "No se pudo detectar el sistema operativo para instalar PostgreSQL"
+        print_status "Por favor instala PostgreSQL manualmente:"
+        print_status "- macOS: brew install postgresql"
+        print_status "- Ubuntu/Debian: sudo apt install postgresql postgresql-contrib"
+        print_status "- CentOS/RHEL: sudo yum install postgresql-server postgresql-contrib"
+        exit 1
+    fi
+    
+    # Verificar que la instalación fue exitosa
+    if ! command_exists psql; then
+        print_error "La instalación de PostgreSQL falló"
+        exit 1
+    fi
+    
+    print_success "PostgreSQL instalado correctamente"
 fi
 
 # Verificar si PostgreSQL está realmente configurado
@@ -87,10 +117,11 @@ if ! pg_isready -q 2>/dev/null; then
     print_warning "PostgreSQL no está ejecutándose o no está configurado"
     print_status "Intentando configurar PostgreSQL..."
     
-    # Intentar inicializar PostgreSQL en macOS
+    # Configurar PostgreSQL según el sistema operativo
     if command_exists brew; then
+        # macOS con Homebrew
         if [ ! -d "/usr/local/var/postgres" ] && [ ! -d "/opt/homebrew/var/postgres" ]; then
-            print_status "Inicializando PostgreSQL..."
+            print_status "Inicializando PostgreSQL en macOS..."
             if [ -d "/opt/homebrew" ]; then
                 # Apple Silicon Mac
                 initdb /opt/homebrew/var/postgres
@@ -100,6 +131,15 @@ if ! pg_isready -q 2>/dev/null; then
             fi
         fi
         brew services start postgresql
+    elif command_exists systemctl; then
+        # Linux con systemd
+        print_status "Configurando PostgreSQL en Linux..."
+        sudo systemctl start postgresql
+        sudo systemctl enable postgresql
+    elif command_exists service; then
+        # Linux con service
+        print_status "Iniciando PostgreSQL en Linux..."
+        sudo service postgresql start
     else
         print_error "No se pudo configurar PostgreSQL automáticamente"
         print_status "Por favor configura PostgreSQL manualmente:"
@@ -217,7 +257,23 @@ if [ ! -f "Backend/requirements.txt" ]; then
 fi
 
 cd Backend
-pip3 install -r requirements.txt
+
+# Manejar problemas con psycopg2-binary en Python 3.13+
+print_status "Instalando dependencias Python..."
+if ! pip3 install -r requirements.txt; then
+    print_warning "Error instalando psycopg2-binary. Intentando alternativas..."
+    
+    # Intentar instalar psycopg2 en lugar de psycopg2-binary
+    pip3 install Flask==2.3.3 Flask-CORS==4.0.0 PyJWT==2.8.0 python-dotenv==1.0.0
+    pip3 install psycopg2 || pip3 install psycopg2-binary --no-cache-dir || {
+        print_error "No se pudo instalar psycopg2. Por favor instala PostgreSQL development headers:"
+        print_status "macOS: brew install postgresql"
+        print_status "Ubuntu/Debian: sudo apt install libpq-dev"
+        print_status "CentOS/RHEL: sudo yum install postgresql-devel"
+        exit 1
+    }
+fi
+
 print_success "Dependencias del backend instaladas"
 
 # =============================================================================
@@ -262,10 +318,23 @@ print_status "🔍 Verificando puertos disponibles..."
 
 if port_in_use 5001; then
     print_warning "Puerto 5001 está en uso. El backend podría no iniciarse correctamente"
+    print_status "Para liberar el puerto 5001:"
+    print_status "lsof -ti:5001 | xargs kill -9"
 fi
 
 if port_in_use 3000; then
     print_warning "Puerto 3000 está en uso. El frontend podría no iniciarse correctamente"
+    print_status "Para liberar el puerto 3000:"
+    print_status "lsof -ti:3000 | xargs kill -9"
+    
+    # Preguntar si liberar el puerto automáticamente
+    read -p "¿Deseas liberar el puerto 3000 automáticamente? (Y/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        print_status "Liberando puerto 3000..."
+        lsof -ti:3000 | xargs kill -9 2>/dev/null || print_warning "No se pudo liberar el puerto 3000"
+        sleep 2
+    fi
 fi
 
 # =============================================================================
