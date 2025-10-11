@@ -275,9 +275,31 @@ if ! pg_isready -q 2>/dev/null; then
     fi
 fi
 
+# Detectar la versión de PostgreSQL activa
 PSQL_VERSION=$(psql --version | awk '{print $3}')
 PSQL_VERSION_NUM=$(echo $PSQL_VERSION | cut -d. -f1)
-print_success "PostgreSQL $PSQL_VERSION encontrado y funcionando"
+
+# Verificar si PostgreSQL 14 está disponible
+if command_exists psql-14; then
+    PSQL_14_VERSION=$(psql-14 --version | awk '{print $3}')
+    PSQL_14_VERSION_NUM=$(echo $PSQL_14_VERSION | cut -d. -f1)
+    print_success "PostgreSQL $PSQL_VERSION encontrado (activo) y PostgreSQL $PSQL_14_VERSION disponible"
+    
+    # Si PostgreSQL 14 está disponible, usarlo
+    if [ "$PSQL_14_VERSION_NUM" -ge 14 ]; then
+        print_status "Configurando PostgreSQL 14 como versión activa..."
+        sudo systemctl stop postgresql 2>/dev/null || true
+        sudo systemctl start postgresql-14
+        sudo systemctl enable postgresql-14
+        
+        # Actualizar variables para usar PostgreSQL 14
+        PSQL_VERSION=$PSQL_14_VERSION
+        PSQL_VERSION_NUM=$PSQL_14_VERSION_NUM
+        print_success "PostgreSQL $PSQL_VERSION ahora activo"
+    fi
+else
+    print_success "PostgreSQL $PSQL_VERSION encontrado y funcionando"
+fi
 
 # Verificar compatibilidad de versión y actualizar si es necesario
 if [ "$PSQL_VERSION_NUM" -lt 14 ]; then
