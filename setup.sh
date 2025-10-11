@@ -481,13 +481,13 @@ if [[ ! $REPLY =~ ^[Nn]$ ]]; then
                 print_status "$PSQL_CMD -U predicthealth_user -d predicthealth -f '$PRUEBA_SQL_PATH'"
             fi
         else
-            # Linux/GCloud - usar sudo -u postgres
-            if sudo -u postgres $PSQL_CMD -U predicthealth_user -d predicthealth -f "$PRUEBA_SQL_PATH"; then
+            # Linux/GCloud - usar sudo -u postgres con autenticación correcta
+            if sudo -u postgres $PSQL_CMD -d predicthealth -f "$PRUEBA_SQL_PATH"; then
                 print_success "Datos de prueba cargados"
             else
                 print_warning "No se pudo cargar datos de prueba. Verifica que la base de datos y usuario existan."
                 print_status "Intenta manualmente:"
-                print_status "sudo -u postgres $PSQL_CMD -U predicthealth_user -d predicthealth -f '$PRUEBA_SQL_PATH'"
+                print_status "sudo -u postgres $PSQL_CMD -d predicthealth -f '$PRUEBA_SQL_PATH'"
             fi
         fi
     else
