@@ -306,13 +306,22 @@ if [ ! -f "Base de Datos/init.sql" ]; then
     exit 1
 fi
 
+# Verificar permisos del archivo
+if [ ! -r "Base de Datos/init.sql" ]; then
+    print_error "No se puede leer el archivo 'Base de Datos/init.sql'. Verifica los permisos."
+    exit 1
+fi
+
+print_status "Archivo init.sql encontrado y legible"
+
 # Ejecutar script principal (necesita superusuario)
 print_status "Ejecutando script de inicialización de base de datos..."
 
 # Intentar diferentes métodos de conexión
-if psql -U postgres -d postgres -f "Base de Datos/init.sql" 2>/dev/null; then
+print_status "Intentando ejecutar script con usuario postgres..."
+if psql -U postgres -d postgres -f "Base de Datos/init.sql"; then
     print_success "Script principal ejecutado con usuario postgres"
-elif psql -U $(whoami) -d postgres -f "Base de Datos/init.sql" 2>/dev/null; then
+elif psql -U $(whoami) -d postgres -f "Base de Datos/init.sql"; then
     print_success "Script principal ejecutado con usuario $(whoami)"
 else
     print_warning "No se pudo ejecutar con usuarios por defecto. Intentando crear usuario..."
@@ -323,13 +332,22 @@ else
     print_warning "No se pudo crear usuario $(whoami)"
     
     # Intentar ejecutar nuevamente
-    if psql -U $(whoami) -d postgres -f "Base de Datos/init.sql" 2>/dev/null; then
+    print_status "Ejecutando script con usuario $(whoami)..."
+    if psql -U $(whoami) -d postgres -f "Base de Datos/init.sql"; then
         print_success "Script principal ejecutado después de crear usuario"
     else
-        print_error "No se pudo ejecutar el script de inicialización"
-        print_status "Por favor ejecuta manualmente:"
-        print_status "sudo -u postgres psql -f 'Base de Datos/init.sql'"
-        exit 1
+        print_warning "Error al ejecutar script con usuario $(whoami). Intentando con usuario postgres..."
+        
+        # Intentar con usuario postgres como último recurso
+        if sudo -u postgres psql -d postgres -f "Base de Datos/init.sql"; then
+            print_success "Script principal ejecutado con usuario postgres"
+        else
+            print_error "No se pudo ejecutar el script de inicialización"
+            print_status "Por favor ejecuta manualmente:"
+            print_status "sudo -u postgres psql -f 'Base de Datos/init.sql'"
+            print_status "O verifica los permisos del archivo init.sql"
+            exit 1
+        fi
     fi
 fi
 
