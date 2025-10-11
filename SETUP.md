@@ -18,9 +18,40 @@
 
 ## 🚀 Instalación Paso a Paso
 
+### 0. Configuración Previa (Google Cloud)
+
+#### 0.1 Configurar Permisos de Archivos
+```bash
+# Dar permisos de lectura al directorio home para otros usuarios
+sudo chmod 755 /home/fati
+sudo chmod 755 /home/fati/Predicthealth
+sudo chmod 755 "/home/fati/Predicthealth/Base de Datos"
+sudo chmod 644 "/home/fati/Predicthealth/Base de Datos/init.sql"
+```
+
+#### 0.2 Configurar Firewall (Google Cloud)
+```bash
+# Configurar reglas de firewall para Google Cloud
+gcloud compute firewall-rules create allow-predicthealth-frontend --allow tcp:3000 --source-ranges 0.0.0.0/0
+gcloud compute firewall-rules create allow-predicthealth-backend --allow tcp:5001 --source-ranges 0.0.0.0/0
+```
+
+**O desde Google Cloud Console:**
+1. Ve a **VPC Network > Firewall**
+2. Crea regla para puerto **3000** (frontend)
+3. Crea regla para puerto **5001** (backend)
+4. Aplica a **todas las instancias**
+
+**⚠️ Importante para Google Cloud:**
+- Los puertos 3000 y 5001 deben estar abiertos en el firewall de Google Cloud
+- Sin estas reglas, no podrás acceder desde IPs externas
+- Las reglas se aplican a todas las instancias de la red
+
 ### 1. Configurar Base de Datos
 
 #### 1.1 Instalar PostgreSQL
+
+**Instalación Estándar:**
 ```bash
 # Ubuntu/Debian
 sudo apt update
@@ -33,6 +64,34 @@ brew services start postgresql
 # Windows
 # Descargar desde: https://www.postgresql.org/download/windows/
 ```
+
+**Instalación PostgreSQL 14 (Google Cloud/CentOS/RHEL):**
+```bash
+# 1. Detener PostgreSQL actual
+sudo systemctl stop postgresql
+
+# 2. Instalar PostgreSQL 14 con repositorio oficial
+sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+# 3. Instalar PostgreSQL 14 (bypass GPG signature)
+sudo yum install -y postgresql14-server postgresql14 postgresql14-contrib --nogpgcheck
+
+# 4. Inicializar base de datos
+sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
+
+# 5. Iniciar y habilitar PostgreSQL 14
+sudo systemctl start postgresql-14
+sudo systemctl enable postgresql-14
+
+# 6. Verificar instalación
+psql-14 --version
+```
+
+**📋 Notas Importantes para PostgreSQL 14:**
+- `--nogpgcheck` evita errores de verificación GPG
+- PostgreSQL 14 se instala en `/usr/pgsql-14/`
+- El servicio se llama `postgresql-14` (no `postgresql`)
+- Usar `psql-14` en lugar de `psql` para evitar warnings de versión
 
 #### 1.2 Configurar PostgreSQL
 ```bash
@@ -47,12 +106,22 @@ GRANT ALL PRIVILEGES ON DATABASE predicthealth TO predicthealth_user;
 ```
 
 #### 1.3 Ejecutar Script de Inicialización
+
+**Para PostgreSQL estándar:**
 ```bash
 # Ejecutar script principal de base de datos
 psql -U postgres -d predicthealth -f "Base de Datos/init.sql"
 ```
 
+**Para PostgreSQL 14 (Google Cloud):**
+```bash
+# Usar psql-14 para evitar warnings de versión
+sudo -u postgres psql-14 -d predicthealth -f "Base de Datos/init.sql"
+```
+
 #### 1.4 Cargar Datos de Prueba (Opcional)
+
+**Para PostgreSQL estándar:**
 ```bash
 # Navegar a carpeta de datos
 cd "Base de Datos/Data"
@@ -67,6 +136,23 @@ psql -d predicthealth -f diabetes_sql_commands.sql
 # Cargar datos de hipertensión (Kaggle)
 python load_hypertension_dataset.py
 psql -d predicthealth -f hypertension_sql_commands.sql
+```
+
+**Para PostgreSQL 14 (Google Cloud):**
+```bash
+# Navegar a carpeta de datos
+cd "Base de Datos/Data"
+
+# Instalar dependencias Python para scripts
+pip install -r requirements.txt
+
+# Cargar datos de diabetes (CDC)
+python load_diabetes_dataset.py
+sudo -u postgres psql-14 -d predicthealth -f diabetes_sql_commands.sql
+
+# Cargar datos de hipertensión (Kaggle)
+python load_hypertension_dataset.py
+sudo -u postgres psql-14 -d predicthealth -f hypertension_sql_commands.sql
 ```
 
 ### 2. Configurar Backend (Flask)
@@ -132,9 +218,27 @@ curl http://localhost:5001/api/health
 ```
 
 ### 2. Verificar Base de Datos
+
+**Para PostgreSQL estándar:**
 ```bash
 # Conectarse a PostgreSQL
 psql -U predicthealth_user -d predicthealth
+
+# Verificar tablas
+\dt
+
+# Verificar datos
+SELECT COUNT(*) FROM Usuario;
+SELECT COUNT(*) FROM Paciente;
+
+# Salir
+\q
+```
+
+**Para PostgreSQL 14 (Google Cloud):**
+```bash
+# Conectarse a PostgreSQL 14
+sudo -u postgres psql-14 -U predicthealth_user -d predicthealth
 
 # Verificar tablas
 \dt
@@ -184,13 +288,42 @@ SELECT COUNT(*) FROM Paciente;
 
 ## 🛠️ Solución de Problemas
 
+### Error de Permisos de Archivos
+```bash
+# Si encuentras errores de "Permission denied" al ejecutar scripts
+sudo chmod 755 /home/fati
+sudo chmod 755 /home/fati/Predicthealth
+sudo chmod 755 "/home/fati/Predicthealth/Base de Datos"
+sudo chmod 644 "/home/fati/Predicthealth/Base de Datos/init.sql"
+```
+
+### Error de Firewall (Google Cloud)
+```bash
+# Verificar reglas de firewall existentes
+gcloud compute firewall-rules list
+
+# Crear reglas si no existen
+gcloud compute firewall-rules create allow-predicthealth-frontend --allow tcp:3000 --source-ranges 0.0.0.0/0
+gcloud compute firewall-rules create allow-predicthealth-backend --allow tcp:5001 --source-ranges 0.0.0.0/0
+
+# Verificar que las reglas estén activas
+gcloud compute firewall-rules describe allow-predicthealth-frontend
+gcloud compute firewall-rules describe allow-predicthealth-backend
+```
+
 ### Error de Conexión a Base de Datos
 ```bash
 # Verificar que PostgreSQL esté ejecutándose
 sudo systemctl status postgresql
 
+# Para PostgreSQL 14
+sudo systemctl status postgresql-14
+
 # Verificar credenciales
 psql -U predicthealth_user -d predicthealth -h localhost
+
+# Para PostgreSQL 14
+sudo -u postgres psql-14 -U predicthealth_user -d predicthealth
 ```
 
 ### Error de Puerto en Uso
