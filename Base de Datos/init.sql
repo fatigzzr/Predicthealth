@@ -2065,7 +2065,7 @@ $$ LANGUAGE plpgsql;
 -- =====================================
 -- Procedimiento: Obtener estadísticas de auditoría
 -- =====================================
-CREATE OR REPLACE PROCEDURE sp_get_audit_stats(
+CREATE OR REPLACE FUNCTION sp_get_audit_stats(
     p_days INTEGER DEFAULT 30
 ) RETURNS TABLE (
     total_actions BIGINT,
