@@ -115,8 +115,8 @@ CREATE TABLE Entidad (
 CREATE TABLE Registro_Auditoria (
     id_registro SERIAL PRIMARY KEY,
     id_usuario INT REFERENCES Usuario(id_usuario) ON DELETE SET NULL,
-    id_entidad INT NOT NULL REFERENCES Entidad(id_entidad),
-    accion VARCHAR(20) NOT NULL CHECK (accion IN ('CREATE','UPDATE','DELETE','LOGIN','LOGOUT')),
+    id_entidad INT REFERENCES Entidad(id_entidad) ON DELETE SET NULL,
+    accion VARCHAR(20) NOT NULL CHECK (accion IN ('CREATE','UPDATE','DELETE','LOGIN')),
     fecha_hora TIMESTAMP NOT NULL DEFAULT now(),
     detalles JSONB
 );
@@ -393,6 +393,33 @@ CREATE TABLE Documento_Enfermedad (
 );
 
 -- =====================================
+-- Permisos y usuario de prueba para login
+-- =====================================
+
+-- Asegurar contraseña del rol de aplicación si ya existía
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'predicthealth_user') THEN
+        ALTER ROLE predicthealth_user LOGIN PASSWORD '666';
+    END IF;
+END$$;
+
+-- Otorgar permisos sobre el esquema y tablas existentes
+GRANT USAGE ON SCHEMA public TO predicthealth_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO predicthealth_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO predicthealth_user;
+
+-- Otorgar privilegios por defecto para futuras tablas/secuencias
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO predicthealth_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT USAGE, SELECT ON SEQUENCES TO predicthealth_user;
+
+-- Asegurar permisos sobre tablas existentes (ejecutar después de crear todas las tablas)
+GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO predicthealth_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO predicthealth_user;
+
+-- =====================================
 -- ÍNDICES POR TIEMPO - ESQUEMA PREDICTHEALTH
 -- =====================================
 
@@ -481,17 +508,36 @@ ORDER BY
     sv.id_usuario,
     fecha;
 
+-- =====================================
+-- STORED PROCEDURE: Dashboard 1 - Monitoreo PA Completo
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_dashboard_monitoreo_pa(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM Monitoreo_PA_Completo;
+END;
+$$;
+
 -- Signos Vitales generales: HR, SpO2 y otros
 CREATE OR REPLACE VIEW Dashboard_Signos_Vitales AS
 SELECT
     sv.id_usuario,
     DATE_TRUNC('day', sv.timestamp) AS fecha,
     sv.id_postura,
-    AVG(CASE WHEN t.nombre NOT IN ('BP_sistolica','BP_diastolica') THEN sv.valor END) AS valor_promedio
+    AVG(CASE WHEN t.nombre = 'HR' THEN sv.valor END) AS frecuencia_cardiaca_promedio_diario,
+    AVG(CASE WHEN t.nombre = 'SpO2' THEN sv.valor END) AS saturacion_oxigeno_promedio_diario,
+    COUNT(CASE WHEN t.nombre = 'HR' THEN 1 END) AS mediciones_hr_dia,
+    COUNT(CASE WHEN t.nombre = 'SpO2' THEN 1 END) AS mediciones_spo2_dia
 FROM
     Signo_Vital sv
 JOIN
     Tipo_Signo_Vital t ON sv.id_tipo = t.id_tipo
+WHERE
+    t.nombre IN ('HR', 'SpO2')
 GROUP BY
     sv.id_usuario,
     DATE_TRUNC('day', sv.timestamp),
@@ -500,15 +546,32 @@ ORDER BY
     sv.id_usuario,
     fecha;
 
+-- =====================================
+-- STORED PROCEDURE: Dashboard 2 - Signos Vitales
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_dashboard_signos_vitales(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM Dashboard_Signos_Vitales;
+END;
+$$;
+
 -- Laboratorio / Analitos
 CREATE OR REPLACE VIEW Dashboard_Lab AS
 SELECT
     hm.id_usuario,
     DATE_TRUNC('day', hm.fecha) AS fecha,
     tm.nombre AS analito,
+    -- Para valores numéricos
     MIN(CASE WHEN hm.valor ~ '^[0-9]+\.?[0-9]*$' THEN hm.valor::NUMERIC END) AS valor_min,
     MAX(CASE WHEN hm.valor ~ '^[0-9]+\.?[0-9]*$' THEN hm.valor::NUMERIC END) AS valor_max,
     AVG(CASE WHEN hm.valor ~ '^[0-9]+\.?[0-9]*$' THEN hm.valor::NUMERIC END) AS valor_promedio,
+    -- Para valores de texto (presión arterial, colesterol, etc.)
+    STRING_AGG(DISTINCT hm.valor, ', ') AS valores_texto,
     COUNT(hm.id_historial) AS total_mediciones
 FROM
     Historial_Medico hm
@@ -522,16 +585,45 @@ ORDER BY
     hm.id_usuario,
     fecha;
 
+-- =====================================
+-- STORED PROCEDURE: Dashboard 3 - Laboratorio
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_dashboard_lab(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM Dashboard_Lab;
+END;
+$$;
+
 -- Estilo de vida
 CREATE OR REPLACE VIEW Dashboard_Estilo_Vida AS
 SELECT
     rv.id_usuario,
-    DATE_TRUNC('day', rv.fecha) AS fecha,
-    COUNT(rv.id_respuesta) AS total_respuestas,
+    p.id_pregunta,
+    p.pregunta,
+    u.unidad,
+    COUNT(*) AS total_respuestas,
+    MIN(rv.fecha) AS primera_respuesta,
+    MAX(rv.fecha) AS ultima_respuesta,
+    -- Para preguntas de tipo si/no
     SUM(CASE WHEN u.unidad = 'si/no' AND rv.valor = 'TRUE' THEN 1 ELSE 0 END) AS respuestas_si,
     SUM(CASE WHEN u.unidad = 'si/no' AND rv.valor = 'FALSE' THEN 1 ELSE 0 END) AS respuestas_no,
-    AVG(CASE WHEN u.unidad = 'número' THEN rv.valor::NUMERIC END) AS promedio_numero,
-    AVG(CASE WHEN u.unidad = 'escala' THEN rv.valor::NUMERIC END) AS promedio_escala
+    -- Para preguntas numéricas y de escala
+    AVG(CASE WHEN u.unidad IN ('número', 'escala') AND rv.valor ~ '^[0-9]+\.?[0-9]*$' THEN rv.valor::NUMERIC END) AS promedio_numerico,
+    MIN(CASE WHEN u.unidad IN ('número', 'escala') AND rv.valor ~ '^[0-9]+\.?[0-9]*$' THEN rv.valor::NUMERIC END) AS valor_minimo,
+    MAX(CASE WHEN u.unidad IN ('número', 'escala') AND rv.valor ~ '^[0-9]+\.?[0-9]*$' THEN rv.valor::NUMERIC END) AS valor_maximo,
+    -- Para preguntas de texto (categorías)
+    STRING_AGG(DISTINCT rv.valor, ', ' ORDER BY rv.valor) AS valores_unicos,
+    -- Porcentaje de respuestas positivas para preguntas si/no
+    CASE 
+        WHEN u.unidad = 'si/no' AND COUNT(*) > 0 THEN 
+            ROUND((SUM(CASE WHEN rv.valor = 'TRUE' THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)) * 100, 2)
+        ELSE NULL 
+    END AS porcentaje_si
 FROM
     Respuesta_Estilo_Vida rv
 JOIN
@@ -540,10 +632,26 @@ JOIN
     Unidad u ON p.id_unidad = u.id_unidad
 GROUP BY
     rv.id_usuario,
-    DATE_TRUNC('day', rv.fecha)
+    p.id_pregunta,
+    p.pregunta,
+    u.unidad
 ORDER BY
     rv.id_usuario,
-    fecha;
+    p.id_pregunta;
+
+-- =====================================
+-- STORED PROCEDURE: Dashboard 4 - Estilo de Vida
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_dashboard_estilo_vida(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM Dashboard_Estilo_Vida;
+END;
+$$;
 
 -- Predicciones de IA
 CREATE OR REPLACE VIEW Dashboard_Predicciones AS
@@ -564,6 +672,20 @@ GROUP BY
 ORDER BY
     p.id_usuario,
     fecha;
+
+-- =====================================
+-- STORED PROCEDURE: Dashboard 5 - Predicciones
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_dashboard_predicciones(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM Dashboard_Predicciones;
+END;
+$$;
 
 -- Medicación
 CREATE OR REPLACE VIEW Dashboard_Medicacion AS
@@ -586,6 +708,20 @@ ORDER BY
     hm.id_usuario,
     fecha;
 
+-- =====================================
+-- STORED PROCEDURE: Dashboard 6 - Medicación
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_dashboard_medicacion(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM Dashboard_Medicacion;
+END;
+$$;
+
 -- Documentos y Reportes
 CREATE OR REPLACE VIEW Dashboard_Documentos AS
 SELECT
@@ -603,6 +739,20 @@ GROUP BY
 ORDER BY
     ds.id_usuario,
     fecha;
+
+-- =====================================
+-- STORED PROCEDURE: Dashboard 7 - Documentos
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_dashboard_documentos(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM Dashboard_Documentos;
+END;
+$$;
 
 -- Auditoría / Alertas
 CREATE OR REPLACE VIEW Dashboard_Auditoria AS
@@ -623,6 +773,20 @@ GROUP BY
 ORDER BY
     ra.id_usuario,
     fecha;
+
+-- =====================================
+-- STORED PROCEDURE: Dashboard 8 - Auditoría
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_dashboard_auditoria(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM Dashboard_Auditoria;
+END;
+$$;
 
 -- Vista combinada completa para dashboard
 CREATE OR REPLACE VIEW Dashboard_Completo AS
@@ -733,6 +897,423 @@ LEFT JOIN documentos_agg d ON v.id_usuario = d.id_usuario AND v.fecha = d.fecha
 ORDER BY v.id_usuario, v.fecha;
 
 -- =====================================
+-- STORED PROCEDURE: Dashboard 9 - Dashboard Completo
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_dashboard_completo(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM Dashboard_Completo;
+END;
+$$;
+
+-- =====================================
+-- VISTAS: Dashboard KPIs - Indicadores Clave de Rendimiento
+-- =====================================
+
+-- Vista consolidada de KPIs principales
+CREATE OR REPLACE VIEW dashboard_kpis AS
+SELECT 
+    -- KPI 1: Total de contenidos publicados
+    (SELECT COUNT(*) FROM Documento_Subido) as documentos_subidos,
+    (SELECT COUNT(*) FROM Prediccion) as predicciones_generadas,
+    (SELECT COUNT(*) FROM Historial_Medico) as registros_medicos,
+    (SELECT COUNT(*) FROM Respuesta_Estilo_Vida) as respuestas_estilo_vida,
+    (SELECT COUNT(*) FROM Signo_Vital) as signos_vitales_registrados,
+    
+    -- KPI 2: Número de usuarios activos
+    (SELECT COUNT(*) FROM Usuario) as total_usuarios,
+    (SELECT COUNT(*) FROM Usuario WHERE actualizado_en >= NOW() - INTERVAL '30 days') as usuarios_activos_30_dias,
+    (SELECT COUNT(*) FROM Usuario WHERE actualizado_en >= NOW() - INTERVAL '7 days') as usuarios_activos_7_dias,
+    (SELECT COUNT(*) FROM Usuario WHERE creado_en >= NOW() - INTERVAL '30 days') as usuarios_nuevos_30_dias,
+    
+    -- KPI 3: Frecuencia de actualización (últimos 7 días)
+    (SELECT COUNT(*) FROM Documento_Subido WHERE fecha_subido >= NOW() - INTERVAL '7 days') as documentos_esta_semana,
+    (SELECT COUNT(*) FROM Prediccion WHERE fecha >= NOW() - INTERVAL '7 days') as predicciones_esta_semana,
+    (SELECT COUNT(*) FROM Historial_Medico WHERE fecha >= NOW() - INTERVAL '7 days') as registros_medicos_esta_semana,
+    
+    -- Fecha de actualización
+    NOW() as fecha_actualizacion;
+
+-- Vista de usuarios por rol
+CREATE OR REPLACE VIEW dashboard_usuarios_por_rol AS
+SELECT 
+    r.nombre as rol, 
+    COUNT(u.id_usuario) as cantidad,
+    ROUND((COUNT(u.id_usuario) * 100.0 / (SELECT COUNT(*) FROM Usuario)), 2) as porcentaje
+FROM Rol r 
+LEFT JOIN Usuario u ON r.id_rol = u.id_rol 
+GROUP BY r.id_rol, r.nombre
+ORDER BY cantidad DESC;
+
+-- Vista de frecuencia de actualización por día (últimos 30 días)
+CREATE OR REPLACE VIEW dashboard_frecuencia_diaria AS
+SELECT 
+    DATE_TRUNC('day', fecha_subido) as fecha,
+    COUNT(*) as documentos_subidos,
+    'documentos' as tipo_contenido
+FROM Documento_Subido 
+WHERE fecha_subido >= NOW() - INTERVAL '30 days'
+GROUP BY DATE_TRUNC('day', fecha_subido)
+
+UNION ALL
+
+SELECT 
+    DATE_TRUNC('day', fecha) as fecha,
+    COUNT(*) as predicciones_generadas,
+    'predicciones' as tipo_contenido
+FROM Prediccion 
+WHERE fecha >= NOW() - INTERVAL '30 days'
+GROUP BY DATE_TRUNC('day', fecha)
+
+UNION ALL
+
+SELECT 
+    DATE_TRUNC('day', fecha) as fecha,
+    COUNT(*) as registros_medicos,
+    'registros_medicos' as tipo_contenido
+FROM Historial_Medico 
+WHERE fecha >= NOW() - INTERVAL '30 days'
+GROUP BY DATE_TRUNC('day', fecha)
+
+ORDER BY fecha DESC;
+
+-- Vista de crecimiento semanal
+CREATE OR REPLACE VIEW dashboard_crecimiento_semanal AS
+SELECT 
+    DATE_TRUNC('week', fecha_subido) as semana,
+    COUNT(*) as documentos_semana,
+    'documentos' as tipo_contenido
+FROM Documento_Subido 
+WHERE fecha_subido >= NOW() - INTERVAL '12 weeks'
+GROUP BY DATE_TRUNC('week', fecha_subido)
+
+UNION ALL
+
+SELECT 
+    DATE_TRUNC('week', fecha) as semana,
+    COUNT(*) as predicciones_semana,
+    'predicciones' as tipo_contenido
+FROM Prediccion 
+WHERE fecha >= NOW() - INTERVAL '12 weeks'
+GROUP BY DATE_TRUNC('week', fecha)
+
+ORDER BY semana DESC;
+
+-- Vista de actividad de usuarios por día
+CREATE OR REPLACE VIEW dashboard_actividad_usuarios AS
+SELECT 
+    DATE_TRUNC('day', actualizado_en) as fecha,
+    COUNT(*) as usuarios_activos,
+    COUNT(CASE WHEN creado_en >= DATE_TRUNC('day', actualizado_en) THEN 1 END) as usuarios_nuevos
+FROM Usuario 
+WHERE actualizado_en >= NOW() - INTERVAL '30 days'
+GROUP BY DATE_TRUNC('day', actualizado_en)
+ORDER BY fecha DESC;
+
+-- Vista de resumen ejecutivo
+CREATE OR REPLACE VIEW dashboard_resumen_ejecutivo AS
+SELECT 
+    -- Totales generales
+    (SELECT COUNT(*) FROM Usuario) as total_usuarios,
+    (SELECT COUNT(*) FROM Documento_Subido) as total_documentos,
+    (SELECT COUNT(*) FROM Prediccion) as total_predicciones,
+    (SELECT COUNT(*) FROM Historial_Medico) as total_registros_medicos,
+    
+    -- Actividad reciente
+    (SELECT COUNT(*) FROM Usuario WHERE actualizado_en >= NOW() - INTERVAL '7 days') as usuarios_activos_semana,
+    (SELECT COUNT(*) FROM Documento_Subido WHERE fecha_subido >= NOW() - INTERVAL '7 days') as documentos_semana,
+    (SELECT COUNT(*) FROM Prediccion WHERE fecha >= NOW() - INTERVAL '7 days') as predicciones_semana,
+    
+    -- Tendencias
+    ROUND(
+        (SELECT COUNT(*) FROM Usuario WHERE creado_en >= NOW() - INTERVAL '30 days') * 100.0 / 
+        NULLIF((SELECT COUNT(*) FROM Usuario WHERE creado_en >= NOW() - INTERVAL '60 days'), 0), 2
+    ) as crecimiento_usuarios_porcentaje,
+    
+    ROUND(
+        (SELECT COUNT(*) FROM Documento_Subido WHERE fecha_subido >= NOW() - INTERVAL '30 days') * 100.0 / 
+        NULLIF((SELECT COUNT(*) FROM Documento_Subido WHERE fecha_subido >= NOW() - INTERVAL '60 days'), 0), 2
+    ) as crecimiento_documentos_porcentaje,
+    
+    -- Fecha de actualización
+    NOW() as fecha_actualizacion;
+
+-- Comentarios de las vistas
+COMMENT ON VIEW dashboard_kpis IS 'Vista consolidada de KPIs principales del sistema';
+COMMENT ON VIEW dashboard_usuarios_por_rol IS 'Distribución de usuarios por rol con porcentajes';
+COMMENT ON VIEW dashboard_frecuencia_diaria IS 'Frecuencia de actualización de contenido por día (últimos 30 días)';
+COMMENT ON VIEW dashboard_crecimiento_semanal IS 'Crecimiento semanal de contenido (últimas 12 semanas)';
+COMMENT ON VIEW dashboard_actividad_usuarios IS 'Actividad diaria de usuarios (últimos 30 días)';
+COMMENT ON VIEW dashboard_resumen_ejecutivo IS 'Resumen ejecutivo con métricas clave y tendencias';
+
+-- =====================================
+-- VISTAS ADICIONALES PARA GRÁFICAS DEL DASHBOARD
+-- =====================================
+
+-- Vista 1: Predicciones por Mes (Líneas)
+CREATE OR REPLACE VIEW vista_predicciones_por_mes AS
+SELECT 
+    DATE_TRUNC('month', fecha) as mes,
+    COUNT(*) as total_predicciones,
+    AVG(probabilidad) as probabilidad_promedio,
+    COUNT(CASE WHEN prediccion = true THEN 1 END) as predicciones_positivas,
+    COUNT(CASE WHEN prediccion = false THEN 1 END) as predicciones_negativas
+FROM Prediccion 
+GROUP BY DATE_TRUNC('month', fecha)
+ORDER BY mes;
+
+-- Vista 2: Distribución de Enfermedades (Pastel)
+CREATE OR REPLACE VIEW vista_distribucion_enfermedades AS
+SELECT 
+    e.nombre as enfermedad,
+    COUNT(he.id_enfermedad) as casos,
+    ROUND(
+        (COUNT(he.id_enfermedad) * 100.0 / 
+         (SELECT COUNT(*) FROM Historial_Enfermedad)), 2
+    ) as porcentaje
+FROM Enfermedad e
+LEFT JOIN Historial_Enfermedad he ON e.id_enfermedad = he.id_enfermedad
+GROUP BY e.nombre, e.id_enfermedad
+ORDER BY casos DESC;
+
+-- Vista 3: Estado de Documentos (Barras Apiladas)
+CREATE OR REPLACE VIEW vista_estado_documentos AS
+SELECT 
+    CASE 
+        WHEN texto_raw IS NOT NULL THEN 'Procesado'
+        ELSE 'Pendiente'
+    END as estado,
+    COUNT(*) as cantidad,
+    ROUND(
+        (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM Documento_Subido)), 2
+    ) as porcentaje
+FROM Documento_Subido
+GROUP BY estado
+ORDER BY cantidad DESC;
+
+-- Vista 4: Distribución Demográfica (Barras Horizontales)
+CREATE OR REPLACE VIEW vista_distribucion_demografica AS
+SELECT 
+    COALESCE(sexo, 'No especificado') as sexo,
+    CASE 
+        WHEN EXTRACT(YEAR FROM AGE(fecha_nacimiento)) < 30 THEN '< 30'
+        WHEN EXTRACT(YEAR FROM AGE(fecha_nacimiento)) < 50 THEN '30-50'
+        WHEN EXTRACT(YEAR FROM AGE(fecha_nacimiento)) < 70 THEN '50-70'
+        ELSE '> 70'
+    END as grupo_edad,
+    COUNT(*) as cantidad
+FROM Paciente 
+GROUP BY sexo, grupo_edad
+ORDER BY sexo, grupo_edad;
+
+-- Vista 5: Crecimiento Acumulado de Usuarios (Área)
+CREATE OR REPLACE VIEW vista_crecimiento_acumulado_usuarios AS
+WITH usuarios_por_mes AS (
+    SELECT 
+        DATE_TRUNC('month', creado_en) as mes,
+        COUNT(*) as usuarios_nuevos
+    FROM Usuario 
+    GROUP BY DATE_TRUNC('month', creado_en)
+),
+usuarios_acumulados AS (
+    SELECT 
+        mes,
+        usuarios_nuevos,
+        SUM(usuarios_nuevos) OVER (ORDER BY mes) as usuarios_acumulados
+    FROM usuarios_por_mes
+)
+SELECT 
+    mes,
+    usuarios_nuevos,
+    usuarios_acumulados,
+    LAG(usuarios_acumulados, 1, 0) OVER (ORDER BY mes) as usuarios_anterior_mes
+FROM usuarios_acumulados
+ORDER BY mes;
+
+-- Vista 6: Top 5 Usuarios Más Activos (Barras Verticales)
+CREATE OR REPLACE VIEW vista_top_usuarios_activos AS
+SELECT 
+    u.id_usuario,
+    CONCAT(p.nombre, ' ', p.apellido) as usuario,
+    COUNT(ds.id_subido) as documentos_subidos,
+    COUNT(pred.id_prediccion) as predicciones_realizadas,
+    COUNT(sv.id_vital) as signos_vitales_registrados,
+    (COUNT(ds.id_subido) + COUNT(pred.id_prediccion) + COUNT(sv.id_vital)) as actividad_total
+FROM Usuario u
+JOIN Paciente p ON u.id_usuario = p.id_usuario
+LEFT JOIN Documento_Subido ds ON u.id_usuario = ds.id_usuario
+LEFT JOIN Prediccion pred ON u.id_usuario = pred.id_usuario
+LEFT JOIN Signo_Vital sv ON u.id_usuario = sv.id_usuario
+GROUP BY u.id_usuario, p.nombre, p.apellido
+ORDER BY actividad_total DESC
+LIMIT 5;
+
+-- Comentarios de las nuevas vistas
+COMMENT ON VIEW vista_predicciones_por_mes IS 'Predicciones generadas por mes para gráficos de líneas';
+COMMENT ON VIEW vista_distribucion_enfermedades IS 'Distribución de enfermedades para gráficos de pastel';
+COMMENT ON VIEW vista_estado_documentos IS 'Estado de documentos (procesados vs pendientes) para gráficos de barras apiladas';
+COMMENT ON VIEW vista_distribucion_demografica IS 'Distribución demográfica por edad y género para gráficos de barras horizontales';
+COMMENT ON VIEW vista_crecimiento_acumulado_usuarios IS 'Crecimiento acumulado de usuarios para gráficos de área';
+COMMENT ON VIEW vista_top_usuarios_activos IS 'Top 5 usuarios más activos para gráficos de barras verticales';
+
+-- =====================================
+-- STORED PROCEDURES: Dashboard KPIs - Indicadores Clave de Rendimiento
+-- =====================================
+
+-- SP 1: KPIs principales
+CREATE OR REPLACE PROCEDURE sp_dashboard_kpis(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_kpis;
+END;
+$$;
+
+-- SP 2: Usuarios por rol
+CREATE OR REPLACE PROCEDURE sp_dashboard_usuarios_por_rol(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_usuarios_por_rol;
+END;
+$$;
+
+-- SP 3: Frecuencia diaria
+CREATE OR REPLACE PROCEDURE sp_dashboard_frecuencia_diaria(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_frecuencia_diaria;
+END;
+$$;
+
+-- SP 4: Crecimiento semanal
+CREATE OR REPLACE PROCEDURE sp_dashboard_crecimiento_semanal(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_crecimiento_semanal;
+END;
+$$;
+
+-- SP 5: Actividad de usuarios
+CREATE OR REPLACE PROCEDURE sp_dashboard_actividad_usuarios(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_actividad_usuarios;
+END;
+$$;
+
+-- SP 6: Resumen ejecutivo
+CREATE OR REPLACE PROCEDURE sp_dashboard_resumen_ejecutivo(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM dashboard_resumen_ejecutivo;
+END;
+$$;
+
+-- =====================================
+-- STORED PROCEDURES: Nuevas Gráficas del Dashboard
+-- =====================================
+
+-- SP 7: Predicciones por Mes (Líneas)
+CREATE OR REPLACE PROCEDURE sp_dashboard_predicciones_por_mes(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_predicciones_por_mes;
+END;
+$$;
+
+-- SP 8: Distribución de Enfermedades (Pastel)
+CREATE OR REPLACE PROCEDURE sp_dashboard_distribucion_enfermedades(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_distribucion_enfermedades;
+END;
+$$;
+
+-- SP 9: Estado de Documentos (Barras Apiladas)
+CREATE OR REPLACE PROCEDURE sp_dashboard_estado_documentos(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_estado_documentos;
+END;
+$$;
+
+-- SP 10: Distribución Demográfica (Barras Horizontales)
+CREATE OR REPLACE PROCEDURE sp_dashboard_distribucion_demografica(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_distribucion_demografica;
+END;
+$$;
+
+-- SP 11: Crecimiento Acumulado de Usuarios (Área)
+CREATE OR REPLACE PROCEDURE sp_dashboard_crecimiento_acumulado_usuarios(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_crecimiento_acumulado_usuarios;
+END;
+$$;
+
+-- SP 12: Top 5 Usuarios Más Activos (Barras Verticales)
+CREATE OR REPLACE PROCEDURE sp_dashboard_top_usuarios_activos(
+    INOUT p_result REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_result FOR
+    SELECT * FROM vista_top_usuarios_activos;
+END;
+$$;
+
+
+-- =====================================
 -- Procedimiento: Insertar Signo Vital y alertas automáticas
 -- =====================================
 CREATE OR REPLACE PROCEDURE insertar_signo_vital(
@@ -768,6 +1349,173 @@ END;
 $$;
 
 -- =====================================
+-- Procedimiento: Eliminar registro por PK compuesta (genérico)
+-- =====================================
+-- Recibe arrays alineados de columnas PK y valores (como texto), y elimina 1 fila.
+CREATE OR REPLACE PROCEDURE sp_delete_by_pk_multi(
+    p_table_name   TEXT,
+    p_pk_columns   TEXT[],
+    p_pk_values    TEXT[],
+    OUT p_deleted_count INT,
+    OUT p_success BOOLEAN,
+    OUT p_error TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_sql TEXT;
+    v_where TEXT := '';
+    v_i INT;
+    v_col TEXT;
+    v_col_type TEXT;
+BEGIN
+    p_deleted_count := 0;
+    p_success := FALSE;
+    p_error := NULL;
+
+    IF p_pk_columns IS NULL OR p_pk_values IS NULL OR array_length(p_pk_columns,1) IS NULL OR array_length(p_pk_columns,1) <> array_length(p_pk_values,1) THEN
+        p_error := 'pk_columns_and_values_must_be_same_size';
+        RETURN;
+    END IF;
+
+    -- Construir cláusula WHERE tipando cada valor según su tipo real
+    FOR v_i IN 1..array_length(p_pk_columns,1) LOOP
+        v_col := p_pk_columns[v_i];
+        -- tipo de la columna
+        SELECT format_type(a.atttypid, a.atttypmod)
+        INTO v_col_type
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = c.oid
+        WHERE n.nspname = 'public'
+          AND c.relname = p_table_name
+          AND a.attname = v_col
+          AND a.attnum > 0 AND NOT a.attisdropped
+        LIMIT 1;
+        IF v_col_type IS NULL THEN
+            p_error := format('column_type_not_found_for_%s', v_col);
+            RETURN;
+        END IF;
+
+        -- concatenar condición
+        IF v_where <> '' THEN
+            v_where := v_where || ' AND ';
+        END IF;
+        v_where := v_where || format('%I = $%s::%s', v_col, v_i, v_col_type);
+    END LOOP;
+
+    v_sql := format('DELETE FROM %I WHERE %s', p_table_name, v_where);
+    -- Incrustar los valores de forma segura ya que no podemos pasar USING dinámico; %L los cita correctamente
+    -- v_where ya referencia $1,$2... pero en su lugar construimos con literales tipados arriba
+    -- reconstruimos la sentencia final reemplazando $i con %L::tipo en v_where ya construido
+    -- Para simplificar, volvemos a construir v_where incluyendo valores ya tipados
+    v_where := '';
+    FOR v_i IN 1..array_length(p_pk_columns,1) LOOP
+        v_col := p_pk_columns[v_i];
+        SELECT format_type(a.atttypid, a.atttypmod)
+        INTO v_col_type
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = c.oid
+        WHERE n.nspname = 'public'
+          AND c.relname = p_table_name
+          AND a.attname = v_col
+          AND a.attnum > 0 AND NOT a.attisdropped
+        LIMIT 1;
+        IF v_i > 1 THEN v_where := v_where || ' AND '; END IF;
+        v_where := v_where || format('%I = %L::%s', v_col, p_pk_values[v_i], v_col_type);
+    END LOOP;
+    v_sql := format('DELETE FROM %I WHERE %s', p_table_name, v_where);
+    EXECUTE v_sql;
+
+    GET DIAGNOSTICS p_deleted_count = ROW_COUNT;
+    p_success := (p_deleted_count = 1);
+EXCEPTION WHEN OTHERS THEN
+    p_error := SQLERRM;
+    p_success := FALSE;
+    p_deleted_count := 0;
+END;
+$$;
+
+-- =====================================
+-- Procedimiento: Obtener todas las columnas PK de una tabla
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_get_primary_key_columns(
+    p_schema TEXT,
+    p_table_name TEXT,
+    OUT p_pk_columns TEXT[]
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT ARRAY(
+        SELECT a.attname
+        FROM pg_index i
+        JOIN pg_class c ON c.oid = i.indrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+        WHERE i.indisprimary = TRUE
+          AND n.nspname = p_schema
+          AND c.relname = p_table_name
+        ORDER BY a.attnum
+    ) INTO p_pk_columns;
+END;
+$$;
+
+-- =====================================
+-- Procedimiento: Obtener todas las entidades
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_get_entidades(
+    INOUT p_entidades REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_entidades FOR
+        SELECT id_entidad, nombre FROM Entidad ORDER BY nombre;
+END;
+$$;
+
+-- =====================================
+-- Procedimiento: Obtener datos de entidad específica
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_get_entidad_data(
+    p_entidad_name VARCHAR(100),
+    INOUT p_datos REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_datos FOR
+        EXECUTE 'SELECT * FROM ' || p_entidad_name;
+END;
+$$;
+
+-- =====================================
+-- Procedimiento: Obtener datos de entidad con información de columnas
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_get_entidad_data_with_columns(
+    p_entidad_name VARCHAR(100),
+    INOUT p_datos REFCURSOR,
+    INOUT p_columnas REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Obtener los datos de la tabla
+    OPEN p_datos FOR
+        EXECUTE 'SELECT * FROM ' || p_entidad_name;
+    
+    -- Obtener información de las columnas
+    OPEN p_columnas FOR
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = p_entidad_name 
+        ORDER BY ordinal_position;
+END;
+$$;
+
+-- =====================================
 -- Procedimiento: Resumen diario de usuario actualizado
 -- =====================================
 CREATE OR REPLACE PROCEDURE resumen_diario_usuario(
@@ -795,6 +1543,92 @@ BEGIN
         RAISE NOTICE 'Total medicación: %', rec.total_medicamentos;
         RAISE NOTICE 'Documentos subidos: %, Enfermedades mencionadas: %', rec.total_documentos, rec.total_enfermedades_mencionadas;
     END LOOP;
+END;
+$$;
+
+-- =====================================
+-- Procedimiento: Login de personal autorizado (Administradores y Analistas)
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_login_staff(
+    p_email VARCHAR(255),
+    p_password VARCHAR(255),
+    p_ip_address VARCHAR(45),
+    OUT p_user_id INTEGER,
+    OUT p_user_email VARCHAR(255),
+    OUT p_role_id INTEGER,
+    OUT p_success BOOLEAN
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Inicializar variables de salida
+    p_user_id := NULL;
+    p_user_email := NULL;
+    p_role_id := NULL;
+    p_success := FALSE;
+    
+    -- Buscar usuario, validar contraseña y verificar que sea Administrador o Analista
+    SELECT u.id_usuario, u.email, u.id_rol
+    INTO p_user_id, p_user_email, p_role_id
+    FROM Usuario u
+    JOIN Rol r ON r.id_rol = u.id_rol
+    WHERE u.email = p_email
+      AND u.contraseña_hash = crypt(p_password, u.contraseña_hash)
+      AND r.nombre IN ('Administrador', 'Analista');
+    
+    -- Si se encontró el usuario autorizado, marcar como exitoso
+    IF p_user_id IS NOT NULL THEN
+        p_success := TRUE;
+        
+        -- Registrar login exitoso en auditoría
+        INSERT INTO Registro_Auditoria (id_usuario, id_entidad, accion, fecha_hora, detalles)
+        VALUES (
+            p_user_id,
+            (SELECT id_entidad FROM Entidad WHERE nombre = 'Usuario'),
+            'LOGIN',
+            NOW(),
+            jsonb_build_object(
+                'email', p_email,
+                'ip_address', p_ip_address,
+                'role', (SELECT nombre FROM Rol WHERE id_rol = p_role_id)
+            )
+        );
+    END IF;
+    
+END;
+$$;
+
+-- =====================================
+-- Procedimiento: Obtener datos del usuario autenticado
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_get_user_data(
+    p_user_id INTEGER,
+    OUT p_user_email VARCHAR(255),
+    OUT p_role_id INTEGER,
+    OUT p_role_name VARCHAR(50),
+    OUT p_success BOOLEAN
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Inicializar variables de salida
+    p_user_email := NULL;
+    p_role_id := NULL;
+    p_role_name := NULL;
+    p_success := FALSE;
+    
+    -- Buscar datos del usuario
+    SELECT u.email, u.id_rol, r.nombre
+    INTO p_user_email, p_role_id, p_role_name
+    FROM Usuario u
+    LEFT JOIN Rol r ON r.id_rol = u.id_rol
+    WHERE u.id_usuario = p_user_id;
+    
+    -- Si se encontró el usuario, marcar como exitoso
+    IF p_user_email IS NOT NULL THEN
+        p_success := TRUE;
+    END IF;
+    
 END;
 $$;
 
@@ -856,25 +1690,596 @@ END;
 $$;
 
 -- =====================================
--- Procedimiento: Registrar resultados de laboratorio desde documento
+-- Procedimiento: Eliminar registro por PK (genérico)
 -- =====================================
-CREATE OR REPLACE PROCEDURE insertar_resultado_lab(
-    p_id_subido INT,
-    p_analito_codigo VARCHAR,
-    p_valor REAL
+-- Elimina un registro de una tabla dada usando su columna PK y valor.
+-- Usa SQL dinámico seguro con quote-identifiers y tipado correcto del valor.
+CREATE OR REPLACE PROCEDURE sp_delete_by_pk(
+    p_table_name TEXT,
+    p_pk_column  TEXT,
+    p_pk_value   TEXT,
+    OUT p_deleted_count INT,
+    OUT p_success BOOLEAN,
+    OUT p_error TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_col_type TEXT;
+    v_sql TEXT;
+BEGIN
+    p_deleted_count := 0;
+    p_success := FALSE;
+    p_error := NULL;
+
+    -- Obtener tipo de dato de la columna para castear el valor correctamente
+    SELECT format_type(a.atttypid, a.atttypmod)
+    INTO v_col_type
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.oid
+    WHERE n.nspname = 'public'
+      AND c.relname = p_table_name
+      AND a.attname = p_pk_column
+      AND a.attnum > 0
+      AND NOT a.attisdropped
+    LIMIT 1;
+
+    IF v_col_type IS NULL THEN
+        p_error := 'pk_column_not_found';
+        RETURN;
+    END IF;
+
+    -- Construir DELETE dinámico seguro
+    v_sql := format('DELETE FROM %I WHERE %I = $1::%s', p_table_name, p_pk_column, v_col_type);
+    EXECUTE v_sql USING p_pk_value;
+
+    GET DIAGNOSTICS p_deleted_count = ROW_COUNT;
+    p_success := (p_deleted_count > 0);
+EXCEPTION WHEN OTHERS THEN
+    p_error := SQLERRM;
+    p_success := FALSE;
+    p_deleted_count := 0;
+END;
+$$;
+
+-- =====================================
+-- Procedimiento: Verificar existencia de tabla
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_table_exists(
+    p_schema TEXT,
+    p_table_name TEXT,
+    OUT p_exists BOOLEAN
 )
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    INSERT INTO Resultado_Lab(id_subido, analito_codigo, valor)
-    VALUES (p_id_subido, p_analito_codigo, p_valor);
-
-    -- Insertar auditoría
-    INSERT INTO Registro_Auditoria(id_usuario, id_entidad, accion, fecha_hora, detalles)
-    VALUES (NULL, (SELECT id_entidad FROM Entidad WHERE nombre='Resultado_Lab'), 'CREATE', NOW(),
-            jsonb_build_object('subido', p_id_subido, 'analito', p_analito_codigo, 'valor', p_valor));
+    SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = p_schema
+          AND table_name = p_table_name
+    ) INTO p_exists;
 END;
 $$;
+
+-- =====================================
+-- Procedimiento: Obtener columna PK de una tabla
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_get_primary_key_column(
+    p_schema TEXT,
+    p_table_name TEXT,
+    OUT p_pk_column TEXT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT a.attname AS pk_column
+    INTO p_pk_column
+    FROM pg_index i
+    JOIN pg_class c ON c.oid = i.indrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+    WHERE i.indisprimary = TRUE
+      AND n.nspname = p_schema
+      AND c.relname = p_table_name
+    LIMIT 1;
+END;
+$$;
+
+-- =====================================
+-- Procedimiento: Actualizar registro por PK (genérico)
+-- =====================================
+-- Actualiza un registro de una tabla dada usando su columna PK y valor.
+-- p_columns y p_values deben tener el mismo tamaño y contendrán los pares columna=valor a actualizar.
+CREATE OR REPLACE PROCEDURE sp_update_by_pk(
+    p_table_name   TEXT,
+    p_pk_column    TEXT,
+    p_pk_value     TEXT,
+    p_columns      TEXT[],
+    p_values       TEXT[],
+    OUT p_updated_count INT,
+    OUT p_success  BOOLEAN,
+    OUT p_error    TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_pk_type TEXT;
+    v_sql TEXT;
+    v_set TEXT := '';
+    v_where TEXT;
+    v_i INT;
+    v_col TEXT;
+    v_col_type TEXT;
+BEGIN
+    p_updated_count := 0;
+    p_success := FALSE;
+    p_error := NULL;
+
+    IF p_columns IS NULL OR p_values IS NULL OR array_length(p_columns,1) IS NULL OR array_length(p_columns,1) <> array_length(p_values,1) THEN
+        p_error := 'columns_and_values_must_be_same_size';
+        RETURN;
+    END IF;
+
+    IF array_length(p_columns,1) = 0 THEN
+        p_error := 'no_columns_to_update';
+        RETURN;
+    END IF;
+
+    -- Tipo de PK
+    SELECT format_type(a.atttypid, a.atttypmod)
+    INTO v_pk_type
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.oid
+    WHERE n.nspname = 'public'
+      AND c.relname = p_table_name
+      AND a.attname = p_pk_column
+      AND a.attnum > 0 AND NOT a.attisdropped
+    LIMIT 1;
+    IF v_pk_type IS NULL THEN
+        p_error := 'pk_column_not_found';
+        RETURN;
+    END IF;
+
+    -- Construir SET tipando cada valor según su tipo real
+    FOR v_i IN 1..array_length(p_columns,1) LOOP
+        v_col := p_columns[v_i];
+        -- Ignorar si intenta cambiar la PK
+        IF v_col = p_pk_column THEN CONTINUE; END IF;
+
+        SELECT format_type(a.atttypid, a.atttypmod)
+        INTO v_col_type
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = c.oid
+        WHERE n.nspname = 'public'
+          AND c.relname = p_table_name
+          AND a.attname = v_col
+          AND a.attnum > 0 AND NOT a.attisdropped
+        LIMIT 1;
+        IF v_col_type IS NULL THEN
+            p_error := format('column_type_not_found_for_%s', v_col);
+            RETURN;
+        END IF;
+
+        IF v_set <> '' THEN v_set := v_set || ', '; END IF;
+        v_set := v_set || format('%I = %L::%s', v_col, p_values[v_i], v_col_type);
+    END LOOP;
+
+    IF v_set = '' THEN
+        p_error := 'no_updatable_fields';
+        RETURN;
+    END IF;
+
+    v_where := format('%I = %L::%s', p_pk_column, p_pk_value, v_pk_type);
+    v_sql := format('UPDATE %I SET %s WHERE %s', p_table_name, v_set, v_where);
+    EXECUTE v_sql;
+
+    GET DIAGNOSTICS p_updated_count = ROW_COUNT;
+    p_success := (p_updated_count = 1);
+EXCEPTION WHEN OTHERS THEN
+    p_error := SQLERRM;
+    p_success := FALSE;
+    p_updated_count := 0;
+END;
+$$;
+
+-- =====================================
+-- Procedimiento: Actualizar registro por PK compuesta (genérico)
+-- =====================================
+-- Recibe arrays alineados de columnas PK y valores, más columnas/valores a actualizar.
+CREATE OR REPLACE PROCEDURE sp_update_by_pk_multi(
+    p_table_name   TEXT,
+    p_pk_columns   TEXT[],
+    p_pk_values    TEXT[],
+    p_columns      TEXT[],
+    p_values       TEXT[],
+    OUT p_updated_count INT,
+    OUT p_success  BOOLEAN,
+    OUT p_error    TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_sql TEXT;
+    v_set TEXT := '';
+    v_where TEXT := '';
+    v_i INT;
+    v_col TEXT;
+    v_col_type TEXT;
+    v_pk_type TEXT;
+BEGIN
+    p_updated_count := 0;
+    p_success := FALSE;
+    p_error := NULL;
+
+    IF p_pk_columns IS NULL OR p_pk_values IS NULL OR array_length(p_pk_columns,1) IS NULL OR array_length(p_pk_columns,1) <> array_length(p_pk_values,1) THEN
+        p_error := 'pk_columns_and_values_must_be_same_size';
+        RETURN;
+    END IF;
+    IF p_columns IS NULL OR p_values IS NULL OR array_length(p_columns,1) IS NULL OR array_length(p_columns,1) <> array_length(p_values,1) THEN
+        p_error := 'columns_and_values_must_be_same_size';
+        RETURN;
+    END IF;
+    IF array_length(p_columns,1) = 0 THEN
+        p_error := 'no_columns_to_update';
+        RETURN;
+    END IF;
+
+    -- SET
+    FOR v_i IN 1..array_length(p_columns,1) LOOP
+        v_col := p_columns[v_i];
+        -- No permitir modificar cualquier columna PK
+        IF v_col = ANY(p_pk_columns) THEN CONTINUE; END IF;
+
+        SELECT format_type(a.atttypid, a.atttypmod)
+        INTO v_col_type
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = c.oid
+        WHERE n.nspname = 'public'
+          AND c.relname = p_table_name
+          AND a.attname = v_col
+          AND a.attnum > 0 AND NOT a.attisdropped
+        LIMIT 1;
+        IF v_col_type IS NULL THEN
+            p_error := format('column_type_not_found_for_%s', v_col);
+            RETURN;
+        END IF;
+
+        IF v_set <> '' THEN v_set := v_set || ', '; END IF;
+        v_set := v_set || format('%I = %L::%s', v_col, p_values[v_i], v_col_type);
+    END LOOP;
+
+    IF v_set = '' THEN
+        p_error := 'no_updatable_fields';
+        RETURN;
+    END IF;
+
+    -- WHERE compuesto
+    FOR v_i IN 1..array_length(p_pk_columns,1) LOOP
+        v_col := p_pk_columns[v_i];
+        SELECT format_type(a.atttypid, a.atttypmod)
+        INTO v_pk_type
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = c.oid
+        WHERE n.nspname = 'public'
+          AND c.relname = p_table_name
+          AND a.attname = v_col
+          AND a.attnum > 0 AND NOT a.attisdropped
+        LIMIT 1;
+        IF v_i > 1 THEN v_where := v_where || ' AND '; END IF;
+        v_where := v_where || format('%I = %L::%s', v_col, p_pk_values[v_i], v_pk_type);
+    END LOOP;
+
+    v_sql := format('UPDATE %I SET %s WHERE %s', p_table_name, v_set, v_where);
+    EXECUTE v_sql;
+
+    GET DIAGNOSTICS p_updated_count = ROW_COUNT;
+    p_success := (p_updated_count = 1);
+EXCEPTION WHEN OTHERS THEN
+    p_error := SQLERRM;
+    p_success := FALSE;
+    p_updated_count := 0;
+END;
+$$;
+
+-- =====================================
+-- Procedimiento: Obtener columnas de una tabla (ordenadas)
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_get_table_columns(
+    p_schema TEXT,
+    p_table_name TEXT,
+    INOUT p_columns REFCURSOR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    OPEN p_columns FOR
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = p_schema
+          AND table_name = p_table_name
+        ORDER BY ordinal_position;
+END;
+$$;
+
+-- =====================================
+-- Procedimiento: Insertar registro de auditoría
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_insert_audit_record(
+    p_id_usuario INTEGER,
+    p_id_entidad INTEGER,
+    p_accion VARCHAR(20),
+    p_detalles JSONB DEFAULT NULL
+) AS $$
+BEGIN
+    INSERT INTO Registro_Auditoria (id_usuario, id_entidad, accion, detalles)
+    VALUES (p_id_usuario, p_id_entidad, p_accion, p_detalles);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Stored procedure to get audit records
+CREATE OR REPLACE PROCEDURE sp_get_audit_records(
+    p_limit INTEGER DEFAULT 100,
+    p_offset INTEGER DEFAULT 0,
+    p_user_id INTEGER DEFAULT NULL,
+    p_entity_id INTEGER DEFAULT NULL,
+    p_action VARCHAR(20) DEFAULT NULL
+) RETURNS TABLE (
+    id_registro INTEGER,
+    id_usuario INTEGER,
+    id_entidad INTEGER,
+    accion VARCHAR(20),
+    fecha_hora TIMESTAMP,
+    detalles JSONB,
+    usuario_email VARCHAR(255),
+    entidad_nombre VARCHAR(100)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        ra.id_registro,
+        ra.id_usuario,
+        ra.id_entidad,
+        ra.accion,
+        ra.fecha_hora,
+        ra.detalles,
+        u.email as usuario_email,
+        e.nombre as entidad_nombre
+    FROM Registro_Auditoria ra
+    LEFT JOIN Usuario u ON ra.id_usuario = u.id_usuario
+    LEFT JOIN Entidad e ON ra.id_entidad = e.id_entidad
+    WHERE 
+        (p_user_id IS NULL OR ra.id_usuario = p_user_id)
+        AND (p_entity_id IS NULL OR ra.id_entidad = p_entity_id)
+        AND (p_action IS NULL OR ra.accion = p_action)
+    ORDER BY ra.fecha_hora DESC
+    LIMIT p_limit OFFSET p_offset;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =====================================
+-- Procedimiento: Obtener estadísticas de auditoría
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_get_audit_stats(
+    p_days INTEGER DEFAULT 30
+) RETURNS TABLE (
+    total_actions BIGINT,
+    login_count BIGINT,
+    create_count BIGINT,
+    read_count BIGINT,
+    update_count BIGINT,
+    delete_count BIGINT,
+    most_active_user VARCHAR(255),
+    most_accessed_entity VARCHAR(100)
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH stats AS (
+        SELECT 
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE accion = 'LOGIN') as logins,
+            COUNT(*) FILTER (WHERE accion = 'CREATE') as creates,
+            COUNT(*) FILTER (WHERE accion = 'READ') as reads,
+            COUNT(*) FILTER (WHERE accion = 'UPDATE') as updates,
+            COUNT(*) FILTER (WHERE accion = 'DELETE') as deletes
+        FROM Registro_Auditoria 
+        WHERE fecha_hora >= NOW() - INTERVAL '1 day' * p_days
+    ),
+    user_stats AS (
+        SELECT u.email, COUNT(*) as action_count
+        FROM Registro_Auditoria ra
+        JOIN Usuario u ON ra.id_usuario = u.id_usuario
+        WHERE ra.fecha_hora >= NOW() - INTERVAL '1 day' * p_days
+        GROUP BY u.id_usuario, u.email
+        ORDER BY action_count DESC
+        LIMIT 1
+    ),
+    entity_stats AS (
+        SELECT e.nombre, COUNT(*) as access_count
+        FROM Registro_Auditoria ra
+        JOIN Entidad e ON ra.id_entidad = e.id_entidad
+        WHERE ra.fecha_hora >= NOW() - INTERVAL '1 day' * p_days
+        GROUP BY e.id_entidad, e.nombre
+        ORDER BY access_count DESC
+        LIMIT 1
+    )
+    SELECT 
+        s.total,
+        s.logins,
+        s.creates,
+        s.reads,
+        s.updates,
+        s.deletes,
+        us.email,
+        es.nombre
+    FROM stats s
+    CROSS JOIN user_stats us
+    CROSS JOIN entity_stats es;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Stored procedure to get entity ID by name
+CREATE OR REPLACE PROCEDURE sp_get_entity_id_by_name(
+    p_entity_name VARCHAR(100),
+    OUT p_entity_id INTEGER
+) AS $$
+BEGIN
+    SELECT id_entidad INTO p_entity_id
+    FROM Entidad 
+    WHERE nombre = p_entity_name;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =====================================
+-- Procedimiento: Insertar registro
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_insert_record(
+    p_table_name   TEXT,
+    p_columns      TEXT[],
+    p_values       TEXT[],
+    OUT p_inserted_id INT,
+    OUT p_success  BOOLEAN,
+    OUT p_error    TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_sql TEXT;
+    v_columns_str TEXT := '';
+    v_values_str TEXT := '';
+    v_i INT;
+    v_col TEXT;
+    v_col_type TEXT;
+    v_pk_column TEXT;
+    v_pk_type TEXT;
+BEGIN
+    p_inserted_id := NULL;
+    p_success := FALSE;
+    p_error := NULL;
+
+    -- Validar parámetros
+    IF p_columns IS NULL OR p_values IS NULL OR array_length(p_columns,1) IS NULL OR array_length(p_columns,1) <> array_length(p_values,1) THEN
+        p_error := 'columns_and_values_must_be_same_size';
+        RETURN;
+    END IF;
+
+    IF array_length(p_columns,1) = 0 THEN
+        p_error := 'no_columns_to_insert';
+        RETURN;
+    END IF;
+
+    -- Verificar que la tabla existe
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relname = p_table_name
+    ) THEN
+        p_error := 'table_not_found';
+        RETURN;
+    END IF;
+
+    -- Construir la consulta INSERT
+    FOR v_i IN 1..array_length(p_columns,1) LOOP
+        v_col := p_columns[v_i];
+        
+        -- Verificar que la columna existe en la tabla
+        SELECT format_type(a.atttypid, a.atttypmod)
+        INTO v_col_type
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = c.oid
+        WHERE n.nspname = 'public'
+          AND c.relname = p_table_name
+          AND a.attname = v_col
+          AND a.attnum > 0 AND NOT a.attisdropped
+        LIMIT 1;
+        
+        IF v_col_type IS NULL THEN
+            p_error := 'column_not_found: ' || v_col;
+            RETURN;
+        END IF;
+
+        -- Agregar columna y valor
+        IF v_i > 1 THEN
+            v_columns_str := v_columns_str || ', ';
+            v_values_str := v_values_str || ', ';
+        END IF;
+        
+        v_columns_str := v_columns_str || quote_ident(v_col);
+        
+        -- Manejar diferentes tipos de datos
+        IF v_col_type IN ('text', 'varchar', 'character varying', 'char', 'character') THEN
+            v_values_str := v_values_str || quote_literal(p_values[v_i]);
+        ELSIF v_col_type IN ('integer', 'int4', 'bigint', 'int8', 'smallint', 'int2') THEN
+            v_values_str := v_values_str || COALESCE(p_values[v_i], 'NULL');
+        ELSIF v_col_type IN ('boolean', 'bool') THEN
+            v_values_str := v_values_str || COALESCE(p_values[v_i], 'NULL');
+        ELSIF v_col_type IN ('timestamp', 'timestamptz', 'date', 'time') THEN
+            v_values_str := v_values_str || quote_literal(p_values[v_i]);
+        ELSIF v_col_type IN ('numeric', 'decimal', 'real', 'double precision', 'float4', 'float8') THEN
+            v_values_str := v_values_str || COALESCE(p_values[v_i], 'NULL');
+        ELSE
+            v_values_str := v_values_str || quote_literal(p_values[v_i]);
+        END IF;
+    END LOOP;
+
+    -- Construir la consulta SQL final
+    v_sql := 'INSERT INTO ' || quote_ident(p_table_name) || ' (' || v_columns_str || ') VALUES (' || v_values_str || ')';
+    
+    -- Si la tabla tiene una clave primaria simple, intentar obtener el ID insertado
+    SELECT a.attname
+    INTO v_pk_column
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.oid
+    JOIN pg_constraint pk ON pk.conrelid = c.oid AND pk.contype = 'p'
+    WHERE n.nspname = 'public'
+      AND c.relname = p_table_name
+      AND a.attnum = ANY(pk.conkey)
+      AND pk.conkey[1] = a.attnum
+    LIMIT 1;
+
+    -- Si hay una PK simple, agregar RETURNING
+    IF v_pk_column IS NOT NULL THEN
+        SELECT format_type(a.atttypid, a.atttypmod)
+        INTO v_pk_type
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = c.oid
+        WHERE n.nspname = 'public'
+          AND c.relname = p_table_name
+          AND a.attname = v_pk_column
+          AND a.attnum > 0 AND NOT a.attisdropped
+        LIMIT 1;
+        
+        IF v_pk_type IN ('integer', 'int4', 'bigint', 'int8', 'smallint', 'int2') THEN
+            v_sql := v_sql || ' RETURNING ' || quote_ident(v_pk_column);
+        END IF;
+    END IF;
+
+    -- Ejecutar la inserción
+    BEGIN
+        IF v_pk_column IS NOT NULL AND v_pk_type IN ('integer', 'int4', 'bigint', 'int8', 'smallint', 'int2') THEN
+            EXECUTE v_sql INTO p_inserted_id;
+        ELSE
+            EXECUTE v_sql;
+            p_inserted_id := NULL;
+        END IF;
+        
+        p_success := TRUE;
+    EXCEPTION
+        WHEN OTHERS THEN
+            p_error := SQLERRM;
+            p_success := FALSE;
+    END;
+END;
+$$;
+
 
 -- =====================================
 -- SCRIPT DE INSERCIÓN DE DATOS BÁSICOS
@@ -892,6 +2297,13 @@ INSERT INTO Rol (id_rol, nombre) VALUES
 (2, 'Doctor'),
 (3, 'Administrador'),
 (4, 'Analista');
+
+-- =====================================
+-- INSERTAR USUARIO DE PRUEBA
+-- =====================================
+INSERT INTO Usuario (id_rol, email, contraseña_hash) 
+VALUES (3, 'admin@admin.com', crypt('admin', gen_salt('bf')))
+ON CONFLICT (email) DO NOTHING;
 
 -- =====================================
 -- INSERTAR FUENTES GPS
@@ -1066,7 +2478,6 @@ INSERT INTO Documento (nombre) VALUES ('Consulta');
 -- =====================================
 INSERT INTO Entidad (nombre) VALUES ('Paciente');
 INSERT INTO Entidad (nombre) VALUES ('Registro_Auditoria');
-INSERT INTO Entidad (nombre) VALUES ('Gps');
 INSERT INTO Entidad (nombre) VALUES ('Historial_Medico');
 INSERT INTO Entidad (nombre) VALUES ('Resultado_Lab');
 INSERT INTO Entidad (nombre) VALUES ('Usuario');
@@ -1096,6 +2507,7 @@ INSERT INTO Entidad (nombre) VALUES ('Medicamento');
 INSERT INTO Entidad (nombre) VALUES ('Historial_Medicamento');
 INSERT INTO Entidad (nombre) VALUES ('Enfermedad_Recomendacion');
 INSERT INTO Entidad (nombre) VALUES ('Documento_Enfermedad');
+INSERT INTO Entidad (nombre) VALUES ('Entidad');
 
 -- =====================================
 -- INSERTAR UNIDADES
@@ -13417,3 +14829,4 @@ SELECT (SELECT id_enfermedad FROM Enfermedad WHERE nombre = 'Hipertensión'),
        False, 
        CURRENT_TIMESTAMP, 
        0.2;
+

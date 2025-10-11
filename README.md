@@ -1,59 +1,121 @@
-# Predicthealth
-Plataforma de IA para predicción de enfermedades crónicas
+# PredictHealth - Sistema de Salud Predictiva
 
-# Current Temporary Solutions:
-- App.js: httpOnly cookie is being simulated in 2 points
-- LoginForm.jsx: fake httpOnly cookies
-- mockAuth.js: used for httpOnly mock
+Plataforma integral de IA para predicción de enfermedades crónicas (diabetes e hipertensión) con análisis de datos biométricos, historial médico y estilo de vida.
 
-# Backend
-- init.sql: script de inicialización de PostgreSQL (crea BD/esquema, índices y funciones, y carga datos)
-- Acceso: predicthealth_user, 666
+## 🏗️ Arquitectura del Sistema
 
-# Documentación:
-- [Arquitectura de sistema](https://lucid.app/lucidchart/e8a4c780-8b4f-4ca2-8605-5b6e3927194d/edit?invitationId=inv_925c84d6-c21d-43af-ba4d-35265cca643f)
-- [Modelo E-R](https://docs.google.com/document/d/1VXycVG1fAsWVyR-WUuyAO9iuKRno-keRreiZjPSXJNE/edit?tab=t.0#heading=h.y19w7r73ouiy)
-- [Estructuras para la Obtención de datos](https://docs.google.com/document/d/1DDVxPYFhKs7FMCuM7HOlUwLIojpXSd_S73FzS5eaxjw/edit?tab=t.0#heading=h.5vs05pkyy3tq)
-- [Definición de DML de la Base de Datos (vistas, indices, y procedimientos almacenados)](https://docs.google.com/document/d/1rEvLP03b2Vg-RNRP1V1NPEwThnwyppSAWdXHW_kgzj4/edit?tab=t.0#heading=h.ju9obmyylsaz)
+### Componentes Principales
+- **🌐 Frontend Web**: React.js con dashboard administrativo
+- **📱 App Móvil**: Android nativo (Kotlin)
+- **⚙️ Backend**: Flask (Python) con API REST
+- **🗄️ Base de Datos**: PostgreSQL con 32+ tablas
+- **🤖 IA/ML**: Modelos predictivos para diabetes e hipertensión
 
-# Obtención de datos
-- [CDC Diabetes Health Indicators (Hugging Face)](https://huggingface.co/datasets/Bena345/cdc-diabetes-health-indicators)
-- [Hypertension Risk Prediction (Kaggle)](https://www.kaggle.com/datasets/miadul/hypertension-risk-prediction-dataset?utm_source=chatgpt.com)
+### Estructura del Proyecto
+```
+Predicthealth/
+├── app/
+│   ├── web/          # Frontend React
+│   └── android/       # App Android
+├── Backend/           # API Flask
+└── Base de Datos/     # PostgreSQL + Scripts
+```
 
-# Color Palette
+## 🚀 Instalación Rápida
 
-### **Primary Colors**
+### Instalación Automática (Recomendada)
+```bash
+# Ejecutar script de instalación automática
+chmod +x setup.sh
+./setup.sh
+```
 
-| Name          | Hex     | Usage                                    |
-| ------------- | ------- | ---------------------------------------- |
-| Midnight Blue | #132232 | Primary background, header, sidebar      |
-| Snow White    | #FFFFFF | Text on dark backgrounds, cards, buttons |
+El script `setup.sh` se encarga automáticamente de:
+- ✅ **Instalar dependencias** (PostgreSQL, Python, Node.js)
+- ✅ **Configurar base de datos** (crear usuario, BD, ejecutar init.sql)
+- ✅ **Instalar dependencias** (pip install, npm install)
+- ✅ **Configurar variables** de entorno
+- ✅ **Ejecutar servicios** (backend + frontend)
 
-### **Secondary / Accent Colors**
+### Instalación Manual
 
-| Name       | Hex     | Usage                                       |
-| ---------- | ------- | ------------------------------------------- |
-| Sky Blue   | #ADC7EA | Buttons, highlights, links                  |
-| Slate Gray | #5B696F | Secondary text, borders, muted cards        |
-| Mist Gray  | #9DB3C1 | Backgrounds for cards, panels, hover states |
+#### Prerrequisitos
+- PostgreSQL 12+
+- Python 3.8+
+- Node.js 16+
+- Android Studio (para app móvil)
 
-### **Accessibility / Contrast Adjustments**
+#### Configuración Base de Datos
+```bash
+# 1. Inicializar base de datos
+psql -U postgres -f "Base de Datos/init.sql"
 
-| Name       | Hex     | Usage                                                                             |
-| ---------- | ------- | --------------------------------------------------------------------------------- |
-| Soft Sky   | #8BB8E3 | For colorblind-friendly buttons and highlights, stronger contrast than ADC7EA     |
-| Charcoal   | #1F2A36 | Darker text on light backgrounds, contrast with Snow White                        |
-| Light Mist | #E6EEF5 | Background panels, secondary sections to separate content without strong contrast |
+# 2. Cargar datos de prueba (opcional)
+psql -U predicthealth_user -d predicthealth -f "Base de Datos/prueba.sql"
+```
 
-### **Additional Accent / Feedback Colors**
+#### Configuración Backend
+```bash
+cd Backend
+pip install -r requirements.txt
+export PGHOST=localhost PGPORT=5432 PGDATABASE=predicthealth PGUSER=predicthealth_user PGPASSWORD=666
+python app.py
+```
 
-| Name          | Hex     | Usage                            |
-| ------------- | ------- | -------------------------------- |
-| Success Green | #4CAF50 | Positive feedback, confirmations |
-| Warning Amber | #FFC107 | Alerts, warnings                 |
-| Error Red     | #F44336 | Error messages, failed actions   |
-| Info Blue     | #2196F3 | Informational messages, tips     |
+#### Configuración Frontend
+```bash
+cd app/web
+npm install
+npm start
+```
+
+## 📊 Características Principales
+
+- **👥 Gestión de Usuarios**: Sistema de autenticación con roles
+- **📈 Dashboards**: Visualización de métricas de salud en tiempo real
+- **🚨 Alertas Automáticas**: Detección de valores anómalos
+- **📄 Procesamiento de Documentos**: NLP para extracción de datos médicos
+- **📍 Geolocalización**: Seguimiento de ubicación del usuario
+- **🔍 Auditoría Completa**: Trazabilidad de todas las operaciones
+
+## 🎨 Paleta de Colores
+
+| Color | Hex | Uso |
+|-------|-----|-----|
+| Midnight Blue | #132232 | Fondo principal |
+| Snow White | #FFFFFF | Texto en fondos oscuros |
+| Sky Blue | #ADC7EA | Botones y enlaces |
+| Success Green | #4CAF50 | Confirmaciones |
+| Warning Amber | #FFC107 | Alertas |
+| Error Red | #F44336 | Errores |
+
+## 📚 Documentación
+
+- [Arquitectura del Sistema](https://lucid.app/lucidchart/e8a4c780-8b4f-4ca2-8605-5b6e3927194d/edit?invitationId=inv_925c84d6-c21d-43af-ba4d-35265cca643f)
+- [Modelo E-R](https://docs.google.com/document/d/15vsShOtpazZ2pWJg4mOqwK3ftXY6GBit0u_iRQ_oVrg/edit?usp=sharing)
+- [Base de Datos](Base%20de%20Datos/README.md) - Documentación completa de BD
+- [Backend API](Backend/README.md) - Documentación del backend Flask
+
+## 📊 Datasets Utilizados
+
+- **CDC Diabetes**: 243,532 registros de indicadores de salud
+- **Kaggle Hypertension**: 1,985 registros de predicción de hipertensión
+
+## 🔧 Acceso de Desarrollo
+
+### Credenciales del Sistema
+- **👤 Usuario Admin**: `admin@admin.com` / `admin`
+- **🗄️ Base de Datos**: `predicthealth_user` / `666`
+
+### Puertos
+- **Puerto Backend**: 5001
+- **Puerto Frontend**: 3000
+
+### URLs de Acceso
+- **Aplicación Web**: http://localhost:3000
+- **API Backend**: http://localhost:5001
+- **Health Check**: http://localhost:5001/api/health
 
 ---
 
-[Drive del Equipo](https://drive.google.com/drive/u/0/folders/1IMpgyBlC8rK01qJg5JJ2ua4tupmby4gT)
+**Versión**: 2.0 | **Estado**: ✅ Funcional | **Última actualización**: Diciembre 2024
