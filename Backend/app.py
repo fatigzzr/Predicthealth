@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 CORS(
     app,
-    resources={r"/api/*": {"origins": "http://localhost:3000"}},
+    resources={r"/api/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000", "*"]}},
     supports_credentials=True,
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],

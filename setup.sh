@@ -487,7 +487,21 @@ fi
 
 # Verificar firewall y abrir puertos si es necesario
 print_status "Verificando configuración de firewall..."
-if command_exists ufw; then
+
+# Detectar si estamos en Google Cloud
+if curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone >/dev/null 2>&1; then
+    print_status "Detectado Google Cloud Platform"
+    print_warning "IMPORTANTE: Necesitas configurar reglas de firewall en Google Cloud Console"
+    print_status "Ejecuta estos comandos en Google Cloud Console:"
+    print_status "gcloud compute firewall-rules create allow-predicthealth-frontend --allow tcp:3000 --source-ranges 0.0.0.0/0"
+    print_status "gcloud compute firewall-rules create allow-predicthealth-backend --allow tcp:5001 --source-ranges 0.0.0.0/0"
+    print_status ""
+    print_status "O desde la consola web:"
+    print_status "1. Ve a VPC Network > Firewall"
+    print_status "2. Crea regla para puerto 3000 (frontend)"
+    print_status "3. Crea regla para puerto 5001 (backend)"
+    print_status "4. Aplica a todas las instancias"
+elif command_exists ufw; then
     print_status "Configurando UFW para permitir puertos 3000 y 5001..."
     sudo ufw allow 3000/tcp
     sudo ufw allow 5001/tcp
@@ -512,11 +526,28 @@ print_status "🚀 Iniciando servicios..."
 start_backend() {
     print_status "Iniciando backend en puerto 5001..."
     cd ../../Backend
-    export $(cat .env | xargs)
+    
+    # Configurar variables de entorno para acceso externo
+    export PGHOST=localhost
+    export PGPORT=5432
+    export PGDATABASE=predicthealth
+    export PGUSER=predicthealth_user
+    export PGPASSWORD=666
+    export JWT_SECRET=dev-secret-change-me
+    export JWT_EXPIRES_MIN=60
+    export FLASK_APP=app.py
+    export FLASK_ENV=development
+    
+    # Cargar variables de .env si existe
+    if [ -f ".env" ]; then
+        export $(cat .env | xargs)
+    fi
+    
     python3 app.py &
     BACKEND_PID=$!
     echo $BACKEND_PID > backend.pid
     print_success "Backend iniciado (PID: $BACKEND_PID)"
+    print_status "Backend accesible en: http://0.0.0.0:5001"
 }
 
 # Función para ejecutar frontend en background

@@ -41,6 +41,21 @@ sudo chmod 755 "/home/fati/Predicthealth/Base de Datos"
 sudo chmod 644 "/home/fati/Predicthealth/Base de Datos/init.sql"
 ```
 
+**🌐 Configuración de Firewall para Google Cloud**
+Si estás usando Google Cloud y no puedes acceder desde la IP externa, configura las reglas de firewall:
+
+```bash
+# Opción 1: Usando gcloud CLI
+gcloud compute firewall-rules create allow-predicthealth-frontend --allow tcp:3000 --source-ranges 0.0.0.0/0
+gcloud compute firewall-rules create allow-predicthealth-backend --allow tcp:5001 --source-ranges 0.0.0.0/0
+```
+
+**O desde Google Cloud Console:**
+1. Ve a **VPC Network > Firewall**
+2. Crea regla para puerto **3000** (frontend)
+3. Crea regla para puerto **5001** (backend)
+4. Aplica a **todas las instancias**
+
 El script `setup.sh` se encarga automáticamente de:
 - ✅ **Instalar dependencias** (PostgreSQL, Python, Node.js)
 - ✅ **Configurar base de datos** (crear usuario, BD, ejecutar init.sql)
