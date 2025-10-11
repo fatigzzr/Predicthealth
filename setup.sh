@@ -533,6 +533,11 @@ fi
 npm install
 print_success "Dependencias del frontend instaladas"
 
+# Instalar styled-jsx para componentes con estilos JSX
+print_status "Instalando styled-jsx..."
+npm install styled-jsx
+print_success "styled-jsx instalado"
+
 # =============================================================================
 # 6. CONFIGURAR VARIABLES DE ENTORNO
 # =============================================================================
