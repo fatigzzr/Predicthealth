@@ -275,6 +275,30 @@ if ! pg_isready -q 2>/dev/null; then
     fi
 fi
 
+# Configurar psql-14 como cliente principal si está disponible
+if command_exists psql-14; then
+    print_status "Configurando psql-14 como cliente principal..."
+    
+    # Crear alias para psql-14
+    echo 'alias psql="psql-14"' >> ~/.bashrc
+    echo 'alias psql="psql-14"' >> ~/.zshrc 2>/dev/null || true
+    
+    # Configurar PATH para usar psql-14
+    export PATH="/usr/pgsql-14/bin:$PATH"
+    echo 'export PATH="/usr/pgsql-14/bin:$PATH"' >> ~/.bashrc
+    echo 'export PATH="/usr/pgsql-14/bin:$PATH"' >> ~/.zshrc 2>/dev/null || true
+    
+    # Verificar que psql-14 esté funcionando
+    if psql-14 --version | grep -q "14"; then
+        print_success "psql-14 configurado correctamente"
+        print_status "Versión del cliente: $(psql-14 --version)"
+    else
+        print_warning "psql-14 no está funcionando correctamente"
+    fi
+else
+    print_warning "psql-14 no está disponible, usando psql estándar"
+fi
+
 # Detectar la versión de PostgreSQL activa
 PSQL_VERSION=$(psql --version | awk '{print $3}')
 PSQL_VERSION_NUM=$(echo $PSQL_VERSION | cut -d. -f1)
