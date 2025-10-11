@@ -320,16 +320,16 @@ print_status "Ejecutando script de inicialización de base de datos..."
 # Usar el método apropiado según el sistema operativo
 print_status "Ejecutando script de inicialización..."
 
-# Cambiar al directorio del script para asegurar rutas correctas
+# Obtener la ruta absoluta del directorio del script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+INIT_SQL_PATH="$SCRIPT_DIR/Base de Datos/init.sql"
 
-print_status "Trabajando desde: $(pwd)"
-print_status "Verificando archivo: Base de Datos/init.sql"
+print_status "Directorio del script: $SCRIPT_DIR"
+print_status "Ruta del archivo SQL: $INIT_SQL_PATH"
 
 # Verificar que el archivo existe
-if [ ! -f "Base de Datos/init.sql" ]; then
-    print_error "No se encontró el archivo 'Base de Datos/init.sql' en $(pwd)"
+if [ ! -f "$INIT_SQL_PATH" ]; then
+    print_error "No se encontró el archivo en: $INIT_SQL_PATH"
     exit 1
 fi
 
@@ -337,23 +337,23 @@ fi
 if command_exists brew; then
     # macOS con Homebrew
     print_status "Ejecutando en macOS con Homebrew..."
-    if psql -d postgres -f "Base de Datos/init.sql"; then
+    if psql -d postgres -f "$INIT_SQL_PATH"; then
         print_success "Script principal ejecutado correctamente en macOS"
     else
         print_error "No se pudo ejecutar el script en macOS"
         print_status "Por favor ejecuta manualmente:"
-        print_status "psql -d postgres -f 'Base de Datos/init.sql'"
+        print_status "psql -d postgres -f '$INIT_SQL_PATH'"
         exit 1
     fi
 else
     # Linux
     print_status "Ejecutando en Linux..."
-    if sudo -u postgres psql -d postgres -f "Base de Datos/init.sql"; then
+    if sudo -u postgres psql -d postgres -f "$INIT_SQL_PATH"; then
         print_success "Script principal ejecutado correctamente en Linux"
     else
         print_error "No se pudo ejecutar el script en Linux"
         print_status "Por favor ejecuta manualmente:"
-        print_status "sudo -u postgres psql -d postgres -f 'Base de Datos/init.sql'"
+        print_status "sudo -u postgres psql -d postgres -f '$INIT_SQL_PATH'"
         exit 1
     fi
 fi
@@ -365,21 +365,22 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     print_status "Cargando datos de prueba..."
     
     # Verificar si el archivo prueba.sql existe
-    if [ -f "Base de Datos/prueba.sql" ]; then
+    PRUEBA_SQL_PATH="$SCRIPT_DIR/Base de Datos/prueba.sql"
+    if [ -f "$PRUEBA_SQL_PATH" ]; then
         print_status "Cargando datos de prueba..."
-        if psql -U predicthealth_user -d predicthealth -f "Base de Datos/prueba.sql"; then
+        if psql -U predicthealth_user -d predicthealth -f "$PRUEBA_SQL_PATH"; then
             print_success "Datos de prueba cargados"
         else
             print_warning "No se pudo cargar datos de prueba. Verifica que la base de datos y usuario existan."
             print_status "Intenta manualmente:"
             if command_exists brew; then
-                print_status "psql -U predicthealth_user -d predicthealth -f 'Base de Datos/prueba.sql'"
+                print_status "psql -U predicthealth_user -d predicthealth -f '$PRUEBA_SQL_PATH'"
             else
-                print_status "sudo -u postgres psql -U predicthealth_user -d predicthealth -f 'Base de Datos/prueba.sql'"
+                print_status "sudo -u postgres psql -U predicthealth_user -d predicthealth -f '$PRUEBA_SQL_PATH'"
             fi
         fi
     else
-        print_warning "Archivo 'Base de Datos/prueba.sql' no encontrado"
+        print_warning "Archivo '$PRUEBA_SQL_PATH' no encontrado"
     fi
 fi
 
