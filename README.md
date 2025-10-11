@@ -30,6 +30,17 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
+**⚠️ Solución de Problemas de Permisos (Linux/Google Cloud)**
+Si encuentras errores de "Permission denied" al ejecutar el script, ejecuta estos comandos antes:
+
+```bash
+# Dar permisos de lectura al directorio home para otros usuarios
+sudo chmod 755 /home/fati
+sudo chmod 755 /home/fati/Predicthealth
+sudo chmod 755 "/home/fati/Predicthealth/Base de Datos"
+sudo chmod 644 "/home/fati/Predicthealth/Base de Datos/init.sql"
+```
+
 El script `setup.sh` se encarga automáticamente de:
 - ✅ **Instalar dependencias** (PostgreSQL, Python, Node.js)
 - ✅ **Configurar base de datos** (crear usuario, BD, ejecutar init.sql)
