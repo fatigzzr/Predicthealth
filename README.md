@@ -71,6 +71,30 @@ psql-14 --version
 - El servicio se llama `postgresql-14` (no `postgresql`)
 - Usar `psql-14` en lugar de `psql` para evitar warnings de versión
 
+**🔧 Solución de Problemas PostgreSQL 14:**
+Si PostgreSQL 14 falla al iniciar, ejecuta estos pasos:
+
+```bash
+# 1. Detener todos los servicios PostgreSQL
+sudo systemctl stop postgresql
+sudo systemctl stop postgresql-14
+
+# 2. Limpiar directorio corrupto
+sudo rm -rf /var/lib/pgsql/14/data
+
+# 3. Crear directorio limpio
+sudo mkdir -p /var/lib/pgsql/14/data
+sudo chown postgres:postgres /var/lib/pgsql/14/data
+sudo chmod 700 /var/lib/pgsql/14/data
+
+# 4. Reinicializar PostgreSQL 14
+sudo -u postgres /usr/pgsql-14/bin/initdb -D /var/lib/pgsql/14/data
+
+# 5. Iniciar el servicio
+sudo systemctl start postgresql-14
+sudo systemctl enable postgresql-14
+```
+
 **🌐 Configuración de Firewall para Google Cloud**
 Si estás usando Google Cloud y no puedes acceder desde la IP externa, configura las reglas de firewall:
 
