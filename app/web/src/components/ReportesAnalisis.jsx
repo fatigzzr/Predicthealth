@@ -438,17 +438,18 @@ export default function ReportesAnalisis() {
       }
 
       // Definir todos los endpoints a cargar
+      const baseUrl = `${window.location.protocol}//${window.location.hostname}:5001/api`;
       const endpoints = [
-        { url: 'http://localhost:5001/api/dashboard/monitoreo-pa', setter: setMonitoreoData, dataKey: 'data' },
-        { url: 'http://localhost:5001/api/dashboard/monitoreo-pa-stats', setter: setStats, dataKey: 'stats' },
-        { url: 'http://localhost:5001/api/dashboard/signos-vitales', setter: setSignosVitalesData, dataKey: 'data' },
-        { url: 'http://localhost:5001/api/dashboard/signos-vitales-stats', setter: setSignosVitalesStats, dataKey: 'stats' },
-        { url: 'http://localhost:5001/api/dashboard/lab', setter: setLabData, dataKey: 'data' },
-        { url: 'http://localhost:5001/api/dashboard/lab/stats', setter: setLabStats, dataKey: 'stats' },
-        { url: 'http://localhost:5001/api/dashboard/lab/charts', setter: setLabChartsData, dataKey: 'processedData' },
-        { url: 'http://localhost:5001/api/dashboard/estilo-vida', setter: setEstiloVidaData, dataKey: 'data' },
-        { url: 'http://localhost:5001/api/dashboard/estilo-vida-stats', setter: setEstiloVidaStats, dataKey: 'stats' },
-        { url: 'http://localhost:5001/api/dashboard/estilo-vida-charts', setter: setEstiloVidaChartsData, dataKey: null }
+        { url: `${baseUrl}/dashboard/monitoreo-pa`, setter: setMonitoreoData, dataKey: 'data' },
+        { url: `${baseUrl}/dashboard/monitoreo-pa-stats`, setter: setStats, dataKey: 'stats' },
+        { url: `${baseUrl}/dashboard/signos-vitales`, setter: setSignosVitalesData, dataKey: 'data' },
+        { url: `${baseUrl}/dashboard/signos-vitales-stats`, setter: setSignosVitalesStats, dataKey: 'stats' },
+        { url: `${baseUrl}/dashboard/lab`, setter: setLabData, dataKey: 'data' },
+        { url: `${baseUrl}/dashboard/lab/stats`, setter: setLabStats, dataKey: 'stats' },
+        { url: `${baseUrl}/dashboard/lab/charts`, setter: setLabChartsData, dataKey: 'processedData' },
+        { url: `${baseUrl}/dashboard/estilo-vida`, setter: setEstiloVidaData, dataKey: 'data' },
+        { url: `${baseUrl}/dashboard/estilo-vida-stats`, setter: setEstiloVidaStats, dataKey: 'stats' },
+        { url: `${baseUrl}/dashboard/estilo-vida-charts`, setter: setEstiloVidaChartsData, dataKey: null }
       ];
 
       let hasError = false;

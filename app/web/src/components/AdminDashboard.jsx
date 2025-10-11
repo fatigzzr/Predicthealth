@@ -33,7 +33,7 @@ ChartJS.register(
   Filler
 );
 
-const API_BASE_URL = 'http://localhost:5001/api';
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5001/api`;
 
 export default function AdminDashboard({ patients }) {
   const [loading, setLoading] = useState(true);

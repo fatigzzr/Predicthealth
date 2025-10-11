@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5001/api";
+const API_URL = `${window.location.protocol}//${window.location.hostname}:5001/api`;
 
 async function login(username, password) {
   const res = await fetch(`${API_URL}/login`, {

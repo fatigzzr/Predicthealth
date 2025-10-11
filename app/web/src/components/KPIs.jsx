@@ -20,7 +20,7 @@ import '../styles.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title);
 
-const API_BASE_URL = 'http://localhost:5001/api';
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5001/api`;
 
 // Colores para el gráfico de pie (siguiendo los colores de reportes)
 const COLORS = ['#4ECDC4', '#96CEB4', '#45B7D1', '#FF6B6B'];
