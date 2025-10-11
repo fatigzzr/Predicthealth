@@ -134,7 +134,7 @@ npm start
 
 ## 📚 Documentación
 
-- [Arquitectura del Sistema](https://lucid.app/lucidchart/e8a4c780-8b4f-4ca2-8605-5b6e3927194d/edit?invitationId=inv_925c84d6-c21d-43af-ba4d-35265cca643f)
+- [Arquitectura del Sistema](https://lucid.app/lucidchart/b11164f2-5065-4e16-93d7-896f577da5a0/edit?viewport_loc=-121%2C-1769%2C3720%2C4084%2C0_0&invitationId=inv_19597c7c-3cb5-4324-98f9-66e21398ef79)
 - [Modelo E-R](https://docs.google.com/document/d/15vsShOtpazZ2pWJg4mOqwK3ftXY6GBit0u_iRQ_oVrg/edit?usp=sharing)
 - [Base de Datos](Base%20de%20Datos/README.md) - Documentación completa de BD
 - [Backend API](Backend/README.md) - Documentación del backend Flask
