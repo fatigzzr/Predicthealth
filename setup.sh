@@ -317,37 +317,31 @@ print_status "Archivo init.sql encontrado y legible"
 # Ejecutar script principal (necesita superusuario)
 print_status "Ejecutando script de inicialización de base de datos..."
 
-# Intentar diferentes métodos de conexión
-print_status "Intentando ejecutar script con usuario postgres..."
-if psql -U postgres -d postgres -f "Base de Datos/init.sql"; then
-    print_success "Script principal ejecutado con usuario postgres"
-elif psql -U $(whoami) -d postgres -f "Base de Datos/init.sql"; then
-    print_success "Script principal ejecutado con usuario $(whoami)"
-else
-    print_warning "No se pudo ejecutar con usuarios por defecto. Intentando crear usuario..."
-    
-    # Crear usuario si no existe
-    sudo -u postgres psql -c "CREATE USER $(whoami) WITH SUPERUSER;" 2>/dev/null || \
-    sudo -u postgres psql -c "ALTER USER $(whoami) WITH SUPERUSER;" 2>/dev/null || \
-    print_warning "No se pudo crear usuario $(whoami)"
-    
-    # Intentar ejecutar nuevamente
-    print_status "Ejecutando script con usuario $(whoami)..."
-    if psql -U $(whoami) -d postgres -f "Base de Datos/init.sql"; then
-        print_success "Script principal ejecutado después de crear usuario"
+# Usar el método apropiado según el sistema operativo
+print_status "Ejecutando script de inicialización..."
+
+# Detectar sistema operativo y usar el método apropiado
+if command_exists brew; then
+    # macOS con Homebrew
+    print_status "Ejecutando en macOS con Homebrew..."
+    if psql -d postgres -f "Base de Datos/init.sql"; then
+        print_success "Script principal ejecutado correctamente en macOS"
     else
-        print_warning "Error al ejecutar script con usuario $(whoami). Intentando con usuario postgres..."
-        
-        # Intentar con usuario postgres como último recurso
-        if sudo -u postgres psql -d postgres -f "Base de Datos/init.sql"; then
-            print_success "Script principal ejecutado con usuario postgres"
-        else
-            print_error "No se pudo ejecutar el script de inicialización"
-            print_status "Por favor ejecuta manualmente:"
-            print_status "sudo -u postgres psql -f 'Base de Datos/init.sql'"
-            print_status "O verifica los permisos del archivo init.sql"
-            exit 1
-        fi
+        print_error "No se pudo ejecutar el script en macOS"
+        print_status "Por favor ejecuta manualmente:"
+        print_status "psql -d postgres -f 'Base de Datos/init.sql'"
+        exit 1
+    fi
+else
+    # Linux
+    print_status "Ejecutando en Linux..."
+    if sudo -u postgres psql -d postgres -f "Base de Datos/init.sql"; then
+        print_success "Script principal ejecutado correctamente en Linux"
+    else
+        print_error "No se pudo ejecutar el script en Linux"
+        print_status "Por favor ejecuta manualmente:"
+        print_status "sudo -u postgres psql -d postgres -f 'Base de Datos/init.sql'"
+        exit 1
     fi
 fi
 
@@ -359,10 +353,17 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     
     # Verificar si el archivo prueba.sql existe
     if [ -f "Base de Datos/prueba.sql" ]; then
-        if psql -U predicthealth_user -d predicthealth -f "Base de Datos/prueba.sql" 2>/dev/null; then
+        print_status "Cargando datos de prueba..."
+        if psql -U predicthealth_user -d predicthealth -f "Base de Datos/prueba.sql"; then
             print_success "Datos de prueba cargados"
         else
             print_warning "No se pudo cargar datos de prueba. Verifica que la base de datos y usuario existan."
+            print_status "Intenta manualmente:"
+            if command_exists brew; then
+                print_status "psql -U predicthealth_user -d predicthealth -f 'Base de Datos/prueba.sql'"
+            else
+                print_status "sudo -u postgres psql -U predicthealth_user -d predicthealth -f 'Base de Datos/prueba.sql'"
+            fi
         fi
     else
         print_warning "Archivo 'Base de Datos/prueba.sql' no encontrado"
