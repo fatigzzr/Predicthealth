@@ -229,7 +229,61 @@ if ! pg_isready -q 2>/dev/null; then
 fi
 
 PSQL_VERSION=$(psql --version | awk '{print $3}')
+PSQL_VERSION_NUM=$(echo $PSQL_VERSION | cut -d. -f1)
 print_success "PostgreSQL $PSQL_VERSION encontrado y funcionando"
+
+# Verificar compatibilidad de versión y actualizar si es necesario
+if [ "$PSQL_VERSION_NUM" -lt 14 ]; then
+    print_warning "PostgreSQL $PSQL_VERSION detectado. Se requiere PostgreSQL 14+ para funcionalidad completa."
+    print_status "Actualizando PostgreSQL a la versión 14..."
+    
+    # Detener PostgreSQL actual
+    print_status "Deteniendo PostgreSQL actual..."
+    if command_exists systemctl; then
+        sudo systemctl stop postgresql
+    elif command_exists brew; then
+        brew services stop postgresql
+    fi
+    
+    # Actualizar PostgreSQL según el sistema operativo
+    if command_exists apt; then
+        # Ubuntu/Debian
+        print_status "Actualizando PostgreSQL en Ubuntu/Debian..."
+        sudo apt update
+        sudo apt install -y postgresql-14 postgresql-client-14 postgresql-contrib-14
+        sudo systemctl start postgresql-14
+        sudo systemctl enable postgresql-14
+    elif command_exists yum; then
+        # CentOS/RHEL
+        print_status "Actualizando PostgreSQL en CentOS/RHEL..."
+        sudo yum install -y postgresql14-server postgresql14 postgresql14-contrib
+        sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
+        sudo systemctl start postgresql-14
+        sudo systemctl enable postgresql-14
+    elif command_exists dnf; then
+        # Fedora
+        print_status "Actualizando PostgreSQL en Fedora..."
+        sudo dnf install -y postgresql14-server postgresql14 postgresql14-contrib
+        sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
+        sudo systemctl start postgresql-14
+        sudo systemctl enable postgresql-14
+    else
+        print_error "No se pudo actualizar PostgreSQL automáticamente en este sistema"
+        print_status "Por favor actualiza PostgreSQL manualmente a la versión 14+"
+        exit 1
+    fi
+    
+    # Verificar que la actualización fue exitosa
+    sleep 5
+    if pg_isready -q; then
+        PSQL_VERSION=$(psql --version | awk '{print $3}')
+        PSQL_VERSION_NUM=$(echo $PSQL_VERSION | cut -d. -f1)
+        print_success "PostgreSQL actualizado a $PSQL_VERSION"
+    else
+        print_error "No se pudo actualizar PostgreSQL correctamente"
+        exit 1
+    fi
+fi
 
 # Verificar pip
 if ! command_exists pip3; then
@@ -341,6 +395,9 @@ if ! sudo -u postgres test -r "$INIT_SQL_PATH" 2>/dev/null; then
     sudo chmod 644 "$INIT_SQL_PATH"
     print_status "Permisos ajustados"
 fi
+
+# Ahora PostgreSQL 14+ está garantizado, usar el script estándar
+print_status "PostgreSQL $PSQL_VERSION detectado - compatible con todas las funciones"
 
 # Detectar sistema operativo y usar el método apropiado
 if command_exists brew; then
@@ -663,6 +720,15 @@ if psql -U predicthealth_user -d predicthealth -c "SELECT COUNT(*) FROM Usuario;
     print_success "Base de datos funcionando correctamente"
 else
     print_warning "No se pudo verificar la base de datos"
+fi
+
+# Verificar procedimientos almacenados críticos
+print_status "Verificando procedimientos almacenados críticos..."
+if psql -U predicthealth_user -d predicthealth -c "SELECT routine_name FROM information_schema.routines WHERE routine_name = 'sp_login_staff';" | grep -q "sp_login_staff"; then
+    print_success "Procedimiento sp_login_staff encontrado"
+else
+    print_warning "Procedimiento sp_login_staff no encontrado"
+    print_status "Revisa los errores de ejecución del script SQL"
 fi
 
 print_success "✅ Instalación completada exitosamente!"
