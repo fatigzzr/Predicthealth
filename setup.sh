@@ -57,8 +57,45 @@ print_success "Python $PYTHON_VERSION encontrado"
 
 # Verificar Node.js
 if ! command_exists node; then
-    print_error "Node.js no está instalado. Por favor instala Node.js 16+"
-    exit 1
+    print_warning "Node.js no está instalado. Intentando instalar automáticamente..."
+    
+    # Detectar sistema operativo e instalar Node.js
+    if command_exists apt; then
+        # Ubuntu/Debian
+        print_status "Instalando Node.js en Ubuntu/Debian..."
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+    elif command_exists yum; then
+        # CentOS/RHEL
+        print_status "Instalando Node.js en CentOS/RHEL..."
+        curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+        sudo yum install -y nodejs
+    elif command_exists dnf; then
+        # Fedora
+        print_status "Instalando Node.js en Fedora..."
+        curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+        sudo dnf install -y nodejs
+    elif command_exists brew; then
+        # macOS con Homebrew
+        print_status "Instalando Node.js en macOS..."
+        brew install node
+    else
+        print_error "No se pudo detectar el sistema operativo para instalar Node.js"
+        print_status "Por favor instala Node.js manualmente:"
+        print_status "- Ubuntu/Debian: curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && sudo apt-get install -y nodejs"
+        print_status "- CentOS/RHEL: curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash - && sudo yum install -y nodejs"
+        print_status "- Fedora: curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash - && sudo dnf install -y nodejs"
+        print_status "- macOS: brew install node"
+        exit 1
+    fi
+    
+    # Verificar que la instalación fue exitosa
+    if ! command_exists node; then
+        print_error "La instalación de Node.js falló"
+        exit 1
+    fi
+    
+    print_success "Node.js instalado correctamente"
 fi
 
 NODE_VERSION=$(node --version)
