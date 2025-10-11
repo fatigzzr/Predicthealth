@@ -368,9 +368,9 @@ else
 fi
 
 # Cargar datos de prueba (opcional)
-read -p "¿Deseas cargar datos de prueba? (y/N): " -n 1 -r
+read -p "¿Deseas cargar datos de prueba? (Y/n): " -n 1 -r
 echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     print_status "Cargando datos de prueba..."
     
     # Verificar si el archivo prueba.sql existe
