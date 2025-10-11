@@ -8,7 +8,7 @@ PredictHealth es un sistema integral de salud predictiva que combina datos biom�
 
 ### Características Principales
 
-- **32+ tablas** organizadas en un modelo relacional completo
+- **32 tablas** organizadas en un modelo relacional completo
 - **Extensiones PostgreSQL**: uuid-ossp, pgcrypto
 - **Vistas especializadas** para dashboards y monitoreo
 - **Procedimientos almacenados** para automatización
@@ -17,33 +17,53 @@ PredictHealth es un sistema integral de salud predictiva que combina datos biom�
 - **Sistema de alertas automáticas** para valores anómalos
 - **Integración con datasets reales** (CDC Diabetes, Kaggle Hypertension)
 
-### Entidades Principales
+### Entidades del Sistema (32 tablas)
 
-#### 👤 Gestión de Usuarios
+#### 👤 Gestión de Usuarios (3 tablas)
 - **Usuario**: Sistema de autenticación con roles
 - **Paciente**: Información demográfica y médica
 - **Rol**: Control de acceso (admin, médico, paciente)
 
-#### 🏥 Datos Médicos
+#### 🏥 Datos Médicos (8 tablas)
 - **Historial_Medico**: Registros médicos históricos
 - **Signo_Vital**: Monitoreo en tiempo real (PA, HR, SpO2)
+- **Tipo_Signo_Vital**: Tipos de signos vitales
 - **Enfermedad**: Catálogo de enfermedades
+- **Historial_Enfermedad**: Relación historial-enfermedad
 - **Medicamento**: Base de datos de medicamentos
+- **Historial_Medicamento**: Relación historial-medicamento
 - **Analito**: Parámetros de laboratorio
 
-#### 🤖 Inteligencia Artificial
+#### 🤖 Inteligencia Artificial (3 tablas)
 - **Prediccion**: Resultados de modelos de IA
 - **Modelo**: Metadatos de modelos de ML
 - **Recomendacion**: Sugerencias personalizadas
 
-#### 📄 Gestión de Documentos
+#### 📄 Gestión de Documentos (4 tablas)
+- **Documento**: Tipos de documentos médicos
 - **Documento_Subido**: Archivos médicos procesados
 - **Extracciones_Nlp**: Datos extraídos por NLP
 - **Resultado_Lab**: Valores de laboratorio extraídos
 
-#### 📍 Geolocalización
+#### 📍 Geolocalización (2 tablas)
 - **Registros_GPS**: Ubicaciones del usuario
 - **Fuente_GPS**: Origen de datos GPS
+
+#### 🔍 Auditoría y Seguridad (2 tablas)
+- **Registro_Auditoria**: Logs de auditoría del sistema
+- **Refresh_Token**: Tokens de autenticación
+
+#### 📊 Catálogos y Referencias (10 tablas)
+- **Entidad**: Catálogo de entidades del sistema
+- **Unidad**: Unidades de medida médicas
+- **Tipo_Medicion**: Tipos de mediciones médicas
+- **Postura**: Posturas para mediciones
+- **Dispositivo**: Dispositivos de medición
+- **Pregunta**: Preguntas de estilo de vida
+- **Respuesta_Estilo_Vida**: Respuestas de cuestionarios
+- **Consulta**: Tipos de consultas médicas
+- **Enfermedad_Recomendacion**: Relación enfermedad-recomendación
+- **Documento_Enfermedad**: Relación documento-enfermedad
 
 ## 🚀 Instalación
 
@@ -290,17 +310,17 @@ psql -d predicthealth -c "SELECT COUNT(*) FROM Usuario;"
 
 ## 📋 Estructura de Tablas
 
-### Tablas Principales (32+ total)
+### Estructura de Tablas (32 total)
 
 | Categoría | Tablas | Descripción |
 |-----------|--------|-------------|
-| **👤 Usuarios** | Usuario, Paciente, Rol | Sistema de autenticación y perfiles |
-| **🏥 Médicas** | Historial_Medico, Signo_Vital, Enfermedad, Medicamento | Datos médicos y farmacológicos |
-| **🤖 IA/ML** | Prediccion, Modelo, Recomendacion | Inteligencia artificial y predicciones |
-| **📄 Documentos** | Documento_Subido, Extracciones_Nlp, Resultado_Lab | Procesamiento de documentos médicos |
-| **📍 Geolocalización** | Registros_GPS, Fuente_GPS | Datos de ubicación del usuario |
-| **🔍 Auditoría** | Registro_Auditoria, Refresh_Token | Seguridad y trazabilidad |
-| **📊 Catálogos** | Unidad, Tipo_Medicion, Analito, etc. | Datos de referencia del sistema |
+| **👤 Usuarios (3)** | Usuario, Paciente, Rol | Sistema de autenticación y perfiles |
+| **🏥 Médicas (8)** | Historial_Medico, Signo_Vital, Tipo_Signo_Vital, Enfermedad, Historial_Enfermedad, Medicamento, Historial_Medicamento, Analito | Datos médicos y farmacológicos |
+| **🤖 IA/ML (3)** | Prediccion, Modelo, Recomendacion | Inteligencia artificial y predicciones |
+| **📄 Documentos (4)** | Documento, Documento_Subido, Extracciones_Nlp, Resultado_Lab | Procesamiento de documentos médicos |
+| **📍 Geolocalización (2)** | Registros_GPS, Fuente_GPS | Datos de ubicación del usuario |
+| **🔍 Auditoría (2)** | Registro_Auditoria, Refresh_Token | Seguridad y trazabilidad |
+| **📊 Catálogos (10)** | Entidad, Unidad, Tipo_Medicion, Postura, Dispositivo, Pregunta, Respuesta_Estilo_Vida, Consulta, Enfermedad_Recomendacion, Documento_Enfermedad | Datos de referencia del sistema |
 
 ### Datos de Prueba Disponibles
 
