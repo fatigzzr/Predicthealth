@@ -154,6 +154,11 @@ if ! pg_isready -q 2>/dev/null; then
     print_warning "PostgreSQL no está ejecutándose o no está configurado"
     print_status "Intentando configurar PostgreSQL..."
     
+    # Limpiar configuración corrupta si existe
+    print_status "Limpiando configuración anterior si existe..."
+    sudo systemctl stop postgresql 2>/dev/null || true
+    sudo pkill -f postgres 2>/dev/null || true
+    
     # Configurar PostgreSQL según el sistema operativo
     if command_exists brew; then
         # macOS con Homebrew
@@ -181,8 +186,33 @@ if ! pg_isready -q 2>/dev/null; then
             }
         fi
         
+        # Intentar iniciar PostgreSQL
+        print_status "Iniciando PostgreSQL..."
         sudo systemctl start postgresql
         sudo systemctl enable postgresql
+        
+        # Verificar que esté funcionando
+        sleep 3
+        if ! pg_isready -q; then
+            print_warning "PostgreSQL no responde. Intentando diagnóstico..."
+            
+            # Mostrar logs de PostgreSQL para diagnóstico
+            if command_exists journalctl; then
+                print_status "Últimos logs de PostgreSQL:"
+                journalctl -u postgresql.service --no-pager -n 10
+            fi
+            
+            # Intentar limpiar y reinicializar
+            print_status "Limpiando y reinicializando PostgreSQL..."
+            sudo systemctl stop postgresql 2>/dev/null || true
+            sudo rm -rf /var/lib/postgresql/data 2>/dev/null || true
+            sudo rm -rf /var/lib/pgsql/data 2>/dev/null || true
+            
+            # Reinicializar desde cero
+            sudo -u postgres initdb -D /var/lib/postgresql/data
+            sudo systemctl start postgresql
+            sleep 3
+        fi
     elif command_exists service; then
         # Linux con service
         print_status "Iniciando PostgreSQL en Linux..."
@@ -195,36 +225,17 @@ if ! pg_isready -q 2>/dev/null; then
         exit 1
     fi
     
+    # Verificación final
     sleep 3
-    
     if ! pg_isready -q; then
         print_error "PostgreSQL no se pudo configurar correctamente"
-        print_status "Intentando diagnóstico adicional..."
-        
-        # Mostrar logs de PostgreSQL para diagnóstico
-        if command_exists journalctl; then
-            print_status "Últimos logs de PostgreSQL:"
-            journalctl -u postgresql.service --no-pager -n 10
-        fi
-        
-        # Intentar métodos alternativos de inicialización
-        print_status "Intentando métodos alternativos..."
-        sudo -u postgres /usr/bin/initdb -D /var/lib/postgresql/data --auth-local=trust --auth-host=md5 2>/dev/null || \
-        sudo -u postgres /usr/bin/initdb -D /var/lib/pgsql/data --auth-local=trust --auth-host=md5 2>/dev/null || \
-        sudo postgresql-setup --initdb 2>/dev/null
-        
-        # Intentar iniciar nuevamente
-        sudo systemctl start postgresql
-        sleep 3
-        
-        if ! pg_isready -q; then
-            print_error "PostgreSQL no se pudo configurar después de intentos adicionales"
-            print_status "Por favor configura PostgreSQL manualmente:"
-            print_status "1. sudo -u postgres initdb -D /var/lib/postgresql/data"
-            print_status "2. sudo systemctl start postgresql"
-            print_status "3. sudo systemctl enable postgresql"
-            exit 1
-        fi
+        print_status "Estado del servicio:"
+        sudo systemctl status postgresql --no-pager -l
+        print_status "Por favor configura PostgreSQL manualmente:"
+        print_status "1. sudo -u postgres initdb -D /var/lib/postgresql/data"
+        print_status "2. sudo systemctl start postgresql"
+        print_status "3. sudo systemctl enable postgresql"
+        exit 1
     fi
 fi
 
