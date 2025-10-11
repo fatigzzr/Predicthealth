@@ -522,6 +522,51 @@ fi
 
 print_status "🚀 Iniciando servicios..."
 
+# Función para detener servicios existentes
+stop_existing_services() {
+    print_status "Verificando servicios existentes..."
+    
+    # Detener backend si está ejecutándose
+    if [ -f "Backend/backend.pid" ]; then
+        BACKEND_PID=$(cat Backend/backend.pid)
+        if kill -0 $BACKEND_PID 2>/dev/null; then
+            print_status "Deteniendo backend existente (PID: $BACKEND_PID)..."
+            kill $BACKEND_PID
+            sleep 2
+        fi
+        rm -f Backend/backend.pid
+    fi
+    
+    # Detener frontend si está ejecutándose
+    if [ -f "app/web/frontend.pid" ]; then
+        FRONTEND_PID=$(cat app/web/frontend.pid)
+        if kill -0 $FRONTEND_PID 2>/dev/null; then
+            print_status "Deteniendo frontend existente (PID: $FRONTEND_PID)..."
+            kill $FRONTEND_PID
+            sleep 2
+        fi
+        rm -f app/web/frontend.pid
+    fi
+    
+    # Detener procesos que puedan estar usando los puertos
+    if lsof -ti:5001 >/dev/null 2>&1; then
+        print_status "Liberando puerto 5001..."
+        lsof -ti:5001 | xargs kill -9 2>/dev/null || true
+        sleep 1
+    fi
+    
+    if lsof -ti:3000 >/dev/null 2>&1; then
+        print_status "Liberando puerto 3000..."
+        lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+        sleep 1
+    fi
+    
+    print_success "Servicios existentes detenidos"
+}
+
+# Detener servicios existentes antes de iniciar nuevos
+stop_existing_services
+
 # Función para ejecutar backend en background
 start_backend() {
     print_status "Iniciando backend en puerto 5001..."
@@ -622,3 +667,10 @@ fi
 
 print_success "✅ Instalación completada exitosamente!"
 print_status "📖 Para más información, consulta README_INSTALACION.md"
+print_status ""
+print_status "🔄 Para reiniciar los servicios:"
+print_status "1. Detener: kill \$(cat Backend/backend.pid) && kill \$(cat app/web/frontend.pid)"
+print_status "2. Reiniciar: ./setup.sh (solo la sección de servicios)"
+print_status "3. O ejecutar manualmente:"
+print_status "   - Backend: cd Backend && python3 app.py &"
+print_status "   - Frontend: cd app/web && HOST=0.0.0.0 npm start &"
