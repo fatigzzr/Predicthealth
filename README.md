@@ -42,7 +42,7 @@ gcloud compute firewall-rules create allow-predicthealth-backend --allow tcp:500
 - Sin estas reglas, no podrás acceder desde IPs externas
 - Las reglas se aplican a todas las instancias de la red
 
-Después, se debe correr el sigueinte código, que cumple con 4 pasos:
+Después, se debe correr el siguiente código dentro del folder Predicthealth. Cumple con 4 pasos:
 
 1. Da permisos para ejecutar el script setup.sh.
 2. Da permisos para acceder a archivos del repositorio.
@@ -53,9 +53,9 @@ Después, se debe correr el sigueinte código, que cumple con 4 pasos:
 chmod +x setup.sh
 
 sudo chmod 755 ~
-sudo chmod 755 Predicthealth
-sudo chmod 755 "Predicthealth/Base de Datos"
-sudo chmod 644 "Predicthealth/Base de Datos/init.sql"
+sudo chmod 755 .
+sudo chmod 755 "Base de Datos"
+sudo chmod 644 "Base de Datos/init.sql"
 
 sudo systemctl stop postgresql
 sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
