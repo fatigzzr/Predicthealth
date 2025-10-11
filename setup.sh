@@ -75,11 +75,49 @@ print_success "npm $(npm --version) encontrado"
 # Verificar PostgreSQL
 if ! command_exists psql; then
     print_error "PostgreSQL no está instalado. Por favor instala PostgreSQL 12+"
+    print_status "Instrucciones de instalación:"
+    print_status "- macOS: brew install postgresql"
+    print_status "- Ubuntu/Debian: sudo apt install postgresql postgresql-contrib"
+    print_status "- CentOS/RHEL: sudo yum install postgresql-server postgresql-contrib"
     exit 1
 fi
 
+# Verificar si PostgreSQL está realmente configurado
+if ! pg_isready -q 2>/dev/null; then
+    print_warning "PostgreSQL no está ejecutándose o no está configurado"
+    print_status "Intentando configurar PostgreSQL..."
+    
+    # Intentar inicializar PostgreSQL en macOS
+    if command_exists brew; then
+        if [ ! -d "/usr/local/var/postgres" ] && [ ! -d "/opt/homebrew/var/postgres" ]; then
+            print_status "Inicializando PostgreSQL..."
+            if [ -d "/opt/homebrew" ]; then
+                # Apple Silicon Mac
+                initdb /opt/homebrew/var/postgres
+            else
+                # Intel Mac
+                initdb /usr/local/var/postgres
+            fi
+        fi
+        brew services start postgresql
+    else
+        print_error "No se pudo configurar PostgreSQL automáticamente"
+        print_status "Por favor configura PostgreSQL manualmente:"
+        print_status "- Inicia el servicio: sudo systemctl start postgresql"
+        print_status "- O inicializa: sudo -u postgres initdb"
+        exit 1
+    fi
+    
+    sleep 3
+    
+    if ! pg_isready -q; then
+        print_error "PostgreSQL no se pudo configurar correctamente"
+        exit 1
+    fi
+fi
+
 PSQL_VERSION=$(psql --version | awk '{print $3}')
-print_success "PostgreSQL $PSQL_VERSION encontrado"
+print_success "PostgreSQL $PSQL_VERSION encontrado y funcionando"
 
 # Verificar pip
 if ! command_exists pip3; then
