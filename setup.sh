@@ -355,12 +355,12 @@ if command_exists brew; then
         exit 1
     fi
 else
-    # Linux
-    print_status "Ejecutando en Linux..."
+    # Entorno en la Nube (GCloud)
+    print_status "Ejecutando en entorno en la nube (GCloud)..."
     if sudo -u postgres psql -d postgres -f "$INIT_SQL_PATH"; then
-        print_success "Script principal ejecutado correctamente en Linux"
+        print_success "Script principal ejecutado correctamente en entorno en la nube"
     else
-        print_error "No se pudo ejecutar el script en Linux"
+        print_error "No se pudo ejecutar el script en entorno en la nube"
         print_status "Por favor ejecuta manualmente:"
         print_status "sudo -u postgres psql -d postgres -f '$INIT_SQL_PATH'"
         exit 1

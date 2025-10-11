@@ -45,7 +45,7 @@ sudo chmod 644 "/home/fati/Predicthealth/Base de Datos/init.sql"
 Si estás usando Google Cloud y no puedes acceder desde la IP externa, configura las reglas de firewall:
 
 ```bash
-# Opción 1: Usando gcloud CLI
+# Configurar reglas de firewall para Google Cloud
 gcloud compute firewall-rules create allow-predicthealth-frontend --allow tcp:3000 --source-ranges 0.0.0.0/0
 gcloud compute firewall-rules create allow-predicthealth-backend --allow tcp:5001 --source-ranges 0.0.0.0/0
 ```
@@ -55,6 +55,11 @@ gcloud compute firewall-rules create allow-predicthealth-backend --allow tcp:500
 2. Crea regla para puerto **3000** (frontend)
 3. Crea regla para puerto **5001** (backend)
 4. Aplica a **todas las instancias**
+
+**⚠️ Importante para Google Cloud:**
+- Los puertos 3000 y 5001 deben estar abiertos en el firewall de Google Cloud
+- Sin estas reglas, no podrás acceder desde IPs externas
+- Las reglas se aplican a todas las instancias de la red
 
 El script `setup.sh` se encarga automáticamente de:
 - ✅ **Instalar dependencias** (PostgreSQL, Python, Node.js)
