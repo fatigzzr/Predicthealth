@@ -180,10 +180,23 @@ if ! pg_isready -q 2>/dev/null; then
         # Verificar si PostgreSQL está inicializado
         if [ ! -d "/var/lib/postgresql/data" ] && [ ! -d "/var/lib/pgsql/data" ]; then
             print_status "Inicializando cluster de PostgreSQL..."
-            sudo -u postgres initdb -D /var/lib/postgresql/data 2>/dev/null || sudo -u postgres initdb -D /var/lib/pgsql/data 2>/dev/null || {
-                print_warning "No se pudo inicializar automáticamente. Intentando método alternativo..."
-                sudo postgresql-setup initdb 2>/dev/null || sudo -u postgres /usr/bin/initdb -D /var/lib/postgresql/data 2>/dev/null
-            }
+            
+            # Intentar inicializar en /var/lib/postgresql/data primero
+            if sudo -u postgres initdb -D /var/lib/postgresql/data 2>/dev/null; then
+                print_success "PostgreSQL inicializado en /var/lib/postgresql/data"
+            # Si falla, intentar en /var/lib/pgsql/data
+            elif sudo -u postgres initdb -D /var/lib/pgsql/data 2>/dev/null; then
+                print_success "PostgreSQL inicializado en /var/lib/pgsql/data"
+            # Si ambos fallan, usar postgresql-setup
+            elif sudo postgresql-setup initdb 2>/dev/null; then
+                print_success "PostgreSQL inicializado con postgresql-setup"
+            else
+                print_error "No se pudo inicializar PostgreSQL con ningún método"
+                print_status "Intentando diagnóstico..."
+                sudo -u postgres /usr/bin/initdb -D /var/lib/postgresql/data --auth-local=trust --auth-host=md5
+            fi
+        else
+            print_status "PostgreSQL ya está inicializado"
         fi
         
         # Intentar iniciar PostgreSQL
@@ -208,10 +221,16 @@ if ! pg_isready -q 2>/dev/null; then
             sudo rm -rf /var/lib/postgresql/data 2>/dev/null || true
             sudo rm -rf /var/lib/pgsql/data 2>/dev/null || true
             
-            # Reinicializar desde cero
-            sudo -u postgres initdb -D /var/lib/postgresql/data
+            # Reinicializar desde cero con configuración específica
+            print_status "Reinicializando PostgreSQL desde cero..."
+            sudo -u postgres initdb -D /var/lib/postgresql/data --auth-local=trust --auth-host=md5 --encoding=UTF8 --locale=en_US.UTF-8
+            
+            # Configurar PostgreSQL para permitir conexiones locales
+            print_status "Configurando PostgreSQL para conexiones locales..."
+            sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';" 2>/dev/null || true
+            
             sudo systemctl start postgresql
-            sleep 3
+            sleep 5
         fi
     elif command_exists service; then
         # Linux con service
