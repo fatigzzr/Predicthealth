@@ -29,8 +29,8 @@ DROP DATABASE IF EXISTS predicthealth;
 
 CREATE DATABASE predicthealth
     WITH ENCODING = 'UTF8'
-    LC_COLLATE = 'es_MX.UTF-8'
-    LC_CTYPE = 'es_MX.UTF-8'
+    LC_COLLATE = 'C'
+    LC_CTYPE = 'C'
     TEMPLATE = template0;
 
 COMMENT ON DATABASE predicthealth IS 'Base de datos principal del sistema PredictHealth';
