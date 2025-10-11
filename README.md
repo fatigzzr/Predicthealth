@@ -23,32 +23,46 @@ Predicthealth/
 
 ## 🚀 Instalación Rápida
 
-### Prerrequisitos
+### Instalación Automática (Recomendada)
+```bash
+# Ejecutar script de instalación automática
+chmod +x setup.sh
+./setup.sh
+```
+
+El script `setup.sh` se encarga automáticamente de:
+- ✅ **Instalar dependencias** (PostgreSQL, Python, Node.js)
+- ✅ **Configurar base de datos** (crear usuario, BD, ejecutar init.sql)
+- ✅ **Instalar dependencias** (pip install, npm install)
+- ✅ **Configurar variables** de entorno
+- ✅ **Ejecutar servicios** (backend + frontend)
+
+### Instalación Manual
+
+#### Prerrequisitos
 - PostgreSQL 12+
 - Python 3.8+
 - Node.js 16+
 - Android Studio (para app móvil)
 
-### Configuración Base de Datos
+#### Configuración Base de Datos
 ```bash
 # 1. Inicializar base de datos
 psql -U postgres -f "Base de Datos/init.sql"
 
 # 2. Cargar datos de prueba (opcional)
-cd "Base de Datos/Data"
-pip install -r requirements.txt
-python load_diabetes_dataset.py
-python load_hypertension_dataset.py
+psql -U predicthealth_user -d predicthealth -f "Base de Datos/prueba.sql"
 ```
 
-### Configuración Backend
+#### Configuración Backend
 ```bash
 cd Backend
 pip install -r requirements.txt
+export PGHOST=localhost PGPORT=5432 PGDATABASE=predicthealth PGUSER=predicthealth_user PGPASSWORD=666
 python app.py
 ```
 
-### Configuración Frontend
+#### Configuración Frontend
 ```bash
 cd app/web
 npm install
@@ -93,8 +107,13 @@ npm start
 - **🗄️ Base de Datos**: `predicthealth_user` / `666`
 
 ### Puertos
-- **Puerto Backend**: 5000
+- **Puerto Backend**: 5001
 - **Puerto Frontend**: 3000
+
+### URLs de Acceso
+- **Aplicación Web**: http://localhost:3000
+- **API Backend**: http://localhost:5001
+- **Health Check**: http://localhost:5001/api/health
 
 ---
 
