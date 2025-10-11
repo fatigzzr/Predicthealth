@@ -320,6 +320,19 @@ print_status "Ejecutando script de inicialización de base de datos..."
 # Usar el método apropiado según el sistema operativo
 print_status "Ejecutando script de inicialización..."
 
+# Cambiar al directorio del script para asegurar rutas correctas
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+print_status "Trabajando desde: $(pwd)"
+print_status "Verificando archivo: Base de Datos/init.sql"
+
+# Verificar que el archivo existe
+if [ ! -f "Base de Datos/init.sql" ]; then
+    print_error "No se encontró el archivo 'Base de Datos/init.sql' en $(pwd)"
+    exit 1
+fi
+
 # Detectar sistema operativo y usar el método apropiado
 if command_exists brew; then
     # macOS con Homebrew
