@@ -307,8 +307,31 @@ if [ ! -f "Base de Datos/init.sql" ]; then
 fi
 
 # Ejecutar script principal (necesita superusuario)
-psql -U $(whoami) -d postgres -f "Base de Datos/init.sql"
-print_success "Script principal ejecutado"
+print_status "Ejecutando script de inicialización de base de datos..."
+
+# Intentar diferentes métodos de conexión
+if psql -U postgres -d postgres -f "Base de Datos/init.sql" 2>/dev/null; then
+    print_success "Script principal ejecutado con usuario postgres"
+elif psql -U $(whoami) -d postgres -f "Base de Datos/init.sql" 2>/dev/null; then
+    print_success "Script principal ejecutado con usuario $(whoami)"
+else
+    print_warning "No se pudo ejecutar con usuarios por defecto. Intentando crear usuario..."
+    
+    # Crear usuario si no existe
+    sudo -u postgres psql -c "CREATE USER $(whoami) WITH SUPERUSER;" 2>/dev/null || \
+    sudo -u postgres psql -c "ALTER USER $(whoami) WITH SUPERUSER;" 2>/dev/null || \
+    print_warning "No se pudo crear usuario $(whoami)"
+    
+    # Intentar ejecutar nuevamente
+    if psql -U $(whoami) -d postgres -f "Base de Datos/init.sql" 2>/dev/null; then
+        print_success "Script principal ejecutado después de crear usuario"
+    else
+        print_error "No se pudo ejecutar el script de inicialización"
+        print_status "Por favor ejecuta manualmente:"
+        print_status "sudo -u postgres psql -f 'Base de Datos/init.sql'"
+        exit 1
+    fi
+fi
 
 # Cargar datos de prueba (opcional)
 read -p "¿Deseas cargar datos de prueba? (y/N): " -n 1 -r
@@ -318,8 +341,11 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     
     # Verificar si el archivo prueba.sql existe
     if [ -f "Base de Datos/prueba.sql" ]; then
-        psql -U predicthealth_user -d predicthealth -f "Base de Datos/prueba.sql"
-        print_success "Datos de prueba cargados"
+        if psql -U predicthealth_user -d predicthealth -f "Base de Datos/prueba.sql" 2>/dev/null; then
+            print_success "Datos de prueba cargados"
+        else
+            print_warning "No se pudo cargar datos de prueba. Verifica que la base de datos y usuario existan."
+        fi
     else
         print_warning "Archivo 'Base de Datos/prueba.sql' no encontrado"
     fi
