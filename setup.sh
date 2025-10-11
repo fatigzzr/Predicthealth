@@ -485,6 +485,23 @@ if port_in_use 3000; then
     fi
 fi
 
+# Verificar firewall y abrir puertos si es necesario
+print_status "Verificando configuración de firewall..."
+if command_exists ufw; then
+    print_status "Configurando UFW para permitir puertos 3000 y 5001..."
+    sudo ufw allow 3000/tcp
+    sudo ufw allow 5001/tcp
+    print_success "Puertos abiertos en UFW"
+elif command_exists firewall-cmd; then
+    print_status "Configurando firewalld para permitir puertos 3000 y 5001..."
+    sudo firewall-cmd --permanent --add-port=3000/tcp
+    sudo firewall-cmd --permanent --add-port=5001/tcp
+    sudo firewall-cmd --reload
+    print_success "Puertos abiertos en firewalld"
+else
+    print_warning "No se detectó firewall configurado. Asegúrate de que los puertos 3000 y 5001 estén abiertos."
+fi
+
 # =============================================================================
 # 8. EJECUTAR SERVICIOS
 # =============================================================================
@@ -506,10 +523,17 @@ start_backend() {
 start_frontend() {
     print_status "Iniciando frontend en puerto 3000..."
     cd ../app/web
+    
+    # Configurar variables de entorno para acceso externo
+    export HOST=0.0.0.0
+    export PORT=3000
+    
+    # Iniciar con configuración para acceso externo
     npm start &
     FRONTEND_PID=$!
     echo $FRONTEND_PID > frontend.pid
     print_success "Frontend iniciado (PID: $FRONTEND_PID)"
+    print_status "Frontend accesible en: http://0.0.0.0:3000"
 }
 
 # Preguntar si ejecutar servicios automáticamente
@@ -523,8 +547,12 @@ if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     print_success "🎉 ¡Instalación completada!"
     print_status "Servicios ejecutándose:"
     print_status "- Backend: http://localhost:5001"
-    print_status "- Frontend: http://localhost:3000"
+    print_status "- Frontend: http://localhost:3000 (también accesible desde IP externa)"
     print_status "- Base de datos: localhost:5432"
+    print_status ""
+    print_status "Para acceso externo:"
+    print_status "- Frontend: http://$(hostname -I | awk '{print $1}'):3000"
+    print_status "- Backend: http://$(hostname -I | awk '{print $1}'):5001"
     print_status ""
     print_status "Credenciales:"
     print_status "- Usuario: admin@admin.com"
