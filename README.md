@@ -24,86 +24,13 @@ Predicthealth/
 ## 🚀 Instalación Rápida
 
 ### Instalación Automática (Recomendada)
-```bash
-# Ejecutar script de instalación automática
-chmod +x setup.sh
-./setup.sh
+
+Primero, deben habilitarse las siguientes reglas de firewall para GCP:
+
 ```
-
-**⚠️ Solución de Problemas de Permisos (Linux/Google Cloud)**
-Si encuentras errores de "Permission denied" al ejecutar el script, ejecuta estos comandos antes:
-
-```bash
-# Dar permisos de lectura al directorio home para otros usuarios
-sudo chmod 755 /home/fati
-sudo chmod 755 /home/fati/Predicthealth
-sudo chmod 755 "/home/fati/Predicthealth/Base de Datos"
-sudo chmod 644 "/home/fati/Predicthealth/Base de Datos/init.sql"
-```
-
-**🔧 Instalación Manual de PostgreSQL 14 (Google Cloud)**
-Si el script automático falla, ejecuta estos pasos manualmente:
-
-```bash
-# 1. Detener PostgreSQL actual
-sudo systemctl stop postgresql
-
-# 2. Instalar PostgreSQL 14 con repositorio oficial
-sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-
-# 3. Instalar PostgreSQL 14 (bypass GPG signature)
-sudo yum install -y postgresql14-server postgresql14 postgresql14-contrib --nogpgcheck
-
-# 4. Inicializar base de datos
-sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
-
-# 5. Iniciar y habilitar PostgreSQL 14
-sudo systemctl start postgresql-14
-sudo systemctl enable postgresql-14
-
-# 6. Verificar instalación
-psql-14 --version
-```
-
-**📋 Notas Importantes:**
-- `--nogpgcheck` evita errores de verificación GPG
-- PostgreSQL 14 se instala en `/usr/pgsql-14/`
-- El servicio se llama `postgresql-14` (no `postgresql`)
-- Usar `psql-14` en lugar de `psql` para evitar warnings de versión
-
-**🔧 Solución de Problemas PostgreSQL 14:**
-Si PostgreSQL 14 falla al iniciar, ejecuta estos pasos:
-
-```bash
-# 1. Detener todos los servicios PostgreSQL
-sudo systemctl stop postgresql
-sudo systemctl stop postgresql-14
-
-# 2. Limpiar directorio corrupto
-sudo rm -rf /var/lib/pgsql/14/data
-
-# 3. Crear directorio limpio
-sudo mkdir -p /var/lib/pgsql/14/data
-sudo chown postgres:postgres /var/lib/pgsql/14/data
-sudo chmod 700 /var/lib/pgsql/14/data
-
-# 4. Reinicializar PostgreSQL 14
-sudo -u postgres /usr/pgsql-14/bin/initdb -D /var/lib/pgsql/14/data
-
-# 5. Iniciar el servicio
-sudo systemctl start postgresql-14
-sudo systemctl enable postgresql-14
-```
-
-**🌐 Configuración de Firewall para Google Cloud**
-Si estás usando Google Cloud y no puedes acceder desde la IP externa, configura las reglas de firewall:
-
-```bash
-# Configurar reglas de firewall para Google Cloud
 gcloud compute firewall-rules create allow-predicthealth-frontend --allow tcp:3000 --source-ranges 0.0.0.0/0
 gcloud compute firewall-rules create allow-predicthealth-backend --allow tcp:5001 --source-ranges 0.0.0.0/0
 ```
-
 **O desde Google Cloud Console:**
 1. Ve a **VPC Network > Firewall**
 2. Crea regla para puerto **3000** (frontend)
@@ -114,6 +41,35 @@ gcloud compute firewall-rules create allow-predicthealth-backend --allow tcp:500
 - Los puertos 3000 y 5001 deben estar abiertos en el firewall de Google Cloud
 - Sin estas reglas, no podrás acceder desde IPs externas
 - Las reglas se aplican a todas las instancias de la red
+
+Después, se debe correr el sigueinte código, que cumple con 4 pasos:
+
+1. Da permisos para ejecutar el script setup.sh.
+2. Da permisos para acceder a archivos del repositorio.
+3. Instala y habilita postgresql-14
+4. Corre el archivo de instalación.
+
+```
+chmod +x setup.sh
+
+sudo chmod 755 ~
+sudo chmod 755 Predicthealth
+sudo chmod 755 "Predicthealth/Base de Datos"
+sudo chmod 644 "Predicthealth/Base de Datos/init.sql"
+
+sudo systemctl stop postgresql
+sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+sudo yum install -y postgresql14-server postgresql14 postgresql14-contrib --nogpgcheck
+sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
+sudo systemctl start postgresql-14
+sudo systemctl enable postgresql-14
+```
+
+**📋 Notas Importantes:**
+- `--nogpgcheck` evita errores de verificación GPG
+- PostgreSQL 14 se instala en `/usr/pgsql-14/`
+- El servicio se llama `postgresql-14` (no `postgresql`)
+- Usar `psql-14` en lugar de `psql` para evitar warnings de versión
 
 El script `setup.sh` se encarga automáticamente de:
 - ✅ **Instalar dependencias** (PostgreSQL, Python, Node.js)
