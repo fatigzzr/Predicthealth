@@ -20,7 +20,7 @@ with open("usuarios.csv", "r", encoding="utf-8") as file:
         password = row["contraseña"]
         password_hash = generate_password_hash(password, method='pbkdf2:sha256')
         cur.execute(
-            "INSERT INTO usuarios (id_rol, email, contraseña_hash) VALUES (%s, %s, %s)",
+            "INSERT INTO Usuario (id_rol, email, contraseña_hash) VALUES (%s, %s, %s)",
             (id_rol, email, password_hash)
         )
 
