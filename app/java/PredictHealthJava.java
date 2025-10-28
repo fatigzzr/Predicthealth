@@ -2,272 +2,529 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.*;
+import java.text.*;
 import java.util.*;
+import javax.swing.text.AbstractDocument;
+import javax.swing.text.DocumentFilter;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
 
 public class PredictHealthJava extends JFrame {
+
     private CardLayout cardLayout;
     private JPanel mainPanel;
     private JButton nextButton, prevButton;
-    private JProgressBar progressBar;
-    
-    // Step components
-    private JTextField nombreField, apellidoField, emailField, passwordField, fechaField, edadField;
-    private JCheckBox diabetesBox, hipertensionBox, colesterolBox, colesterolAltoBox;
-    private JCheckBox medicacionNingunaBox, medicacionBetaBox, medicacionDiureticoBox, medicacionAceBox, medicacionOtroBox;
-    private JTextField bmiField, salField, horasSuenoField, nivelEstresField, diasSaludMentalField, diasSaludFisicaField;
-    private JCheckBox fumaBox, alcoholBox, dificultadMovBox, actividad3VecesBox;
-    private JTextField actividadFisicaField, tipoDocField, valorDocField;
-
-    private int currentStep = 0;
-    private int totalSteps = 5;
+    private JLabel edadLabel;
+    private JSpinner fechaNacimientoSpinner;
 
     public PredictHealthJava() {
         setTitle("PredictHealthJava");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(600, 600);
+        setSize(750, 600);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-
-        // Set dark theme
-        UIManager.put("Panel.background", new Color(0x132232));
-        UIManager.put("Button.background", new Color(0xADC7EA));
-        UIManager.put("Button.foreground", Color.BLACK);
-        UIManager.put("Label.foreground", Color.WHITE);
-        UIManager.put("TextField.background", Color.WHITE);
-        UIManager.put("TextField.foreground", Color.BLACK);
-        UIManager.put("CheckBox.background", new Color(0x132232));
-        UIManager.put("CheckBox.foreground", Color.WHITE);
+        setResizable(false);
 
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
-        mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        mainPanel.setBackground(new Color(0x132232));
 
-        // Steps
-        mainPanel.add(step1Panel(), "0");
-        mainPanel.add(step2Panel(), "1");
-        mainPanel.add(step3Panel(), "2");
-        mainPanel.add(step4Panel(), "3");
-        mainPanel.add(step5Panel(), "4");
-
-        // Navigation
-        nextButton = new JButton("Next");
-        prevButton = new JButton("Previous");
-        nextButton.addActionListener(e -> nextStep());
-        prevButton.addActionListener(e -> prevStep());
-
-        progressBar = new JProgressBar(0, totalSteps);
-        progressBar.setValue(0);
-        progressBar.setStringPainted(true);
-        progressBar.setForeground(new Color(0xADC7EA));
-        progressBar.setBackground(new Color(0x132232));
-
-        JPanel navPanel = new JPanel(new BorderLayout());
-        navPanel.setBackground(new Color(0x132232));
-        navPanel.add(prevButton, BorderLayout.WEST);
-        navPanel.add(progressBar, BorderLayout.CENTER);
-        navPanel.add(nextButton, BorderLayout.EAST);
+        // Step panels
+        mainPanel.add(step1Panel(), "Step1");
+        mainPanel.add(step2Panel(), "Step2");
+        mainPanel.add(step3Panel(), "Step3"); 
+        mainPanel.add(step4Panel(), "Step4"); 
+        mainPanel.add(step5Panel(), "Step5"); 
+        mainPanel.add(step6Panel(), "Step6"); 
+        mainPanel.add(step7Panel(), "Step7"); 
+        mainPanel.add(step8Panel(), "Step8"); 
+        mainPanel.add(step9Panel(), "Step9"); 
 
         add(mainPanel, BorderLayout.CENTER);
-        add(navPanel, BorderLayout.SOUTH);
 
-        updateNav();
+        // Navigation buttons
+        JPanel navPanel = new JPanel();
+        navPanel.setBackground(new Color(0x132232));
+        nextButton = createNavButton("Siguiente");
+        prevButton = createNavButton("Anterior");
+        prevButton.setEnabled(false);
+
+        nextButton.addActionListener(e -> {
+            cardLayout.next(mainPanel);
+            updateNavButtons();
+        });
+        prevButton.addActionListener(e -> {
+            cardLayout.previous(mainPanel);
+            updateNavButtons();
+        });
+
+        navPanel.add(prevButton);
+        navPanel.add(nextButton);
+        add(navPanel, BorderLayout.SOUTH);
     }
 
+    private JButton createNavButton(String text) {
+        JButton btn = new JButton(text);
+        btn.setForeground(Color.DARK_GRAY);
+        btn.setBackground(new Color(0xADC7EA));
+        btn.setFocusPainted(false);
+        btn.setFont(new Font("SansSerif", Font.BOLD, 16));
+        return btn;
+    }
+
+    private void updateNavButtons() {
+        Component visible = getVisiblePanel();
+        prevButton.setEnabled(visible != mainPanel.getComponent(0));
+        nextButton.setText(visible == mainPanel.getComponent(mainPanel.getComponentCount() - 1) ? "Finalizar" : "Siguiente");
+    }
+
+    private Component getVisiblePanel() {
+        for (Component c : mainPanel.getComponents()) {
+            if (c.isVisible()) return c;
+        }
+        return null;
+    }
+
+    // Step 1: Email & Password
     private JPanel step1Panel() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(new Color(0x132232));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5,5,5,5);
+        gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel emailLabel = createLabel("Email:");
+        JTextField emailField = createTextField();
+
+        JLabel passwordLabel = createLabel("Password:");
+        JPasswordField passwordField = new JPasswordField();
+        passwordField.setPreferredSize(new Dimension(200, 28));
+        passwordField.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        passwordField.setBackground(new Color(0xF5F2E7));
+        passwordField.setForeground(Color.BLACK);
+
+        gbc.gridx = 0; gbc.gridy = 0; panel.add(emailLabel, gbc);
+        gbc.gridx = 1; panel.add(emailField, gbc);
+        gbc.gridx = 0; gbc.gridy++; panel.add(passwordLabel, gbc);
+        gbc.gridx = 1; panel.add(passwordField, gbc);
+
+        return panel;
+    }
+
+    // Step 2: Usuario info 
+    private JPanel step2Panel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(0x132232));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel nombreLabel = createLabel("Nombre:");
+        JTextField nombreField = createTextField();
+
+        JLabel apellidoLabel = createLabel("Apellido:");
+        JTextField apellidoField = createTextField();
+
+        JLabel fechaLabel = createLabel("Fecha de nacimiento:");
+        SpinnerDateModel dateModel = new SpinnerDateModel();
+        fechaNacimientoSpinner = new JSpinner(dateModel);
+        fechaNacimientoSpinner.setEditor(new JSpinner.DateEditor(fechaNacimientoSpinner, "yyyy-MM-dd"));
+        fechaNacimientoSpinner.setPreferredSize(new Dimension(200,28));
+        fechaNacimientoSpinner.addChangeListener(e -> updateEdadLabel());
+
+        edadLabel = createLabel("Edad: ");
+
+        JLabel sexoLabel = createLabel("Sexo:");
+        JRadioButton hombreRadio = new JRadioButton("Hombre");
+        JRadioButton mujerRadio = new JRadioButton("Mujer");
+        JRadioButton otroRadio = new JRadioButton("Otro");
+        ButtonGroup sexoGroup = new ButtonGroup();
+        sexoGroup.add(hombreRadio); sexoGroup.add(mujerRadio); sexoGroup.add(otroRadio);
+        JPanel sexoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        sexoPanel.setBackground(new Color(0x132232));
+        sexoPanel.add(hombreRadio); sexoPanel.add(mujerRadio); sexoPanel.add(otroRadio);
+
+        gbc.gridx=0; gbc.gridy=0; panel.add(nombreLabel, gbc);
+        gbc.gridx=1; panel.add(nombreField, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(apellidoLabel, gbc);
+        gbc.gridx=1; panel.add(apellidoField, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(fechaLabel, gbc);
+        gbc.gridx=1; panel.add(fechaNacimientoSpinner, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(edadLabel, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(sexoLabel, gbc);
+        gbc.gridx=1; panel.add(sexoPanel, gbc);
+
+        return panel;
+    }
+
+    private void updateEdadLabel() {
+        Date birth = (Date) fechaNacimientoSpinner.getValue();
+        Calendar birthCal = Calendar.getInstance();
+        birthCal.setTime(birth);
+        Calendar today = Calendar.getInstance();
+        int age = today.get(Calendar.YEAR) - birthCal.get(Calendar.YEAR);
+        if(today.get(Calendar.DAY_OF_YEAR) < birthCal.get(Calendar.DAY_OF_YEAR)) age--;
+        edadLabel.setText("Edad: " + age);
+    }
+
+    // Step 3: Salud General
+    private JPanel step3Panel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(0x132232));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel saludLabel = createLabel("¿Cómo calificaría su nivel de salud general?");
         gbc.gridx = 0; gbc.gridy = 0;
+        panel.add(saludLabel, gbc); gbc.gridy++;
 
-        panel.add(new JLabel("Nombre:"), gbc);
+        JPanel saludPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        saludPanel.setBackground(new Color(0x132232));
+        JRadioButton malo = new JRadioButton("Malo"); 
+        JRadioButton regular = new JRadioButton("Regular"); 
+        JRadioButton bueno = new JRadioButton("Bueno"); 
+        JRadioButton muyBueno = new JRadioButton("Muy Bueno"); 
+        JRadioButton excelente = new JRadioButton("Excelente");
+        ButtonGroup saludGroup = new ButtonGroup();
+        saludGroup.add(malo); saludGroup.add(regular); saludGroup.add(bueno); saludGroup.add(muyBueno); saludGroup.add(excelente);
+        saludPanel.add(malo); saludPanel.add(regular); saludPanel.add(bueno); saludPanel.add(muyBueno); saludPanel.add(excelente);
+
+        panel.add(saludPanel, gbc);
+        return panel;
+    }
+
+    // Step 4: Historial Médico
+    private JPanel step4Panel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(0x132232));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel questionLabel = createLabel("¿Ha sido diagnosticado con alguna de estas enfermedades?");
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        panel.add(questionLabel, gbc);
+        gbc.gridwidth = 1;
+
+        JCheckBox diabetesBox = createCheckBox("Diabetes");
+        JCheckBox hipertensionBox = createCheckBox("Hipertensión");
+        JCheckBox colesterolBox = createCheckBox("Colesterol");
+        JCheckBox colesterolAltoBox = createCheckBox("Colesterol Alto");
+        colesterolAltoBox.setEnabled(false);
+
+        colesterolBox.addItemListener(e -> {
+            colesterolAltoBox.setEnabled(colesterolBox.isSelected());
+            if (!colesterolBox.isSelected()) colesterolAltoBox.setSelected(false);
+        });
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(diabetesBox, gbc);
+        gbc.gridy++;
+        panel.add(hipertensionBox, gbc);
+
+        // Colesterol and Colesterol Alto side by side
+        gbc.gridx = 0;
+        gbc.gridy++;
+        panel.add(colesterolBox, gbc);
         gbc.gridx = 1;
-        nombreField = new JTextField(20);
-        panel.add(nombreField, gbc);
+        panel.add(colesterolAltoBox, gbc);
 
-        gbc.gridx = 0; gbc.gridy++;
-        panel.add(new JLabel("Apellido:"), gbc);
-        gbc.gridx = 1;
-        apellidoField = new JTextField(20);
-        panel.add(apellidoField, gbc);
+        return panel;
+    }
 
-        gbc.gridx = 0; gbc.gridy++;
-        panel.add(new JLabel("Email:"), gbc);
-        gbc.gridx = 1;
-        emailField = new JTextField(20);
-        panel.add(emailField, gbc);
+    // Step 5: BMI
+    private JPanel step5Panel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(0x132232));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        gbc.gridx = 0; gbc.gridy++;
-        panel.add(new JLabel("Password:"), gbc);
-        gbc.gridx = 1;
-        passwordField = new JPasswordField(20);
-        panel.add(passwordField, gbc);
+        JLabel bmiLabel = createLabel("BMI:");
+        JTextField bmiField = createTextField();
 
-        gbc.gridx = 0; gbc.gridy++;
-        panel.add(new JLabel("Fecha de Nacimiento (yyyy-MM-dd):"), gbc);
-        gbc.gridx = 1;
-        fechaField = new JTextField(20);
-        panel.add(fechaField, gbc);
+        // Only allow decimal numbers
+        ((AbstractDocument) bmiField.getDocument()).setDocumentFilter(new DocumentFilter() {
+            public void insertString(DocumentFilter.FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
+                if (string != null && string.matches("[0-9.]*")) {
+                    super.insertString(fb, offset, string, attr);
+                }
+            }
 
-        gbc.gridx = 0; gbc.gridy++;
-        panel.add(new JLabel("Edad:"), gbc);
-        gbc.gridx = 1;
-        edadField = new JTextField(5);
-        edadField.setEditable(false);
-        panel.add(edadField, gbc);
-
-        // Update age on date change
-        fechaField.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent e) {
-                String text = fechaField.getText();
-                try {
-                    String[] parts = text.split("-");
-                    int year = Integer.parseInt(parts[0]);
-                    int month = Integer.parseInt(parts[1]) - 1;
-                    int day = Integer.parseInt(parts[2]);
-                    Calendar birth = Calendar.getInstance();
-                    birth.set(year, month, day);
-                    Calendar now = Calendar.getInstance();
-                    int age = now.get(Calendar.YEAR) - birth.get(Calendar.YEAR);
-                    if (now.get(Calendar.DAY_OF_YEAR) < birth.get(Calendar.DAY_OF_YEAR)) age--;
-                    edadField.setText(String.valueOf(age));
-                } catch (Exception ex) {
-                    edadField.setText("");
+            public void replace(DocumentFilter.FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
+                if (text != null && text.matches("[0-9.]*")) {
+                    super.replace(fb, offset, length, text, attrs);
                 }
             }
         });
 
+        gbc.gridx = 0; gbc.gridy = 0; panel.add(bmiLabel, gbc);
+        gbc.gridx = 1; panel.add(bmiField, gbc);
+
+        gbc.gridx = 0; gbc.gridy++;
+        panel.add(createLabel("Presión Arterial:"), gbc);
+        JPanel presionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        presionPanel.setBackground(new Color(0x132232));
+        JRadioButton normal = new JRadioButton("Normal");
+        JRadioButton preHip = new JRadioButton("Pre-Hipertensión");
+        JRadioButton hipert = new JRadioButton("Hipertensión");
+        ButtonGroup presionGroup = new ButtonGroup();
+        presionGroup.add(normal);
+        presionGroup.add(preHip);
+        presionGroup.add(hipert);
+        presionPanel.add(normal);
+        presionPanel.add(preHip);
+        presionPanel.add(hipert);
+        gbc.gridx = 1;
+        panel.add(presionPanel, gbc);
+
         return panel;
     }
 
-    private JPanel step2Panel() {
-        JPanel panel = new JPanel(new GridLayout(0, 1));
+    // Step 6: Medicamentos
+    private JPanel step6Panel() {
+        JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(new Color(0x132232));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0; gbc.gridy = 0;
 
-        panel.add(new JLabel("Historial Médico:"));
+        JLabel medsLabel = createLabel("¿Toma alguno de estos medicamentos? Seleccione todos los que apliquen:");
+        panel.add(medsLabel, gbc); gbc.gridy++;
 
-        diabetesBox = new JCheckBox("Diabetes");
-        hipertensionBox = new JCheckBox("Hipertensión");
-        colesterolBox = new JCheckBox("Colesterol");
-        colesterolAltoBox = new JCheckBox("Colesterol Alto");
-        colesterolAltoBox.setEnabled(false);
+        JCheckBox ninguno = createCheckBox("Ninguno");
+        JCheckBox beta = createCheckBox("Beta blocker");
+        JCheckBox diuretico = createCheckBox("Diurético");
+        JCheckBox ace = createCheckBox("ACE inhibitor");
+        JCheckBox otro = createCheckBox("Otro");
 
-        colesterolBox.addActionListener(e -> colesterolAltoBox.setEnabled(colesterolBox.isSelected()));
+        // Ninguno disables all other options
+        ninguno.addItemListener(e -> {
+            boolean selected = ninguno.isSelected();
+            beta.setEnabled(!selected); diuretico.setEnabled(!selected); ace.setEnabled(!selected); otro.setEnabled(!selected);
+            if(selected) { beta.setSelected(false); diuretico.setSelected(false); ace.setSelected(false); otro.setSelected(false); }
+        });
 
-        panel.add(diabetesBox);
-        panel.add(hipertensionBox);
-        panel.add(colesterolBox);
-        panel.add(colesterolAltoBox);
-
-        panel.add(new JLabel("BMI:"));
-        bmiField = new JTextField(5);
-        panel.add(bmiField);
-
-        panel.add(new JLabel("Medicación:"));
-        medicacionNingunaBox = new JCheckBox("Ninguna");
-        medicacionBetaBox = new JCheckBox("Beta blocker");
-        medicacionDiureticoBox = new JCheckBox("Diurético");
-        medicacionAceBox = new JCheckBox("ACE inhibitor");
-        medicacionOtroBox = new JCheckBox("Otro");
-        panel.add(medicacionNingunaBox);
-        panel.add(medicacionBetaBox);
-        panel.add(medicacionDiureticoBox);
-        panel.add(medicacionAceBox);
-        panel.add(medicacionOtroBox);
+        panel.add(ninguno, gbc); gbc.gridy++;
+        panel.add(beta, gbc); gbc.gridy++;
+        panel.add(diuretico, gbc); gbc.gridy++;
+        panel.add(ace, gbc); gbc.gridy++;
+        panel.add(otro, gbc);
 
         return panel;
     }
 
-    private JPanel step3Panel() {
-        JPanel panel = new JPanel(new GridLayout(0, 1));
+    // Step 7: Lifestyle part 1
+    private JPanel step7Panel() {
+        JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(new Color(0x132232));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        panel.add(new JLabel("Estilo de Vida:"));
+        JLabel frutasLabel = createLabel("¿Consume frutas diariamente?");
+        JRadioButton frutasSi = new JRadioButton("Sí");
+        JRadioButton frutasNo = new JRadioButton("No");
+        ButtonGroup frutasGroup = new ButtonGroup();
+        frutasGroup.add(frutasSi); frutasGroup.add(frutasNo);
+        JPanel frutasPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        frutasPanel.setBackground(new Color(0x132232));
+        frutasPanel.add(frutasSi); frutasPanel.add(frutasNo);
 
-        fumaBox = new JCheckBox("Fuma");
-        alcoholBox = new JCheckBox("Alcohol Exceso");
-        dificultadMovBox = new JCheckBox("Dificultad Movilidad");
-        actividad3VecesBox = new JCheckBox("Actividad ≥3 veces semana");
+        JLabel verdurasLabel = createLabel("¿Consume verduras diariamente?");
+        JRadioButton verdurasSi = new JRadioButton("Sí");
+        JRadioButton verdurasNo = new JRadioButton("No");
+        ButtonGroup verdurasGroup = new ButtonGroup();
+        verdurasGroup.add(verdurasSi); verdurasGroup.add(verdurasNo);
+        JPanel verdurasPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        verdurasPanel.setBackground(new Color(0x132232));
+        verdurasPanel.add(verdurasSi); verdurasPanel.add(verdurasNo);
 
-        panel.add(fumaBox);
-        panel.add(alcoholBox);
-        panel.add(dificultadMovBox);
-        panel.add(actividad3VecesBox);
+        JLabel salLabel = createLabel("¿Cuántos gramos de sal consume diariamente?");
+        JTextField salField = createTextField();
+        ((AbstractDocument) salField.getDocument()).setDocumentFilter(new DocumentFilter() {
+            @Override
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
+                if (string.matches("[0-9.]*")) super.insertString(fb, offset, string, attr);
+            }
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
+                if (text.matches("[0-9.]*")) super.replace(fb, offset, length, text, attrs);
+            }
+        });
 
-        panel.add(new JLabel("Sal diaria (g):"));
-        salField = new JTextField(5);
-        panel.add(salField);
+        JLabel fumaLabel = createLabel("¿Fuma?");
+        JRadioButton fumaSi = new JRadioButton("Sí");
+        JRadioButton fumaNo = new JRadioButton("No");
+        ButtonGroup fumaGroup = new ButtonGroup();
+        fumaGroup.add(fumaSi); fumaGroup.add(fumaNo);
+        JPanel fumaPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        fumaPanel.setBackground(new Color(0x132232));
+        fumaPanel.add(fumaSi); fumaPanel.add(fumaNo);
 
-        panel.add(new JLabel("Horas de sueño:"));
-        horasSuenoField = new JTextField(5);
-        panel.add(horasSuenoField);
+        JLabel alcoholLabel = createLabel("¿Consume alcohol en exceso?");
+        JRadioButton alcoholSi = new JRadioButton("Sí");
+        JRadioButton alcoholNo = new JRadioButton("No");
+        ButtonGroup alcoholGroup = new ButtonGroup();
+        alcoholGroup.add(alcoholSi); alcoholGroup.add(alcoholNo);
+        JPanel alcoholPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        alcoholPanel.setBackground(new Color(0x132232));
+        alcoholPanel.add(alcoholSi); alcoholPanel.add(alcoholNo);
 
-        panel.add(new JLabel("Nivel de estrés:"));
-        nivelEstresField = new JTextField(5);
-        panel.add(nivelEstresField);
+        JLabel movilidadLabel = createLabel("¿Presenta problemas de movilidad?");
+        JRadioButton movilidadSi = new JRadioButton("Sí");
+        JRadioButton movilidadNo = new JRadioButton("No");
+        ButtonGroup movilidadGroup = new ButtonGroup();
+        movilidadGroup.add(movilidadSi); movilidadGroup.add(movilidadNo);
+        JPanel movilidadPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        movilidadPanel.setBackground(new Color(0x132232));
+        movilidadPanel.add(movilidadSi); movilidadPanel.add(movilidadNo);
 
-        panel.add(new JLabel("Días de salud mental:"));
-        diasSaludMentalField = new JTextField(5);
-        panel.add(diasSaludMentalField);
-
-        panel.add(new JLabel("Actividad física:"));
-        actividadFisicaField = new JTextField(20);
-        panel.add(actividadFisicaField);
-
-        panel.add(new JLabel("Días de salud física:"));
-        diasSaludFisicaField = new JTextField(5);
-        panel.add(diasSaludFisicaField);
+        gbc.gridx=0; gbc.gridy=0; panel.add(frutasLabel, gbc); gbc.gridx=1; panel.add(frutasPanel, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(verdurasLabel, gbc); gbc.gridx=1; panel.add(verdurasPanel, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(salLabel, gbc); gbc.gridx=1; panel.add(salField, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(fumaLabel, gbc); gbc.gridx=1; panel.add(fumaPanel, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(alcoholLabel, gbc); gbc.gridx=1; panel.add(alcoholPanel, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(movilidadLabel, gbc); gbc.gridx=1; panel.add(movilidadPanel, gbc);
 
         return panel;
     }
 
-    private JPanel step4Panel() {
-        JPanel panel = new JPanel(new GridLayout(0, 1));
+    // Step 8: Lifestyle part 2
+    private JPanel step8Panel() {
+        JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(new Color(0x132232));
-        panel.add(new JLabel("Documentos:"));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        panel.add(new JLabel("Tipo:"));
-        tipoDocField = new JTextField(10);
-        panel.add(tipoDocField);
+        // 2. Horas de sueño
+        JLabel horasSuenoLabel = createLabel("¿Cuántas horas duerme de noche en promedio?");
+        JTextField horasSuenoField = createTextField();
+        ((AbstractDocument) horasSuenoField.getDocument()).setDocumentFilter(new DocumentFilter() {
+            @Override
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
+                if (string.matches("[0-9.]*")) super.insertString(fb, offset, string, attr);
+            }
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
+                if (text.matches("[0-9.]*")) super.replace(fb, offset, length, text, attrs);
+            }
+        });
 
-        panel.add(new JLabel("Valor:"));
-        valorDocField = new JTextField(10);
-        panel.add(valorDocField);
+        // 3. Nivel de estrés
+        JLabel nivelEstresLabel = createLabel("Del 1 al 10, ¿cómo calificaría su nivel de estrés diario?");
+        String[] estresOptions = {"1","2","3","4","5","6","7","8","9","10"};
+        JComboBox<String> estresCombo = new JComboBox<>(estresOptions);
+
+        // 4. Salud mental
+        JLabel saludMentalLabel = createLabel("En los últimos 30 días, ¿cuántos días con mala salud mental tuvo?");
+        JTextField saludMentalField = createTextField();
+        ((AbstractDocument) saludMentalField.getDocument()).setDocumentFilter(new DocumentFilter() {
+            @Override
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
+                if (string.matches("[0-9]*")) super.insertString(fb, offset, string, attr);
+            }
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
+                if (text.matches("[0-9]*")) super.replace(fb, offset, length, text, attrs);
+            }
+        });
+
+        // 5. Nivel de actividad física
+        JLabel actividadFisicaLabel = createLabel("Del 1 al 5, ¿cómo calificaría su nivel de actividad física?");
+        String[] actividadOptions = {"1","2","3","4","5"};
+        JComboBox<String> actividadCombo = new JComboBox<>(actividadOptions);
+
+        // 6. Actividad física frecuente
+        JLabel actividadFrecuenteLabel = createLabel("¿Hace actividad física 3 o más veces a la semana?");
+        JRadioButton actividadSi = new JRadioButton("Sí");
+        JRadioButton actividadNo = new JRadioButton("No");
+        ButtonGroup actividadGroup = new ButtonGroup();
+        actividadGroup.add(actividadSi); actividadGroup.add(actividadNo);
+        JPanel actividadPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        actividadPanel.setBackground(new Color(0x132232));
+        actividadPanel.add(actividadSi); actividadPanel.add(actividadNo);
+
+        // 7. Salud física
+        JLabel saludFisicaLabel = createLabel("En los últimos 30 días, ¿cuántos días con mala salud física tuvo?");
+        JTextField saludFisicaField = createTextField();
+        ((AbstractDocument) saludFisicaField.getDocument()).setDocumentFilter(new DocumentFilter() {
+            @Override
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
+                if (string.matches("[0-9]*")) super.insertString(fb, offset, string, attr);
+            }
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
+                if (text.matches("[0-9]*")) super.replace(fb, offset, length, text, attrs);
+            }
+        });
+
+        gbc.gridx=0; gbc.gridy=0; panel.add(horasSuenoLabel, gbc); gbc.gridx=1; panel.add(horasSuenoField, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(nivelEstresLabel, gbc); gbc.gridx=1; panel.add(estresCombo, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(saludMentalLabel, gbc); gbc.gridx=1; panel.add(saludMentalField, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(actividadFisicaLabel, gbc); gbc.gridx=1; panel.add(actividadCombo, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(actividadFrecuenteLabel, gbc); gbc.gridx=1; panel.add(actividadPanel, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(saludFisicaLabel, gbc); gbc.gridx=1; panel.add(saludFisicaField, gbc);
 
         return panel;
     }
 
-    private JPanel step5Panel() {
-        JPanel panel = new JPanel();
+
+    // Step 9: Documentos
+    private JPanel step9Panel() {
+        JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(new Color(0x132232));
-        JLabel label = new JLabel("Fin del cuestionario. Presiona Next para enviar.");
-        label.setForeground(Color.WHITE);
-        panel.add(label);
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel tipoDocLabel = createLabel("Tipo de documento:");
+        JTextField tipoDocField = createTextField();
+        JLabel valorDocLabel = createLabel("Valor del documento:");
+        JTextField valorDocField = createTextField();
+
+        gbc.gridx=0; gbc.gridy=0; panel.add(tipoDocLabel, gbc); gbc.gridx=1; panel.add(tipoDocField, gbc);
+        gbc.gridx=0; gbc.gridy++; panel.add(valorDocLabel, gbc); gbc.gridx=1; panel.add(valorDocField, gbc);
+
         return panel;
     }
 
-    private void nextStep() {
-        if (currentStep < totalSteps - 1) currentStep++;
-        else submitForm();
-        cardLayout.show(mainPanel, String.valueOf(currentStep));
-        updateNav();
+
+    private JLabel createLabel(String text) {
+        JLabel lbl = new JLabel(text);
+        lbl.setForeground(Color.WHITE);
+        lbl.setFont(new Font("SansSerif", Font.BOLD, 16));
+        return lbl;
     }
 
-    private void prevStep() {
-        if (currentStep > 0) currentStep--;
-        cardLayout.show(mainPanel, String.valueOf(currentStep));
-        updateNav();
+    private JTextField createTextField() {
+        JTextField field = new JTextField();
+        field.setPreferredSize(new Dimension(200,28));
+        field.setFont(new Font("SansSerif", Font.PLAIN,16));
+        field.setBackground(new Color(0xF5F2E7));
+        field.setForeground(Color.BLACK);
+        return field;
     }
 
-    private void updateNav() {
-        prevButton.setEnabled(currentStep > 0);
-        progressBar.setValue(currentStep);
-    }
-
-    private void submitForm() {
-        JOptionPane.showMessageDialog(this, "Formulario enviado!");
-        // Here you can serialize data or call backend API
+    private JCheckBox createCheckBox(String text) {
+        JCheckBox box = new JCheckBox(text);
+        box.setForeground(Color.WHITE);
+        box.setBackground(new Color(0x132232));
+        box.setFont(new Font("SansSerif", Font.PLAIN,16));
+        return box;
     }
 
     public static void main(String[] args) {

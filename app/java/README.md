@@ -1,58 +1,31 @@
 # PredictHealthApp
 
-Standalone Java console application that collects health-related data and outputs both JSON and XML.
+Aplicación de consola Java independiente que recopila datos relacionados con la salud y genera salida en formatos JSON y XML.
 
 ---
 
 ## Prerequisites
 
-- **Java 11+** installed
-- Internet access
-- No Maven required (manual `.jar` setup included)
+- Java 11+ instalado
+- Acceso a Internet
 
 ---
 
-## Linux / Mac
+# Linux / Mac
 
-1. Make sure you are in the project folder containing `PredictHealthApp.java`.
-2. Create a setup script `prerequisites.sh` with the following content:
+1. Asegúrese de estar en la carpeta del proyecto que contiene PredictHealthApp.java.
 
-```bash
-#!/bin/bash
+2. Cree un script de configuración prerequisites.sh con el siguiente contenido:
 
-# Update system
-sudo apt update && sudo apt upgrade -y
+3. Correr con:
 
-# Install Java 11 if not installed
-if ! java -version 2>&1 | grep -q "11"; then
-    echo "Installing OpenJDK 11..."
-    sudo apt install -y openjdk-11-jdk
-fi
-
-# Create lib folder for Jackson jars
-mkdir -p lib
-cd lib
-
-# Download Jackson Jars
-JACKSON_VERSION=2.15.2
-declare -a jars=("jackson-core" "jackson-databind" "jackson-annotations" "jackson-dataformat-xml")
-for jar in "${jars[@]}"; do
-    if [ ! -f ${jar}-${JACKSON_VERSION}.jar ]; then
-        wget https://repo1.maven.org/maven2/com/fasterxml/jackson/core/${jar}/${JACKSON_VERSION}/${jar}-${JACKSON_VERSION}.jar
-    fi
-done
-cd ..
-
-echo "Setup complete. Compile with: javac -cp 'lib/*' PredictHealthApp.java"
-```
-
-## Run
 chmod +x prerequisites.sh
 ./prerequisites.sh
 
+
 # Windows
 
-## Development: Powershell Libraries
+1. Instalar librerías con:
 
 mkdir lib
 cd lib
@@ -73,17 +46,15 @@ foreach ($url in $urls) {
 
 cd ..
 
+2. Compilar y correr con:
+./run.bat
+
+
 ## Development: Create Class
-javac -cp "lib/*" PredictHealthJava.java
+javac -encoding UTF-8 -d out -cp "lib/*" PredictHealthJava.java
 
 ## Development: Build JAR
-jar cfm PredictHealthJava.jar manifest.txt *.class
+jar cfm PredictHealthJava.jar manifest.txt -C out .
 
 ## Development: Run Program
-java -cp "lib/*;PredictHealthJava.jar" PredictHealthJava
-
-
-## Development: Full CompileRun
-javac -cp "lib/*" PredictHealthJava.java
-jar cfm PredictHealthJava.jar manifest.txt *.class
-java -cp "lib/*;PredictHealthJava.jar" PredictHealthJava
+java -Dfile.encoding=UTF-8 -cp "lib/*;PredictHealthJava.jar" PredictHealthJava
