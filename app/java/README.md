@@ -74,10 +74,16 @@ foreach ($url in $urls) {
 cd ..
 
 ## Development: Create Class
-javac -cp "lib/*" PredictHealthApp.java
+javac -cp "lib/*" PredictHealthJava.java
 
 ## Development: Build JAR
-jar cfm PredictHealthApp.jar manifest.txt PredictHealthApp.class
+jar cfm PredictHealthJava.jar manifest.txt *.class
 
 ## Development: Run Program
-java -jar PredictHealthApp.jar
+java -cp "lib/*;PredictHealthJava.jar" PredictHealthJava
+
+
+## Development: Full CompileRun
+javac -cp "lib/*" PredictHealthJava.java
+jar cfm PredictHealthJava.jar manifest.txt *.class
+java -cp "lib/*;PredictHealthJava.jar" PredictHealthJava

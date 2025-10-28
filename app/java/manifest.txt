@@ -1,2 +1,2 @@
-Main-Class: PredictHealthApp
+Main-Class: PredictHealthJava
 Class-Path: lib/jackson-core-2.15.2.jar lib/jackson-databind-2.15.2.jar lib/jackson-annotations-2.15.2.jar lib/jackson-dataformat-xml-2.15.2.jar
