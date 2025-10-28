@@ -33,6 +33,7 @@ public class PredictHealthJava extends JFrame {
         mainPanel.add(step2Panel(), "Step2");
         mainPanel.add(step3Panel(), "Step3"); 
         mainPanel.add(step4Panel(), "Step4"); 
+        mainPanel.add(step4_5Panel(), "Step4_5"); 
         mainPanel.add(step5Panel(), "Step5"); 
         mainPanel.add(step6Panel(), "Step6"); 
         mainPanel.add(step7Panel(), "Step7"); 
@@ -234,6 +235,31 @@ public class PredictHealthJava extends JFrame {
         panel.add(colesterolBox, gbc);
         gbc.gridx = 1;
         panel.add(colesterolAltoBox, gbc);
+
+        return panel;
+    }
+
+    // Step 4.5: ACV y Problemas del corazón
+    private JPanel step4_5Panel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(0x132232));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel questionLabel = createLabel("¿Ha padecido alguna de estas condiciones?");
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        panel.add(questionLabel, gbc);
+
+        JCheckBox acvBox = createCheckBox("Accidente Cerebrovascular (ACV)");
+        JCheckBox problemasCorazonBox = createCheckBox("Problemas del Corazón");
+
+        gbc.gridwidth = 1;
+        gbc.gridx = 0; gbc.gridy++;
+        panel.add(acvBox, gbc);
+        gbc.gridx = 1;
+        panel.add(problemasCorazonBox, gbc);
 
         return panel;
     }
