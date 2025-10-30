@@ -4,6 +4,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.text.*;
 import java.util.*;
+import javax.swing.text.*;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.DocumentFilter;
 import javax.swing.text.AttributeSet;
@@ -13,9 +14,16 @@ public class PredictHealthJava extends JFrame {
 
     private CardLayout cardLayout;
     private JPanel mainPanel;
+    private JPanel registerPanel;
+    private JPanel step1Panel;
     private JButton nextButton, prevButton;
     private JLabel edadLabel;
     private JSpinner fechaNacimientoSpinner;
+
+    private JTextField nombreField;
+    private JTextField apellidoField;
+    private JTextField emailField;
+    private JPasswordField passwordField;
 
     public PredictHealthJava() {
         setTitle("PredictHealthJava");
@@ -29,10 +37,8 @@ public class PredictHealthJava extends JFrame {
         mainPanel.setBackground(new Color(0x132232));
 
         mainPanel.add(startPanel(), "Start");
-        cardLayout.show(mainPanel, "Start");
-
-        // Step panels
-        mainPanel.add(step1Panel(), "Step1");
+        mainPanel.add(registerPanel(), "Register");
+        mainPanel.add(createStep1Panel(), "Step1");
         mainPanel.add(step2Panel(), "Step2");
         mainPanel.add(step3Panel(), "Step3"); 
         mainPanel.add(step4Panel(), "Step4"); 
@@ -41,18 +47,18 @@ public class PredictHealthJava extends JFrame {
         mainPanel.add(step6Panel(), "Step6"); 
         mainPanel.add(step7Panel(), "Step7"); 
         mainPanel.add(step8Panel(), "Step8"); 
-        //mainPanel.add(step9Panel(), "Step9"); 
 
         add(mainPanel, BorderLayout.CENTER);
 
-        // Navigation buttons
         JPanel navPanel = new JPanel();
         navPanel.setBackground(new Color(0x132232));
         nextButton = createNavButton("Siguiente");
         prevButton = createNavButton("Anterior");
-        prevButton.setEnabled(false);
 
         nextButton.addActionListener(e -> {
+            Component visible = getVisiblePanel();
+            String name = getPanelName(visible);
+            if (name.equals("Register")) sendRegisterData();
             cardLayout.next(mainPanel);
             updateNavButtons();
         });
@@ -64,6 +70,9 @@ public class PredictHealthJava extends JFrame {
         navPanel.add(prevButton);
         navPanel.add(nextButton);
         add(navPanel, BorderLayout.SOUTH);
+
+        cardLayout.show(mainPanel, "Start");
+        updateNavButtons();
     }
 
     private JButton createNavButton(String text) {
@@ -77,10 +86,10 @@ public class PredictHealthJava extends JFrame {
 
     private void updateNavButtons() {
         Component visible = getVisiblePanel();
+        String name = getPanelName(visible);
 
-        // Show nav buttons only if not on start panel
-        boolean showNav = visible != mainPanel.getComponent(0);
-
+        // Show nav buttons only if not on Start or Register
+        boolean showNav = !(name.equals("Start") || name.equals("Register"));
         prevButton.setVisible(showNav);
         nextButton.setVisible(showNav);
 
@@ -93,10 +102,23 @@ public class PredictHealthJava extends JFrame {
         }
     }
 
+
+    private boolean isLastPanel(Component comp) {
+        return comp == mainPanel.getComponent(mainPanel.getComponentCount() - 1);
+    }
+
     private String getPanelName(Component comp) {
-        for (Map.Entry<String, Component> entry : getPanelMap().entrySet()) {
-            if (entry.getValue() == comp) return entry.getKey();
-        }
+        if (comp == mainPanel.getComponent(0)) return "Start";
+        if (comp == mainPanel.getComponent(1)) return "Register";
+        if (comp == mainPanel.getComponent(2)) return "Step1";
+        if (comp == mainPanel.getComponent(3)) return "Step2";
+        if (comp == mainPanel.getComponent(4)) return "Step3";
+        if (comp == mainPanel.getComponent(5)) return "Step4";
+        if (comp == mainPanel.getComponent(6)) return "Step4_5";
+        if (comp == mainPanel.getComponent(7)) return "Step5";
+        if (comp == mainPanel.getComponent(8)) return "Step6";
+        if (comp == mainPanel.getComponent(9)) return "Step7";
+        if (comp == mainPanel.getComponent(10)) return "Step8";
         return "";
     }
 
@@ -115,6 +137,7 @@ public class PredictHealthJava extends JFrame {
         return null;
     }
 
+    // Start: Login and Register
     private JPanel startPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(new Color(0x132232));
@@ -135,7 +158,7 @@ public class PredictHealthJava extends JFrame {
             updateNavButtons();
         });
         registerButton.addActionListener(e -> {
-            cardLayout.show(mainPanel, "Step2");
+            cardLayout.show(mainPanel, "Register");
             updateNavButtons();
         });
 
@@ -155,19 +178,103 @@ public class PredictHealthJava extends JFrame {
         return panel;
     }
 
+    // Register Step
+    private JPanel registerPanel() {
+        if (registerPanel != null) return registerPanel;
 
-    // Step 1: Email & Password
-    private JPanel step1Panel() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(new Color(0x132232));
-        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        registerPanel = new JPanel(new GridBagLayout());
+        registerPanel.setBackground(new Color(0x132232));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Top-left back button
+        JButton backBtn = createNavButton("Atrás");
+        backBtn.addActionListener(e -> cardLayout.show(mainPanel, "Start"));
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1; gbc.anchor = GridBagConstraints.WEST;
+        registerPanel.add(backBtn, gbc);
+
+        // Name
+        nombreField = createTextField();
+        gbc.gridx = 0; gbc.gridy = 1; gbc.anchor = GridBagConstraints.CENTER;
+        registerPanel.add(new JLabel("Nombre:") {{ setForeground(Color.WHITE); setFont(new Font("SansSerif", Font.BOLD, 16)); }}, gbc);
+        gbc.gridx = 1;
+        registerPanel.add(nombreField, gbc);
+
+        // Apellido
+        gbc.gridx = 0; gbc.gridy++;
+        apellidoField = createTextField();
+        registerPanel.add(new JLabel("Apellido:") {{ setForeground(Color.WHITE); setFont(new Font("SansSerif", Font.BOLD, 16)); }}, gbc);
+        gbc.gridx = 1;
+        registerPanel.add(apellidoField, gbc);
+
+        // Email
+        gbc.gridx = 0; gbc.gridy++;
+        emailField = createTextField();
+        registerPanel.add(new JLabel("Email:") {{ setForeground(Color.WHITE); setFont(new Font("SansSerif", Font.BOLD, 16)); }}, gbc);
+        gbc.gridx = 1;
+        registerPanel.add(emailField, gbc);
+
+        // Password
+        gbc.gridx = 0; gbc.gridy++;
+        passwordField = new JPasswordField();
+        passwordField.setPreferredSize(new Dimension(200, 28));
+        passwordField.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        passwordField.setBackground(new Color(0xF5F2E7));
+        passwordField.setForeground(Color.BLACK);
+        registerPanel.add(new JLabel("Password:") {{ setForeground(Color.WHITE); setFont(new Font("SansSerif", Font.BOLD, 16)); }}, gbc);
+        gbc.gridx = 1;
+        registerPanel.add(passwordField, gbc);
+
+        // Register button
+        gbc.gridx = 0; gbc.gridy++; gbc.gridwidth = 2;
+        JButton registerBtn = createNavButton("Registrar");
+        registerBtn.addActionListener(e -> sendRegisterData());
+        registerPanel.add(registerBtn, gbc);
+
+        return registerPanel;
+    }
+    
+    private void sendRegisterData() {
+        // Simple JSON string
+        String json = String.format(
+            "{\"nombre\":\"%s\",\"apellido\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
+            nombreField.getText(),
+            apellidoField.getText(),
+            emailField.getText(),
+            passwordField.getText()
+        );
+        System.out.println("JSON to send to register microservice:");
+        System.out.println(json);
+    }
+
+
+    // Step 1: Login
+    private JPanel createStep1Panel() {
+        if (step1Panel != null) return step1Panel;
+        step1Panel = new JPanel(new GridBagLayout());
+        step1Panel.setBackground(new Color(0x132232));
+        step1Panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
+        // Back button top-left
+        JButton backBtn = createNavButton("Atras");
+        backBtn.addActionListener(e -> cardLayout.show(mainPanel, "Start"));
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1; gbc.anchor = GridBagConstraints.NORTHWEST;
+        step1Panel.add(backBtn, gbc);
+
+        // Email
         JLabel emailLabel = createLabel("Email:");
         JTextField emailField = createTextField();
+        gbc.gridx = 0; gbc.gridy = 1; gbc.anchor = GridBagConstraints.WEST;
+        step1Panel.add(emailLabel, gbc);
+        gbc.gridx = 1;
+        step1Panel.add(emailField, gbc);
 
+        // Password
         JLabel passwordLabel = createLabel("Password:");
         JPasswordField passwordField = new JPasswordField();
         passwordField.setPreferredSize(new Dimension(200, 28));
@@ -175,12 +282,49 @@ public class PredictHealthJava extends JFrame {
         passwordField.setBackground(new Color(0xF5F2E7));
         passwordField.setForeground(Color.BLACK);
 
-        gbc.gridx = 0; gbc.gridy = 0; panel.add(emailLabel, gbc);
-        gbc.gridx = 1; panel.add(emailField, gbc);
-        gbc.gridx = 0; gbc.gridy++; panel.add(passwordLabel, gbc);
-        gbc.gridx = 1; panel.add(passwordField, gbc);
+        gbc.gridx = 0; gbc.gridy = 2;
+        step1Panel.add(passwordLabel, gbc);
+        gbc.gridx = 1;
+        step1Panel.add(passwordField, gbc);
 
-        return panel;
+        // Login button
+        JButton loginBtn = createNavButton("Login");
+        loginBtn.addActionListener(e -> sendLoginData(emailField.getText(), new String(passwordField.getPassword())));
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2; gbc.anchor = GridBagConstraints.CENTER;
+        step1Panel.add(loginBtn, gbc);
+
+        return step1Panel;
+    }
+
+    // Send login data to auth microservice
+    private void sendLoginData(String email, String password) {
+        try {
+            String json = String.format("{\"email\":\"%s\",\"password\":\"%s\"}", email, password);
+            String xml = "<login><email>" + email + "</email><password>" + password + "</password></login>";
+
+            // Example using HTTP POST with java.net.HttpURLConnection
+            java.net.URL url = new java.net.URL("http://localhost:8000/auth/login"); // change to your service URL
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json"); // or "application/xml"
+            conn.setDoOutput(true);
+
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                os.write(json.getBytes()); // or xml.getBytes()
+            }
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                javax.swing.JOptionPane.showMessageDialog(this, "Login successful!");
+                cardLayout.show(mainPanel, "Step2");
+            } else {
+                javax.swing.JOptionPane.showMessageDialog(this, "Login failed: " + responseCode);
+            }
+            conn.disconnect();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            javax.swing.JOptionPane.showMessageDialog(this, "Error contacting auth service");
+        }
     }
 
     // Step 2: Usuario info 
