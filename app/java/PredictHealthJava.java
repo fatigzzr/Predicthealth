@@ -28,6 +28,9 @@ public class PredictHealthJava extends JFrame {
         mainPanel = new JPanel(cardLayout);
         mainPanel.setBackground(new Color(0x132232));
 
+        mainPanel.add(startPanel(), "Start");
+        cardLayout.show(mainPanel, "Start");
+
         // Step panels
         mainPanel.add(step1Panel(), "Step1");
         mainPanel.add(step2Panel(), "Step2");
@@ -38,7 +41,7 @@ public class PredictHealthJava extends JFrame {
         mainPanel.add(step6Panel(), "Step6"); 
         mainPanel.add(step7Panel(), "Step7"); 
         mainPanel.add(step8Panel(), "Step8"); 
-        mainPanel.add(step9Panel(), "Step9"); 
+        //mainPanel.add(step9Panel(), "Step9"); 
 
         add(mainPanel, BorderLayout.CENTER);
 
@@ -74,8 +77,35 @@ public class PredictHealthJava extends JFrame {
 
     private void updateNavButtons() {
         Component visible = getVisiblePanel();
-        prevButton.setEnabled(visible != mainPanel.getComponent(0));
-        nextButton.setText(visible == mainPanel.getComponent(mainPanel.getComponentCount() - 1) ? "Finalizar" : "Siguiente");
+
+        // Show nav buttons only if not on start panel
+        boolean showNav = visible != mainPanel.getComponent(0);
+
+        prevButton.setVisible(showNav);
+        nextButton.setVisible(showNav);
+
+        if (showNav) {
+            prevButton.setEnabled(true);
+            nextButton.setText(
+                visible == mainPanel.getComponent(mainPanel.getComponentCount() - 1)
+                ? "Finalizar" : "Siguiente"
+            );
+        }
+    }
+
+    private String getPanelName(Component comp) {
+        for (Map.Entry<String, Component> entry : getPanelMap().entrySet()) {
+            if (entry.getValue() == comp) return entry.getKey();
+        }
+        return "";
+    }
+
+    private Map<String, Component> getPanelMap() {
+        Map<String, Component> map = new HashMap<>();
+        for (Component c : mainPanel.getComponents()) {
+            map.put(((CardLayout) mainPanel.getLayout()).toString(), c);
+        }
+        return map;
     }
 
     private Component getVisiblePanel() {
@@ -84,6 +114,47 @@ public class PredictHealthJava extends JFrame {
         }
         return null;
     }
+
+    private JPanel startPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(0x132232));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(20, 20, 20, 20);
+
+        JLabel title = new JLabel("Bienvenido a PredictHealthJava");
+        title.setForeground(Color.WHITE);
+        title.setFont(new Font("SansSerif", Font.BOLD, 22));
+
+        // Create buttons
+        JButton loginButton = createNavButton("Iniciar sesión");
+        JButton registerButton = createNavButton("Registrarse");
+
+        // Add ActionListeners
+        loginButton.addActionListener(e -> {
+            cardLayout.show(mainPanel, "Step1");
+            updateNavButtons();
+        });
+        registerButton.addActionListener(e -> {
+            cardLayout.show(mainPanel, "Step2");
+            updateNavButtons();
+        });
+
+        // Horizontal layout for buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 40, 10));
+        buttonPanel.setBackground(new Color(0x132232));
+        buttonPanel.add(loginButton);
+        buttonPanel.add(registerButton);
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(title, gbc);
+
+        gbc.gridy++;
+        panel.add(buttonPanel, gbc);
+
+        return panel;
+    }
+
 
     // Step 1: Email & Password
     private JPanel step1Panel() {
@@ -509,7 +580,7 @@ public class PredictHealthJava extends JFrame {
 
 
     // Step 9: Documentos
-    private JPanel step9Panel() {
+    /*private JPanel step9Panel() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(new Color(0x132232));
         panel.setBorder(new EmptyBorder(20, 20, 20, 20));
@@ -526,7 +597,7 @@ public class PredictHealthJava extends JFrame {
         gbc.gridx=0; gbc.gridy++; panel.add(valorDocLabel, gbc); gbc.gridx=1; panel.add(valorDocField, gbc);
 
         return panel;
-    }
+    }*/
 
 
     private JLabel createLabel(String text) {
