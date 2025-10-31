@@ -14,6 +14,12 @@ import org.json.JSONObject;
 import org.json.JSONArray;
 import java.util.List;
 import java.util.ArrayList;
+import java.net.URL;
+import java.net.HttpURLConnection;
+import java.io.OutputStream;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
+
 
 public class PredictHealthJava extends JFrame {
 
@@ -43,6 +49,7 @@ public class PredictHealthJava extends JFrame {
 
     private String loginUrl;
     private String registerUrl;
+    private String accessToken;
 
     public PredictHealthJava() {
         loadConfig();
@@ -347,14 +354,23 @@ public class PredictHealthJava extends JFrame {
             conn.setDoOutput(true);
             try(java.io.OutputStream os = conn.getOutputStream()){ os.write(json.getBytes()); }
             int code = conn.getResponseCode();
-            if(code==200){
+            if (code == 200) {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) response.append(line);
+
+                    // parse login response JSON
+                    JSONObject resp = new JSONObject(response.toString());
+                    String receivedAccessToken = resp.getString("access_token");
+                    accessToken = receivedAccessToken; // store in class-level field
+                }
+
                 loggedIn = true;
-                JOptionPane.showMessageDialog(this,"Login successful!");
-                cardLayout.show(mainPanel,"Step2");
-            } else {
-                loggedIn = false;
-                JOptionPane.showMessageDialog(this,"Login failed: "+code);
+                JOptionPane.showMessageDialog(this, "Login successful!");
+                cardLayout.show(mainPanel, "Step2");
             }
+
             conn.disconnect();
         } catch(Exception ex){
             loggedIn = false;
@@ -873,9 +889,53 @@ public class PredictHealthJava extends JFrame {
         putNotNull(salud, "actividad_frecuente2", getSelectedButtonText(step8Panel, "Sí", "No"));
         putNotNull(salud, "salud_fisica", getTextFieldValue(step8Panel, 8));
 
-        // Print both JSON objects
+        // Retrieve user ID from Auth microservice
+        String userId = null;
+        try {
+            URL meUrl = new URL("http://localhost:8001/auth/me");
+            HttpURLConnection authConn = (HttpURLConnection) meUrl.openConnection();
+            authConn.setRequestMethod("GET");
+            authConn.setRequestProperty("Authorization", "Bearer " + accessToken); // token saved from login
+
+            if (authConn.getResponseCode() == 200) {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(authConn.getInputStream(), "utf-8"))) {
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) response.append(line);
+                    JSONObject me = new JSONObject(response.toString());
+                    userId = me.getString("sub");
+                }
+            }
+            authConn.disconnect();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (userId != null) paciente.put("id_usuario", userId);
+
+        // POST Paciente JSON
+        try {
+            URL url = new URL("http://localhost:8003/paciente");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json; utf-8");
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                byte[] input = paciente.toString().getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
+
+            int code = conn.getResponseCode();
+            System.out.println("POST /paciente -> Response code: " + code);
+            conn.disconnect();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         System.out.println("Paciente:");
         System.out.println(paciente.toString(4));
+
+        // Still print Salud
         System.out.println("Salud:");
         System.out.println(salud.toString(4));
     }

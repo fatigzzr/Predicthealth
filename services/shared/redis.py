@@ -49,3 +49,14 @@ def is_jti_allowed(jti: str) -> bool:
         return False
     key = f"{ALLOWLIST_PREFIX}{jti}"
     return r.exists(key) > 0
+
+def cache_user(user_id: str, email: str, role_id: int):
+    r.set(f"user:{user_id}", json.dumps({
+        "id_usuario": user_id,
+        "email": email,
+        "id_rol": role_id
+    }), ex=60*60*24*7)  # expire 7 days
+
+def get_cached_user(user_id: str):
+    data = r.get(f"user:{user_id}")
+    return json.loads(data) if data else None

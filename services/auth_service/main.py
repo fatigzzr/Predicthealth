@@ -13,6 +13,7 @@ import xmltodict
 from services.shared.redis import allowlist_jti, revoke_jti, is_jti_allowed
 from passlib.hash import pbkdf2_sha256
 from services.shared.db import get_conn
+from services.shared.redis import cache_user
 
 # ---- Config ----
 APP_PORT = int(os.getenv("AUTH_PORT", "8001"))
@@ -59,6 +60,7 @@ def _xml(data: dict, root: str) -> Response:
 
 def _issue_tokens(user_id: str, email: str, role_id: int) -> dict:
     now = datetime.now(timezone.utc)
+    cache_user(user_id, email, role_id)
     
     access_exp = now + timedelta(minutes=ACCESS_TTL_MIN)
     access_jti = str(uuid.uuid4())
