@@ -1,41 +1,59 @@
+# services/shared/auth.py
+
 import os
-from typing import Optional
+import uuid
 import time
-
+from datetime import datetime, timedelta
 import jwt
-import redis
+from fastapi import HTTPException
+from .redis import allowlist_jti, revoke_jti, is_jti_allowed
 
-
+# JWT configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
 JWT_ALG = os.getenv("JWT_ALG", "HS256")
 JWT_AUD = os.getenv("JWT_AUD", "predicthealth")
-
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-
-
-def get_redis() -> redis.Redis:
-    return redis.from_url(REDIS_URL, decode_responses=True)
+ACCESS_TTL_MIN = int(os.getenv("ACCESS_TTL_MIN", "15"))
 
 
-def verify_jwt_and_jti(token: str, required_aud: Optional[str] = None) -> dict:
-    claims = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG], audience=required_aud or JWT_AUD, options={"verify_aud": bool(required_aud or JWT_AUD)})
-    jti = claims.get("jti")
-    if not jti:
-        raise jwt.InvalidTokenError("missing jti")
-    r = get_redis()
-    if r.get(f"auth:jti:{jti}") != "1":
-        raise jwt.InvalidTokenError("jti not allowed or revoked")
-    return claims
+def issue_jwt(user_id: str, email: str, role_id: int) -> dict:
+    """
+    Issue a JWT token and store its jti in Redis allowlist.
+    """
+    jti = str(uuid.uuid4())
+    now = datetime.utcnow()
+    exp = now + timedelta(minutes=ACCESS_TTL_MIN)
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "roleId": role_id,
+        "aud": JWT_AUD,
+        "iat": int(now.timestamp()),
+        "exp": int(exp.timestamp()),
+        "jti": jti,
+    }
+    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
+    allowlist_jti(jti, int(exp.timestamp()))
+    return {"token": token, "expiresAt": exp.isoformat() + "Z", "user": {"id": user_id, "email": email, "roleId": role_id}}
 
 
-def allowlist_jti(jti: str, exp_ts: int) -> None:
-    r = get_redis()
-    ttl = max(1, exp_ts - int(time.time()))
-    r.set(f"auth:jti:{jti}", "1", ex=ttl)
+def verify_jwt_and_jti(token: str) -> dict:
+    """
+    Decode a JWT and verify it is still allowed in Redis.
+    """
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG], audience=JWT_AUD)
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="invalid_token")
+
+    jti = payload.get("jti")
+    if not jti or not is_jti_allowed(jti):
+        raise HTTPException(status_code=401, detail="token_revoked_or_invalid")
+
+    return payload
 
 
-def revoke_jti(jti: str) -> None:
-    r = get_redis()
-    r.delete(f"auth:jti:{jti}")
-
-
+def revoke_jwt(jti: str):
+    """
+    Revoke a JWT by removing its jti from Redis.
+    """
+    revoke_jti(jti)
