@@ -3,7 +3,7 @@
 import os
 import redis
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
@@ -19,7 +19,8 @@ def allowlist_jti(jti: str, exp_ts: int):
     Store JWT JTI in allowlist with expiry timestamp.
     """
     key = f"{ALLOWLIST_PREFIX}{jti}"
-    ttl = max(exp_ts - int(datetime.utcnow().timestamp()), 0)
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    ttl = max(exp_ts - now_ts, 0)
     r.set(key, json.dumps({"jti": jti, "exp": exp_ts}), ex=ttl)
 
 def revoke_jti(jti: str):
