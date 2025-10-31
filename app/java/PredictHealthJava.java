@@ -828,51 +828,58 @@ public class PredictHealthJava extends JFrame {
     }
 
     private void outputAllFieldsAsJson() {
-        JSONObject json = new JSONObject();
+        JSONObject paciente = new JSONObject();
+        JSONObject salud = new JSONObject();
 
-        // Step 2: User info
-        putNotNull(json, "nombre", nombreField != null ? nombreField.getText() : "");
-        putNotNull(json, "apellido", apellidoField != null ? apellidoField.getText() : "");
+        // Step 2: Paciente info
+        putNotNull(paciente, "nombre", nombreField != null ? nombreField.getText() : "");
+        putNotNull(paciente, "apellido", apellidoField != null ? apellidoField.getText() : "");
         Date birth = (fechaNacimientoSpinner != null) ? (Date) fechaNacimientoSpinner.getValue() : null;
-        putNotNull(json, "fecha_nacimiento", birth != null ? new java.text.SimpleDateFormat("yyyy-MM-dd").format(birth) : "");
-        putNotNull(json, "edad", birth != null ? calculateAge(birth) : "");
+        putNotNull(paciente, "fecha_nacimiento", birth != null ? new java.text.SimpleDateFormat("yyyy-MM-dd").format(birth) : "");
+        putNotNull(paciente, "sexo", getSelectedButtonText(step2Panel)); // assuming sexo in step2Panel
+        putNotNull(paciente, "fecha", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
 
         // Step 3: Salud General
-        putNotNull(json, "salud_general", getSelectedButtonText(step3Panel));
+        putNotNull(salud, "salud_general", getSelectedButtonText(step3Panel));
 
         // Step 4: Historial Médico
-        putNotNull(json, "diabetes", getCheckBoxState(step4Panel, "Diabetes"));
-        putNotNull(json, "hipertension", getCheckBoxState(step4Panel, "Hipertensión"));
-        putNotNull(json, "colesterol", getCheckBoxState(step4Panel, "Colesterol"));
-        putNotNull(json, "colesterol_alto", getCheckBoxState(step4Panel, "Colesterol Alto"));
+        putNotNull(salud, "diabetes", getCheckBoxState(step4Panel, "Diabetes"));
+        putNotNull(salud, "hipertension", getCheckBoxState(step4Panel, "Hipertensión"));
+        putNotNull(salud, "colesterol", getCheckBoxState(step4Panel, "Colesterol"));
+        putNotNull(salud, "colesterol_alto", getCheckBoxState(step4Panel, "Colesterol Alto"));
 
         // Step 4.5
-        putNotNull(json, "acv", getCheckBoxState(step4_5Panel, "Accidente Cerebrovascular (ACV)"));
-        putNotNull(json, "problemas_corazon", getCheckBoxState(step4_5Panel, "Problemas del Corazón"));
+        putNotNull(salud, "acv", getCheckBoxState(step4_5Panel, "Accidente Cerebrovascular (ACV)"));
+        putNotNull(salud, "problemas_corazon", getCheckBoxState(step4_5Panel, "Problemas del Corazón"));
 
         // Step 5: BMI & presión
-        putNotNull(json, "bmi", getTextFieldValue(step5Panel, 1));
-        putNotNull(json, "presion", getSelectedButtonText(step5Panel));
+        putNotNull(salud, "bmi", getTextFieldValue(step5Panel, 1));
+        putNotNull(salud, "presion", getSelectedButtonText(step5Panel));
 
         // Step 6: Medicamentos
-        putNotNull(json, "medicamentos", getSelectedMedications());
+        putNotNull(salud, "medicamentos", getSelectedMedications());
 
         // Step 7 & 8: Lifestyle
-        putNotNull(json, "frutas", getSelectedButtonText(step7Panel));
-        putNotNull(json, "verduras", getSelectedButtonText(step7Panel));
-        putNotNull(json, "fuma", getSelectedButtonText(step7Panel));
-        putNotNull(json, "alcohol", getSelectedButtonText(step7Panel));
-        putNotNull(json, "movilidad", getSelectedButtonText(step7Panel));
-        putNotNull(json, "actividad_frecuente", getSelectedButtonText(step8Panel));
-        putNotNull(json, "horas_sueno", getTextFieldValue(step8Panel, 0));
-        putNotNull(json, "nivel_estres", getComboBoxSelected(step8Panel, 3));
-        putNotNull(json, "salud_mental", getTextFieldValue(step8Panel, 4));
-        putNotNull(json, "actividad_fisica", getComboBoxSelected(step8Panel, 6));
-        putNotNull(json, "actividad_frecuente2", getSelectedButtonText(step8Panel, "Sí", "No"));
-        putNotNull(json, "salud_fisica", getTextFieldValue(step8Panel, 8));
+        putNotNull(salud, "frutas", getSelectedButtonText(step7Panel));
+        putNotNull(salud, "verduras", getSelectedButtonText(step7Panel));
+        putNotNull(salud, "fuma", getSelectedButtonText(step7Panel));
+        putNotNull(salud, "alcohol", getSelectedButtonText(step7Panel));
+        putNotNull(salud, "movilidad", getSelectedButtonText(step7Panel));
+        putNotNull(salud, "actividad_frecuente", getSelectedButtonText(step8Panel));
+        putNotNull(salud, "horas_sueno", getTextFieldValue(step8Panel, 0));
+        putNotNull(salud, "nivel_estres", getComboBoxSelected(step8Panel, 3));
+        putNotNull(salud, "salud_mental", getTextFieldValue(step8Panel, 4));
+        putNotNull(salud, "actividad_fisica", getComboBoxSelected(step8Panel, 6));
+        putNotNull(salud, "actividad_frecuente2", getSelectedButtonText(step8Panel, "Sí", "No"));
+        putNotNull(salud, "salud_fisica", getTextFieldValue(step8Panel, 8));
 
-        System.out.println(json.toString(4));
+        // Print both JSON objects
+        System.out.println("Paciente:");
+        System.out.println(paciente.toString(4));
+        System.out.println("Salud:");
+        System.out.println(salud.toString(4));
     }
+
 
     // Helper methods
     private int calculateAge(Date birth) {
