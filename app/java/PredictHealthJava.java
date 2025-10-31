@@ -10,6 +10,10 @@ import javax.swing.text.AbstractDocument;
 import javax.swing.text.DocumentFilter;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
+import org.json.JSONObject;
+import org.json.JSONArray;
+import java.util.List;
+import java.util.ArrayList;
 
 public class PredictHealthJava extends JFrame {
 
@@ -17,6 +21,14 @@ public class PredictHealthJava extends JFrame {
     private JPanel mainPanel;
     private JPanel registerPanel;
     private JPanel step1Panel;
+    private JPanel step2Panel;
+    private JPanel step3Panel;
+    private JPanel step4Panel;
+    private JPanel step4_5Panel;
+    private JPanel step5Panel;
+    private JPanel step6Panel;
+    private JPanel step7Panel;
+    private JPanel step8Panel;
     private JButton nextButton, prevButton;
     private JLabel edadLabel;
     private JSpinner fechaNacimientoSpinner;
@@ -73,9 +85,18 @@ public class PredictHealthJava extends JFrame {
                 JOptionPane.showMessageDialog(this, "Please login first.");
                 return;
             }
+
+            // Call outputAllFieldsAsJson when on last panel
+            if (isLastPanel(visible)) {
+                outputAllFieldsAsJson();
+                JOptionPane.showMessageDialog(this, "All data collected and output to console.");
+                return;
+            }
+
             cardLayout.next(mainPanel);
             updateNavButtons();
         });
+
         prevButton.addActionListener(e -> {
             cardLayout.previous(mainPanel);
             updateNavButtons();
@@ -352,10 +373,10 @@ public class PredictHealthJava extends JFrame {
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         JLabel nombreLabel = createLabel("Nombre:");
-        JTextField nombreField = createTextField();
+        nombreField = createTextField();
 
         JLabel apellidoLabel = createLabel("Apellido:");
-        JTextField apellidoField = createTextField();
+        apellidoField = createTextField();
 
         JLabel fechaLabel = createLabel("Fecha de nacimiento:");
         SpinnerDateModel dateModel = new SpinnerDateModel();
@@ -579,6 +600,23 @@ public class PredictHealthJava extends JFrame {
         return panel;
     }
 
+    private String getSelectedMedications() {
+        if (step6Panel == null) return "[]"; // empty JSON array
+
+        List<String> selected = new ArrayList<>();
+        for (Component comp : step6Panel.getComponents()) {
+            if (comp instanceof JCheckBox cb) {
+                if (cb.isSelected() && !"Ninguno".equals(cb.getText())) {
+                    selected.add(cb.getText());
+                }
+            }
+        }
+
+        return new JSONArray(selected).toString();
+    }
+
+
+
     // Step 7: Lifestyle part 1
     private JPanel step7Panel() {
         JPanel panel = new JPanel(new GridBagLayout());
@@ -788,4 +826,122 @@ public class PredictHealthJava extends JFrame {
             app.setVisible(true);
         });
     }
+
+    private void outputAllFieldsAsJson() {
+        JSONObject json = new JSONObject();
+
+        // Step 2: User info
+        json.put("nombre", nombreField.getText());
+        json.put("apellido", apellidoField.getText());
+        Date birth = (Date) fechaNacimientoSpinner.getValue();
+        json.put("fecha_nacimiento", new java.text.SimpleDateFormat("yyyy-MM-dd").format(birth));
+        json.put("edad", calculateAge(birth));
+
+        // Step 3: Salud General
+        json.put("salud_general", getSelectedButtonText(step3Panel));
+
+        // Step 4: Historial Médico
+        json.put("diabetes", getCheckBoxState(step4Panel, "Diabetes"));
+        json.put("hipertension", getCheckBoxState(step4Panel, "Hipertensión"));
+        json.put("colesterol", getCheckBoxState(step4Panel, "Colesterol"));
+        json.put("colesterol_alto", getCheckBoxState(step4Panel, "Colesterol Alto"));
+
+        // Step 4.5
+        json.put("acv", getCheckBoxState(step4_5Panel, "Accidente Cerebrovascular (ACV)"));
+        json.put("problemas_corazon", getCheckBoxState(step4_5Panel, "Problemas del Corazón"));
+
+        // Step 5: BMI & presión
+        json.put("bmi", getTextFieldValue(step5Panel, 1)); // or store reference to your BMI field
+        json.put("presion", getSelectedButtonText(step5Panel));
+
+        // Step 6: Medicamentos
+        json.put("medicamentos", getSelectedMedications());
+
+        // Step 7 & 8: Lifestyle
+        json.put("frutas", getSelectedButtonText(step7Panel));
+        json.put("verduras", getSelectedButtonText(step7Panel));
+        json.put("fuma", getSelectedButtonText(step7Panel));
+        json.put("alcohol", getSelectedButtonText(step7Panel));
+        json.put("movilidad", getSelectedButtonText(step7Panel));
+        json.put("actividad_frecuente", getSelectedButtonText(step8Panel));
+
+        json.put("horas_sueno", getTextFieldValue(step8Panel, 0));
+        json.put("nivel_estres", ((JComboBox<?>) step8Panel.getComponent(3)).getSelectedItem());
+        json.put("salud_mental", getTextFieldValue(step8Panel, 4));
+        json.put("actividad_fisica", ((JComboBox<?>) step8Panel.getComponent(6)).getSelectedItem());
+        json.put("actividad_frecuente", getSelectedButtonText(step8Panel, "Sí", "No"));
+        json.put("salud_fisica", getTextFieldValue(step8Panel, 8));
+
+        System.out.println(json.toString(4)); 
+    }
+
+    // Helper methods
+    private int calculateAge(Date birth) {
+        Calendar birthCal = Calendar.getInstance();
+        birthCal.setTime(birth);
+        Calendar today = Calendar.getInstance();
+        int age = today.get(Calendar.YEAR) - birthCal.get(Calendar.YEAR);
+        if(today.get(Calendar.DAY_OF_YEAR) < birthCal.get(Calendar.DAY_OF_YEAR)) age--;
+        return age;
+    }
+
+    // Example: get selected radio button text from a panel
+    private String getSelectedButtonText(JPanel panel) {
+        if (panel == null) return "";  // avoid NPE
+        for (Component comp : panel.getComponents()) {
+            if (comp instanceof JPanel) {
+                for (Component inner : ((JPanel) comp).getComponents()) {
+                    if (inner instanceof JRadioButton rb && rb.isSelected()) return rb.getText();
+                }
+            } else if (comp instanceof JRadioButton rb && rb.isSelected()) {
+                return rb.getText();
+            }
+        }
+        return "";
+    }
+
+
+    // Overload with a keyword to find specific group (like "frutas")
+    private String getSelectedButtonText(JPanel panel, String option1, String option2) {
+        for (Component comp : panel.getComponents()) {
+            if (comp instanceof JPanel) {
+                for (Component inner : ((JPanel) comp).getComponents()) {
+                    if (inner instanceof JRadioButton rb && rb.isSelected()) return rb.getText();
+                }
+            } else if (comp instanceof JRadioButton rb && rb.isSelected()) {
+                return rb.getText();
+            }
+        }
+        // fallback if nothing is selected
+        return "";
+    }
+
+    private Component getComponentByName(JPanel panel, String name) {
+        if (panel == null) return null;
+        for (Component c : panel.getComponents()) {
+            if (c instanceof JCheckBox cb && cb.getText().equals(name)) return cb;
+        }
+        return null;
+    }
+
+    private boolean getCheckBoxState(JPanel panel, String text) {
+        if (panel == null) return false;
+        for (Component comp : panel.getComponents()) {
+            if (comp instanceof JCheckBox cb && cb.getText().equals(text)) return cb.isSelected();
+        }
+        return false;
+    }
+
+    private String getTextFieldValue(JPanel panel, int index) {
+        if (panel == null) return "";
+        int count = 0;
+        for (Component comp : panel.getComponents()) {
+            if (comp instanceof JTextField tf) {
+                if (count == index) return tf.getText();
+                count++;
+            }
+        }
+        return "";
+    }
+
 }

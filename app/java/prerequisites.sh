@@ -19,6 +19,9 @@ fi
 mkdir -p lib
 cd lib
 
+# Download org.json
+wget -O json-20230227.jar https://repo1.maven.org/maven2/org/json/json/20230227/json-20230227.jar
+
 # Download Jackson Jars
 JACKSON_VERSION=2.15.2
 declare -a jars=("jackson-core" "jackson-databind" "jackson-annotations" "jackson-dataformat-xml")
