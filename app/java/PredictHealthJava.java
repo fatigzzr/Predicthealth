@@ -25,6 +25,7 @@ public class PredictHealthJava extends JFrame {
     private JTextField apellidoField;
     private JTextField emailField;
     private JPasswordField passwordField;
+    private JPasswordField confirmPasswordField;
 
     private boolean loggedIn = false;
 
@@ -93,11 +94,11 @@ public class PredictHealthJava extends JFrame {
         try (InputStream in = new FileInputStream("config.properties")) {
             props.load(in);
             loginUrl = props.getProperty("login.url", "http://localhost:8001/auth/login");
-            registerUrl = props.getProperty("register.url", "http://localhost:8002/auth/register");
+            registerUrl = props.getProperty("register.url", "http://localhost:8002/register");
         } catch (IOException e) {
             e.printStackTrace();
             loginUrl = "http://localhost:8001/auth/login";
-            registerUrl = "http://localhost:8002/auth/register";
+            registerUrl = "http://localhost:8002/register";
         }
     }
 
@@ -196,49 +197,75 @@ public class PredictHealthJava extends JFrame {
 
         JButton backBtn = createNavButton("Atrás");
         backBtn.addActionListener(e -> cardLayout.show(mainPanel, "Start"));
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1; gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2; gbc.anchor = GridBagConstraints.WEST;
         registerPanel.add(backBtn, gbc);
 
-        nombreField = createTextField();
-        gbc.gridx = 0; gbc.gridy = 1; gbc.anchor = GridBagConstraints.CENTER;
-        registerPanel.add(new JLabel("Nombre:") {{ setForeground(Color.WHITE); setFont(new Font("SansSerif", Font.BOLD, 16)); }}, gbc);
-        gbc.gridx = 1; registerPanel.add(nombreField, gbc);
-
-        gbc.gridx = 0; gbc.gridy++;
-        apellidoField = createTextField();
-        registerPanel.add(new JLabel("Apellido:") {{ setForeground(Color.WHITE); setFont(new Font("SansSerif", Font.BOLD, 16)); }}, gbc);
-        gbc.gridx = 1; registerPanel.add(apellidoField, gbc);
-
-        gbc.gridx = 0; gbc.gridy++;
+        // Email
+        gbc.gridy++;
         emailField = createTextField();
-        registerPanel.add(new JLabel("Email:") {{ setForeground(Color.WHITE); setFont(new Font("SansSerif", Font.BOLD, 16)); }}, gbc);
-        gbc.gridx = 1; registerPanel.add(emailField, gbc);
+        registerPanel.add(new JLabel("Email:") {{
+            setForeground(Color.WHITE);
+            setFont(new Font("SansSerif", Font.BOLD, 16));
+        }}, gbc);
+        gbc.gridx = 1;
+        registerPanel.add(emailField, gbc);
 
+        // Password
         gbc.gridx = 0; gbc.gridy++;
         passwordField = new JPasswordField();
         passwordField.setPreferredSize(new Dimension(200, 28));
         passwordField.setFont(new Font("SansSerif", Font.PLAIN, 16));
         passwordField.setBackground(new Color(0xF5F2E7));
         passwordField.setForeground(Color.BLACK);
-        registerPanel.add(new JLabel("Password:") {{ setForeground(Color.WHITE); setFont(new Font("SansSerif", Font.BOLD, 16)); }}, gbc);
-        gbc.gridx = 1; registerPanel.add(passwordField, gbc);
+        registerPanel.add(new JLabel("Password:") {{
+            setForeground(Color.WHITE);
+            setFont(new Font("SansSerif", Font.BOLD, 16));
+        }}, gbc);
+        gbc.gridx = 1;
+        registerPanel.add(passwordField, gbc);
 
+        // Confirm Password
+        gbc.gridx = 0; gbc.gridy++;
+        confirmPasswordField = new JPasswordField();
+        confirmPasswordField.setPreferredSize(new Dimension(200, 28));
+        confirmPasswordField.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        confirmPasswordField.setBackground(new Color(0xF5F2E7));
+        confirmPasswordField.setForeground(Color.BLACK);
+        registerPanel.add(new JLabel("Confirm Password:") {{
+            setForeground(Color.WHITE);
+            setFont(new Font("SansSerif", Font.BOLD, 16));
+        }}, gbc);
+        gbc.gridx = 1;
+        registerPanel.add(confirmPasswordField, gbc);
+
+        // Register button
         gbc.gridx = 0; gbc.gridy++; gbc.gridwidth = 2;
         JButton registerBtn = createNavButton("Registrar");
-        registerBtn.addActionListener(e -> sendRegisterData());
+        registerBtn.addActionListener(e -> {
+            if (!String.valueOf(passwordField.getPassword())
+                    .equals(String.valueOf(confirmPasswordField.getPassword()))) {
+                JOptionPane.showMessageDialog(registerPanel, "Passwords do not match", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            sendRegisterData();
+        });
         registerPanel.add(registerBtn, gbc);
 
         return registerPanel;
     }
 
+
     private void sendRegisterData() {
-        String json = String.format(
-            "{\"nombre\":\"%s\",\"apellido\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
-            nombreField.getText(),
-            apellidoField.getText(),
-            emailField.getText(),
-            new String(passwordField.getPassword())
-        );
+        String email = emailField.getText();
+        String password = new String(passwordField.getPassword());
+        String confirm = new String(confirmPasswordField.getPassword());
+
+        String json = String.format("{\"email\":\"%s\",\"contraseña\":\"%s\",\"id_rol\":1}", email, password);
+
+        if (!password.equals(confirm)) {
+            JOptionPane.showMessageDialog(this, "Passwords do not match", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
         try {
             java.net.URL url = new java.net.URL(registerUrl);
