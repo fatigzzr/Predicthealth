@@ -852,7 +852,7 @@ public class PredictHealthJava extends JFrame {
         putNotNull(paciente, "apellido", apellidoField != null ? apellidoField.getText() : "");
         Date birth = (fechaNacimientoSpinner != null) ? (Date) fechaNacimientoSpinner.getValue() : null;
         putNotNull(paciente, "fecha_nacimiento", birth != null ? new java.text.SimpleDateFormat("yyyy-MM-dd").format(birth) : "");
-        putNotNull(paciente, "sexo", getSelectedButtonText(step2Panel)); // assuming sexo in step2Panel
+        putNotNull(paciente, "sexo", getSelectedButtonText(step2Panel));
         putNotNull(paciente, "fecha", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
 
         // Step 3: Salud General
