@@ -51,6 +51,15 @@ public class PredictHealthJava extends JFrame {
     private String registerUrl;
     private String accessToken;
 
+    private JPanel sexoPanel;
+    private JPanel saludPanel;
+    private JPanel presionPanel;
+    private JPanel frutasPanel;
+    private JPanel verdurasPanel;
+    private JPanel fumaPanel;
+    private JPanel alcoholPanel;
+    private JPanel movilidadPanel;
+
     public PredictHealthJava() {
         loadConfig();
 
@@ -84,6 +93,7 @@ public class PredictHealthJava extends JFrame {
         prevButton = createNavButton("Anterior");
 
         nextButton.addActionListener(e -> {
+            if (!validateCurrentStep()) return;
             Component visible = getVisiblePanel();
             String name = getPanelName(visible);
 
@@ -409,7 +419,7 @@ public class PredictHealthJava extends JFrame {
         JRadioButton otroRadio = new JRadioButton("Otro");
         ButtonGroup sexoGroup = new ButtonGroup();
         sexoGroup.add(hombreRadio); sexoGroup.add(mujerRadio); sexoGroup.add(otroRadio);
-        JPanel sexoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        sexoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         sexoPanel.setBackground(new Color(0x132232));
         sexoPanel.add(hombreRadio); sexoPanel.add(mujerRadio); sexoPanel.add(otroRadio);
 
@@ -449,7 +459,7 @@ public class PredictHealthJava extends JFrame {
         gbc.gridx = 0; gbc.gridy = 0;
         panel.add(saludLabel, gbc); gbc.gridy++;
 
-        JPanel saludPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        saludPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         saludPanel.setBackground(new Color(0x132232));
         JRadioButton malo = new JRadioButton("Malo"); 
         JRadioButton regular = new JRadioButton("Regular"); 
@@ -563,7 +573,7 @@ public class PredictHealthJava extends JFrame {
 
         gbc.gridx = 0; gbc.gridy++;
         panel.add(createLabel("Presión Arterial:"), gbc);
-        JPanel presionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        presionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         presionPanel.setBackground(new Color(0x132232));
         JRadioButton normal = new JRadioButton("Normal");
         JRadioButton preHip = new JRadioButton("Pre-Hipertensión");
@@ -594,20 +604,11 @@ public class PredictHealthJava extends JFrame {
         JLabel medsLabel = createLabel("¿Toma alguno de estos medicamentos? Seleccione todos los que apliquen:");
         panel.add(medsLabel, gbc); gbc.gridy++;
 
-        JCheckBox ninguno = createCheckBox("Ninguno");
         JCheckBox beta = createCheckBox("Beta blocker");
         JCheckBox diuretico = createCheckBox("Diurético");
         JCheckBox ace = createCheckBox("ACE inhibitor");
         JCheckBox otro = createCheckBox("Otro");
 
-        // Ninguno disables all other options
-        ninguno.addItemListener(e -> {
-            boolean selected = ninguno.isSelected();
-            beta.setEnabled(!selected); diuretico.setEnabled(!selected); ace.setEnabled(!selected); otro.setEnabled(!selected);
-            if(selected) { beta.setSelected(false); diuretico.setSelected(false); ace.setSelected(false); otro.setSelected(false); }
-        });
-
-        panel.add(ninguno, gbc); gbc.gridy++;
         panel.add(beta, gbc); gbc.gridy++;
         panel.add(diuretico, gbc); gbc.gridy++;
         panel.add(ace, gbc); gbc.gridy++;
@@ -622,7 +623,7 @@ public class PredictHealthJava extends JFrame {
         List<String> selected = new ArrayList<>();
         for (Component comp : step6Panel.getComponents()) {
             if (comp instanceof JCheckBox cb) {
-                if (cb.isSelected() && !"Ninguno".equals(cb.getText())) {
+                if (cb.isSelected() && !"Otro".equals(cb.getText())) {
                     selected.add(cb.getText());
                 }
             }
@@ -647,7 +648,7 @@ public class PredictHealthJava extends JFrame {
         JRadioButton frutasNo = new JRadioButton("No");
         ButtonGroup frutasGroup = new ButtonGroup();
         frutasGroup.add(frutasSi); frutasGroup.add(frutasNo);
-        JPanel frutasPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        frutasPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         frutasPanel.setBackground(new Color(0x132232));
         frutasPanel.add(frutasSi); frutasPanel.add(frutasNo);
 
@@ -656,7 +657,7 @@ public class PredictHealthJava extends JFrame {
         JRadioButton verdurasNo = new JRadioButton("No");
         ButtonGroup verdurasGroup = new ButtonGroup();
         verdurasGroup.add(verdurasSi); verdurasGroup.add(verdurasNo);
-        JPanel verdurasPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        verdurasPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         verdurasPanel.setBackground(new Color(0x132232));
         verdurasPanel.add(verdurasSi); verdurasPanel.add(verdurasNo);
 
@@ -678,7 +679,7 @@ public class PredictHealthJava extends JFrame {
         JRadioButton fumaNo = new JRadioButton("No");
         ButtonGroup fumaGroup = new ButtonGroup();
         fumaGroup.add(fumaSi); fumaGroup.add(fumaNo);
-        JPanel fumaPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        fumaPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         fumaPanel.setBackground(new Color(0x132232));
         fumaPanel.add(fumaSi); fumaPanel.add(fumaNo);
 
@@ -687,7 +688,7 @@ public class PredictHealthJava extends JFrame {
         JRadioButton alcoholNo = new JRadioButton("No");
         ButtonGroup alcoholGroup = new ButtonGroup();
         alcoholGroup.add(alcoholSi); alcoholGroup.add(alcoholNo);
-        JPanel alcoholPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        alcoholPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         alcoholPanel.setBackground(new Color(0x132232));
         alcoholPanel.add(alcoholSi); alcoholPanel.add(alcoholNo);
 
@@ -696,7 +697,7 @@ public class PredictHealthJava extends JFrame {
         JRadioButton movilidadNo = new JRadioButton("No");
         ButtonGroup movilidadGroup = new ButtonGroup();
         movilidadGroup.add(movilidadSi); movilidadGroup.add(movilidadNo);
-        JPanel movilidadPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        movilidadPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         movilidadPanel.setBackground(new Color(0x132232));
         movilidadPanel.add(movilidadSi); movilidadPanel.add(movilidadNo);
 
@@ -852,11 +853,17 @@ public class PredictHealthJava extends JFrame {
         putNotNull(paciente, "apellido", apellidoField != null ? apellidoField.getText() : "");
         Date birth = (fechaNacimientoSpinner != null) ? (Date) fechaNacimientoSpinner.getValue() : null;
         putNotNull(paciente, "fecha_nacimiento", birth != null ? new java.text.SimpleDateFormat("yyyy-MM-dd").format(birth) : "");
-        putNotNull(paciente, "sexo", getSelectedButtonText(step2Panel));
+        
+        String sexoValue = getSelectedButtonText(sexoPanel);
+        if ("Hombre".equals(sexoValue)) sexoValue = "M";
+        else if ("Mujer".equals(sexoValue)) sexoValue = "F";
+        else if ("Otro".equals(sexoValue)) sexoValue = "";
+        putNotNull(paciente, "sexo", sexoValue);
+
         putNotNull(paciente, "fecha", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
 
         // Step 3: Salud General
-        putNotNull(salud, "salud_general", getSelectedButtonText(step3Panel));
+        putNotNull(salud, "salud_general", !getSelectedButtonText(saludPanel).isEmpty() ? getSelectedButtonText(saludPanel) : "NO SELECCIONADO");
 
         // Step 4: Historial Médico
         putNotNull(salud, "diabetes", getCheckBoxState(step4Panel, "Diabetes"));
@@ -869,18 +876,18 @@ public class PredictHealthJava extends JFrame {
         putNotNull(salud, "problemas_corazon", getCheckBoxState(step4_5Panel, "Problemas del Corazón"));
 
         // Step 5: BMI & presión
-        putNotNull(salud, "bmi", getTextFieldValue(step5Panel, 1));
-        putNotNull(salud, "presion", getSelectedButtonText(step5Panel));
+        putNotNull(salud, "bmi", getTextFieldValue(step5Panel, 0));
+        putNotNull(salud, "presion", !getSelectedButtonText(presionPanel).isEmpty() ? getSelectedButtonText(presionPanel) : "NO SELECCIONADO");
 
         // Step 6: Medicamentos
         putNotNull(salud, "medicamentos", getSelectedMedications());
 
         // Step 7 & 8: Lifestyle
-        putNotNull(salud, "frutas", getSelectedButtonText(step7Panel));
-        putNotNull(salud, "verduras", getSelectedButtonText(step7Panel));
-        putNotNull(salud, "fuma", getSelectedButtonText(step7Panel));
-        putNotNull(salud, "alcohol", getSelectedButtonText(step7Panel));
-        putNotNull(salud, "movilidad", getSelectedButtonText(step7Panel));
+        putNotNull(salud, "frutas", getSelectedButtonText(frutasPanel));
+        putNotNull(salud, "verduras", getSelectedButtonText(verdurasPanel));
+        putNotNull(salud, "fuma", getSelectedButtonText(fumaPanel));
+        putNotNull(salud, "alcohol", getSelectedButtonText(alcoholPanel));
+        putNotNull(salud, "movilidad", getSelectedButtonText(movilidadPanel));
         putNotNull(salud, "actividad_frecuente", getSelectedButtonText(step8Panel));
         putNotNull(salud, "horas_sueno", getTextFieldValue(step8Panel, 0));
         putNotNull(salud, "nivel_estres", getComboBoxSelected(step8Panel, 3));
@@ -1000,15 +1007,18 @@ public class PredictHealthJava extends JFrame {
     }
 
     private String getTextFieldValue(JPanel panel, int index) {
-        if (panel == null) return "";
+        if (panel == null) return "0";
         int count = 0;
         for (Component comp : panel.getComponents()) {
             if (comp instanceof JTextField tf) {
-                if (count == index) return tf.getText();
+                if (count == index) {
+                    String val = tf.getText();
+                    return (val == null || val.trim().isEmpty()) ? "0" : val;
+                }
                 count++;
             }
         }
-        return "";
+        return "0";
     }
 
     // Helper to add values, using empty string if null
@@ -1023,5 +1033,50 @@ public class PredictHealthJava extends JFrame {
             return (selected != null) ? selected : "";
         }
         return "";
+    }
+
+    // Validator for required fields on each step
+    private boolean validateCurrentStep() {
+        Component visible = getVisiblePanel();
+        String name = getPanelName(visible);
+        // Step 2: Nombre, Apellido, Fecha de Nacimiento, Sexo
+        if (name.equals("Step2")) {
+            if (nombreField == null || nombreField.getText().trim().isEmpty() ||
+                apellidoField == null || apellidoField.getText().trim().isEmpty() ||
+                fechaNacimientoSpinner == null || fechaNacimientoSpinner.getValue() == null ||
+                getSelectedButtonText(sexoPanel).isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Debe completar todos los campos obligatorios: Nombre, Apellido, Fecha de nacimiento y Sexo.", "Campos obligatorios", JOptionPane.WARNING_MESSAGE);
+                return false;
+            }
+        }
+        // Step 3: Salud General obligatorio
+        if (name.equals("Step3")) {
+            if (getSelectedButtonText(saludPanel).isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Seleccione una opción de Salud General.", "Campos obligatorios", JOptionPane.WARNING_MESSAGE);
+                return false;
+            }
+        }
+        // Step 5: BMI obligatorio y Presión arterial obligatorio
+        if (name.equals("Step5")) {
+            String bmiVal = getTextFieldValue(step5Panel, 0);
+            if (bmiVal.trim().isEmpty() || getSelectedButtonText(presionPanel).isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Debe completar BMI y seleccionar una opción de Presión arterial.", "Campos obligatorios", JOptionPane.WARNING_MESSAGE);
+                return false;
+            }
+        }
+        // Step 7: Frutas, Verduras, Fuma, Alcohol, Movilidad
+        if (name.equals("Step7")) {
+            if (getSelectedButtonText(frutasPanel, "Sí", "No").isEmpty() ||
+                getSelectedButtonText(verdurasPanel, "Sí", "No").isEmpty() ||
+                getSelectedButtonText(fumaPanel, "Sí", "No").isEmpty() ||
+                getSelectedButtonText(alcoholPanel, "Sí", "No").isEmpty() ||
+                getSelectedButtonText(movilidadPanel, "Sí", "No").isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Complete todas las opciones de estilo de vida (frutas, verduras, fuma, alcohol, movilidad).", "Campos obligatorios", JOptionPane.WARNING_MESSAGE);
+                return false;
+            }
+        }
+        // Step 8: Actividad frecuente, etc. (if any radio is required can add here)
+        // Add more step validations as needed, remaining conservative
+        return true;
     }
 }
