@@ -1,83 +1,82 @@
+# services/health_service/main.py
 import os
-from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from dicttoxml import dicttoxml
-import xmltodict
+from datetime import datetime
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from services.shared.db import get_conn
+import traceback
+from typing import Optional
 
-from services.shared.auth import verify_jwt_and_jti
-
-APP_PORT = int(os.getenv("HEALTH_PORT", "8003"))
+APP_PORT = int(os.getenv("HEALTH_PORT", "8004"))
 
 app = FastAPI(title="Health Service", version="0.1.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["Authorization", "Content-Type"],
-)
 
+# ---- Pydantic model ----
+class HealthEntry(BaseModel):
+    id_usuario: int
+    frutas: Optional[str] = ""
+    verduras: Optional[str] = ""
+    sal: Optional[str] = ""
+    fuma: Optional[str] = ""
+    alcohol: Optional[str] = ""
+    movilidad: Optional[str] = ""
+    horas_sueno: Optional[str] = ""
+    nivel_estres: Optional[str] = ""
+    salud_mental: Optional[str] = ""
+    actividad_fisica: Optional[str] = ""
+    actividad_frecuente: Optional[str] = ""
+    salud_fisica: Optional[str] = ""
+    fecha: Optional[str] = None  # optional client-supplied timestamp
 
-def _xml(data: dict, root: str) -> Response:
-    return Response(content=dicttoxml(data, custom_root=root, attr_type=False), media_type="application/xml")
+# ---- Mapping JSON keys to pregunta IDs ----
+KEY_TO_PREGUNTA_ID = {
+    "frutas": 1,
+    "verduras": 2,
+    "sal": 3,
+    "fuma": 4,
+    "alcohol": 5,
+    "movilidad": 6,
+    "horas_sueno": 7,
+    "nivel_estres": 8,
+    "salud_mental": 9,
+    "actividad_fisica": 10,
+    "actividad_frecuente": 11,
+    "salud_fisica": 12,
+}
 
+# ---- Endpoint ----
+@app.post("/estilo_vida")
+async def create_health_entries(entry: HealthEntry):
+    fecha = entry.fecha or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def _require_bearer(req: Request):
-    auth = req.headers.get("authorization") or req.headers.get("Authorization")
-    if not auth or not auth.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="missing_or_invalid_token")
-    token = auth.split()[1]
-    verify_jwt_and_jti(token)
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                for key, id_pregunta in KEY_TO_PREGUNTA_ID.items():
+                    valor = getattr(entry, key, "")
+                    cur.execute(
+                        """
+                        INSERT INTO respuesta_estilo_vida
+                        (id_usuario, id_pregunta, valor, fecha)
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (
+                            entry.id_usuario,
+                            id_pregunta,
+                            valor,
+                            fecha
+                        )
+                    )
+                conn.commit()
+    except Exception as e:
+        tb = traceback.format_exc()
+        print("=== DATABASE ERROR ===")
+        print(tb)
+        print("======================")
+        raise HTTPException(status_code=500, detail=f"DB error: {e}")
 
-
-@app.get("/health/health")
-async def health():
-    return _xml({"status": "ok"}, "Health")
-
-
-@app.get("/health/entities")
-async def entities(req: Request):
-    _require_bearer(req)
-    # Placeholder: list of entities
-    return _xml({"total": 0, "entities": []}, "Entities")
-
-
-@app.get("/health/entities/{name}")
-async def entity_data(name: str, req: Request):
-    _require_bearer(req)
-    # Placeholder: empty dataset
-    return _xml({"entidad": name, "columnas": [], "datos": []}, "EntityData")
-
-
-@app.post("/health/entities/{name}")
-async def entity_insert(name: str, req: Request):
-    _require_bearer(req)
-    # Accept XML from gateway; parse payload
-    body = (await req.body()).decode()
-    _ = xmltodict.parse(body) if body else {}
-    return _xml({"success": True, "inserted_id": 0}, "InsertResponse")
-
-
-@app.put("/health/entities/{name}/{pk}")
-async def entity_update(name: str, pk: str, req: Request):
-    _require_bearer(req)
-    body = (await req.body()).decode()
-    _ = xmltodict.parse(body) if body else {}
-    return _xml({"success": True, "updated": 1}, "UpdateResponse")
-
-
-@app.delete("/health/entities/{name}/{pk}")
-async def entity_delete(name: str, pk: str, req: Request):
-    _require_bearer(req)
-    return _xml({"success": True, "deleted": 1}, "DeleteResponse")
-
-
-def create_app():
-    return app
-
+    return {"status": "ok", "inserted_for_usuario": entry.id_usuario}
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=APP_PORT)
-
-

@@ -59,6 +59,8 @@ public class PredictHealthJava extends JFrame {
     private JPanel fumaPanel;
     private JPanel alcoholPanel;
     private JPanel movilidadPanel;
+    private JTextField salField;
+    
 
     public PredictHealthJava() {
         loadConfig();
@@ -662,7 +664,7 @@ public class PredictHealthJava extends JFrame {
         verdurasPanel.add(verdurasSi); verdurasPanel.add(verdurasNo);
 
         JLabel salLabel = createLabel("¿Cuántos gramos de sal consume diariamente?");
-        JTextField salField = createTextField();
+        salField = createTextField();
         ((AbstractDocument) salField.getDocument()).setDocumentFilter(new DocumentFilter() {
             @Override
             public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
@@ -847,6 +849,7 @@ public class PredictHealthJava extends JFrame {
     private void outputAllFieldsAsJson() {
         JSONObject paciente = new JSONObject();
         JSONObject salud = new JSONObject();
+        JSONObject estilo_vida = new JSONObject();
 
         // Step 2: Paciente info
         putNotNull(paciente, "nombre", nombreField != null ? nombreField.getText() : "");
@@ -883,18 +886,20 @@ public class PredictHealthJava extends JFrame {
         putNotNull(salud, "medicamentos", getSelectedMedications());
 
         // Step 7 & 8: Lifestyle
-        putNotNull(salud, "frutas", getSelectedButtonText(frutasPanel));
-        putNotNull(salud, "verduras", getSelectedButtonText(verdurasPanel));
-        putNotNull(salud, "fuma", getSelectedButtonText(fumaPanel));
-        putNotNull(salud, "alcohol", getSelectedButtonText(alcoholPanel));
-        putNotNull(salud, "movilidad", getSelectedButtonText(movilidadPanel));
-        putNotNull(salud, "actividad_frecuente", getSelectedButtonText(step8Panel));
-        putNotNull(salud, "horas_sueno", getTextFieldValue(step8Panel, 0));
-        putNotNull(salud, "nivel_estres", getComboBoxSelected(step8Panel, 3));
-        putNotNull(salud, "salud_mental", getTextFieldValue(step8Panel, 4));
-        putNotNull(salud, "actividad_fisica", getComboBoxSelected(step8Panel, 6));
-        putNotNull(salud, "actividad_frecuente2", getSelectedButtonText(step8Panel, "Sí", "No"));
-        putNotNull(salud, "salud_fisica", getTextFieldValue(step8Panel, 8));
+        putNotNull(estilo_vida, "frutas", getSelectedButtonText(frutasPanel));
+        putNotNull(estilo_vida, "verduras", getSelectedButtonText(verdurasPanel));
+        String salValue = (salField != null && !salField.getText().trim().isEmpty()) ? salField.getText().trim() : "0";
+        putNotNull(estilo_vida, "sal", salValue);
+        putNotNull(estilo_vida, "fuma", getSelectedButtonText(fumaPanel));
+        putNotNull(estilo_vida, "alcohol", getSelectedButtonText(alcoholPanel));
+        putNotNull(estilo_vida, "movilidad", getSelectedButtonText(movilidadPanel));
+        putNotNull(estilo_vida, "actividad_frecuente", getSelectedButtonText(step8Panel));
+        putNotNull(estilo_vida, "horas_sueno", getTextFieldValue(step8Panel, 0));
+        putNotNull(estilo_vida, "nivel_estres", getComboBoxSelected(step8Panel, 3));
+        putNotNull(estilo_vida, "salud_mental", getTextFieldValue(step8Panel, 4));
+        putNotNull(estilo_vida, "actividad_fisica", getComboBoxSelected(step8Panel, 6));
+        //putNotNull(salud, "actividad_frecuente2", getSelectedButtonText(step8Panel, "Sí", "No"));
+        putNotNull(estilo_vida, "salud_fisica", getTextFieldValue(step8Panel, 8));
 
         // Retrieve user ID from Auth microservice
         String userId = null;
@@ -918,6 +923,7 @@ public class PredictHealthJava extends JFrame {
             e.printStackTrace();
         }
         if (userId != null) paciente.put("id_usuario", userId);
+        if (userId != null) estilo_vida.put("id_usuario", userId);
 
         // POST Paciente JSON
         try {
@@ -939,10 +945,32 @@ public class PredictHealthJava extends JFrame {
             e.printStackTrace();
         }
 
+        // POST estilo_vida JSON
+        try {
+            URL url = new URL("http://localhost:8004/estilo_vida");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json; utf-8");
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                byte[] input = estilo_vida.toString().getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
+
+            int code = conn.getResponseCode();
+            System.out.println("POST /estilo_vida -> Response code: " + code);
+            conn.disconnect();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         System.out.println("Paciente:");
         System.out.println(paciente.toString(4));
 
-        // Still print Salud
+        System.out.println("Estilo_Vida:");
+        System.out.println(estilo_vida.toString(4));
+
         System.out.println("Salud:");
         System.out.println(salud.toString(4));
     }

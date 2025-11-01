@@ -34,9 +34,16 @@ async def create_paciente(paciente: Paciente):
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO "paciente" 
-                    (id_usuario, nombre, apellido, fecha_nacimiento, sexo, fecha)
+                    INSERT INTO paciente
+                        (id_usuario, nombre, apellido, fecha_nacimiento, sexo, fecha)
                     VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id_usuario) DO UPDATE
+                    SET
+                        nombre = EXCLUDED.nombre,
+                        apellido = EXCLUDED.apellido,
+                        fecha_nacimiento = EXCLUDED.fecha_nacimiento,
+                        sexo = EXCLUDED.sexo,
+                        fecha = EXCLUDED.fecha
                     RETURNING id_datos
                     """,
                     (
