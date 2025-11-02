@@ -189,8 +189,13 @@ def predict_risk(user_id: int):
     # Debug: Print raw probability
     print(f"DEBUG: Raw model probability: {y_prob:.6f}")
 
-    # --- Convert probability to percentage (0-100%) ---
-    risk_percentage = float(y_prob * 100)
+    # --- Scale threshold-relative risk to 0-100% ---
+    # Threshold is 0.2 - anything above this is concerning
+    # Scale so that 0.36 (1.8x threshold) maps to 100%
+    # Formula: risk_percentage = min((y_prob / threshold) / 1.75 * 100, 100)
+    threshold = 0.2
+    raw_risk = y_prob / threshold
+    risk_percentage = float(min(raw_risk / 1.75 * 100, 100))
 
     # --- Risk level ranges based on percentage (0-100%) ---
     if risk_percentage <= 20:
@@ -208,6 +213,8 @@ def predict_risk(user_id: int):
     else:  # 81-100
         risk_level = 5
         risk_label = "Muy Alto"
+    
+    print(f"DEBUG: Scaled risk percentage: {risk_percentage:.2f}%")
 
     return {
         "probability": float(y_prob),
