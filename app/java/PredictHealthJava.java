@@ -110,7 +110,7 @@ public class PredictHealthJava extends JFrame {
 
             if (name.equals("Register")) sendRegisterData();
             if (name.equals("Step1") && !loggedIn) {
-                JOptionPane.showMessageDialog(this, "Please login first.");
+                JOptionPane.showMessageDialog(this, "Por favor inicie sesión primero.");
                 return;
             }
 
@@ -147,7 +147,7 @@ public class PredictHealthJava extends JFrame {
                         }
                         authConn.disconnect();
                     } catch (Exception ex) {
-                        JOptionPane.showMessageDialog(this, "Could not retrieve user ID for risk prediction", "Error", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "No se pudo obtener el ID de usuario para la predicción de riesgo", "Error", JOptionPane.ERROR_MESSAGE);
                     }
                     if (userId != null) {
                         URL predUrl = new URL("http://localhost:8008/predict/" + userId);
@@ -169,7 +169,7 @@ public class PredictHealthJava extends JFrame {
                                     String msg = String.format("Probabilidad de diabetes: %.1f%%\nCategoría de riesgo: %s", pct, cat);
                                     JOptionPane.showMessageDialog(this, msg, "Predicción de riesgo de diabetes", JOptionPane.INFORMATION_MESSAGE);
                                 } else {
-                                    JOptionPane.showMessageDialog(this, "No prediction received!", "Predicción", JOptionPane.WARNING_MESSAGE);
+                                    JOptionPane.showMessageDialog(this, "¡No se recibió predicción!", "Predicción", JOptionPane.WARNING_MESSAGE);
                                 }
                             }
                         } else {
@@ -177,7 +177,7 @@ public class PredictHealthJava extends JFrame {
                         }
                         predConn.disconnect();
                     } else {
-                        JOptionPane.showMessageDialog(this, "User ID not found. No prediction can be made.", "Error", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "ID de usuario no encontrado. No se puede hacer la predicción.", "Error", JOptionPane.ERROR_MESSAGE);
                     }
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(this, "Error en la predicción: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -360,7 +360,7 @@ public class PredictHealthJava extends JFrame {
         registerBtn.addActionListener(e -> {
             if (!String.valueOf(passwordField.getPassword())
                     .equals(String.valueOf(confirmPasswordField.getPassword()))) {
-                JOptionPane.showMessageDialog(registerPanel, "Passwords do not match", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(registerPanel, "Las contraseñas no coinciden", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             sendRegisterData();
@@ -379,7 +379,7 @@ public class PredictHealthJava extends JFrame {
         String json = String.format("{\"email\":\"%s\",\"contraseña\":\"%s\",\"id_rol\":1}", email, password);
 
         if (!password.equals(confirm)) {
-            JOptionPane.showMessageDialog(this, "Passwords do not match", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Las contraseñas no coinciden", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -391,11 +391,11 @@ public class PredictHealthJava extends JFrame {
             conn.setDoOutput(true);
             try(java.io.OutputStream os = conn.getOutputStream()){ os.write(json.getBytes()); }
             int code = conn.getResponseCode();
-            if(code==200) JOptionPane.showMessageDialog(this,"Registration successful!");
-            else JOptionPane.showMessageDialog(this,"Registration failed: "+code);
+            if(code==200) JOptionPane.showMessageDialog(this,"¡Registro exitoso!");
+            else JOptionPane.showMessageDialog(this,"Registro fallido: "+code);
             conn.disconnect();
         } catch(Exception ex){
-            JOptionPane.showMessageDialog(this,"Error contacting register service");
+            JOptionPane.showMessageDialog(this,"Error al contactar el servicio de registro");
             ex.printStackTrace();
         }
     }
@@ -472,21 +472,21 @@ public class PredictHealthJava extends JFrame {
                 }
 
                 loggedIn = true;
-                JOptionPane.showMessageDialog(this, "Login successful!");
+                JOptionPane.showMessageDialog(this, "¡Inicio de sesión exitoso!");
                 cardLayout.show(mainPanel, "Step2");
             } else {
                 loggedIn = false;
                 if (code == 401) {
-                    JOptionPane.showMessageDialog(this, "Invalid credentials. Please check your email and password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "Credenciales inválidas. Por favor verifique su correo electrónico y contraseña.", "Inicio de sesión fallido", JOptionPane.ERROR_MESSAGE);
                 } else {
-                    JOptionPane.showMessageDialog(this, "Login failed. Please try again.", "Login Failed", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "Inicio de sesión fallido. Por favor intente de nuevo.", "Inicio de sesión fallido", JOptionPane.ERROR_MESSAGE);
                 }
             }
 
             conn.disconnect();
         } catch(Exception ex){
             loggedIn = false;
-            JOptionPane.showMessageDialog(this,"Error contacting auth service");
+            JOptionPane.showMessageDialog(this,"Error al contactar el servicio de autenticación");
             ex.printStackTrace();
         }
     }
