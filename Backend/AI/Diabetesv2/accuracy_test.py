@@ -1,4 +1,3 @@
-# accuracy_test.py
 import os
 import joblib
 import pandas as pd
@@ -7,7 +6,7 @@ from sklearn.metrics import confusion_matrix, roc_auc_score
 from scipy import stats
 
 # --- Load artifacts ---
-ARTIFACT_DIR = "Backend/AI/diabetes2/artifacts"
+ARTIFACT_DIR = "Backend/AI/diabetesv2/artifacts"
 pipeline = joblib.load(os.path.join(ARTIFACT_DIR, "diabetes_pipeline.joblib"))
 scaler = pipeline["scaler"]
 calibrated = pipeline["calibrated"]
@@ -30,7 +29,9 @@ def preprocess_patient(df_in):
     ]
     age_map = {v: i for i, v in enumerate(age_order)}
     gen_map = {"Poor": 1, "Fair": 2, "Good": 3, "Very good": 4, "Excellent": 5}
-    num_for_scaler = ["BMI", "PhysHlth", "MentHlth", "Age_ord", "GenHlth_ord", "Education", "Income", "BMI_x_Age"]
+    
+    # Numeric features for scaling
+    num_for_scaler = ["BMI", "PhysHlth", "MentHlth", "Age_ord", "GenHlth_ord", "BMI_x_Age"]
 
     # Age ordinal
     if "Age" in df.columns:
@@ -38,36 +39,30 @@ def preprocess_patient(df_in):
     # GenHlth ordinal
     if "GenHlth" in df.columns:
         df["GenHlth_ord"] = df["GenHlth"].map(gen_map).fillna(pd.to_numeric(df["GenHlth"], errors="coerce")).fillna(3)
-    # Education & Income
-    for col in ["Education", "Income"]:
-        if col in df.columns and df[col].dtype == object:
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
-    # Binary columns
+    
+    # Binary columns (removed CholCheck, AnyHealthcare, NoDocbcCost)
     bin_feats = [
-        "HighBP", "HighChol", "CholCheck", "Smoker", "Stroke", "HeartDiseaseorAttack",
-        "PhysActivity", "Fruits", "Veggies", "HvyAlcoholConsump", "AnyHealthcare",
-        "NoDocbcCost", "DiffWalk", "Sex"
+        "HighBP", "HighChol", "Smoker", "Stroke", "HeartDiseaseorAttack",
+        "PhysActivity", "Fruits", "Veggies", "HvyAlcoholConsump",
+        "DiffWalk", "Sex"
     ]
     for col in bin_feats:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+    
     # Derived features
     if "BMI" in df.columns and "Age_ord" in df.columns:
         df["BMI_x_Age"] = df["BMI"] * df["Age_ord"]
-    # Ensure all features
+    
+    # Ensure all features exist
     for c in FEATURES:
         if c not in df.columns:
             df[c] = 0
+    
     # Reorder and scale
     df = df[FEATURES].copy()
     df[num_for_scaler] = scaler.transform(df[num_for_scaler])
     return df
-
-# --- Prediction ---
-# X_test = preprocess_patient(df)
-# y_test = df["Diabetes_binary"].astype(int).values
-# y_pred = calibrated.predict(X_test)
-# y_prob = calibrated.predict_proba(X_test)[:, 1]
 
 # --- Prediction with custom threshold ---
 X_test = preprocess_patient(df)
@@ -76,7 +71,6 @@ y_prob = calibrated.predict_proba(X_test)[:, 1]
 
 threshold = 0.2
 y_pred = (y_prob >= threshold).astype(int)
-
 
 # --- Accuracy ---
 correct = (y_pred == y_test).sum()

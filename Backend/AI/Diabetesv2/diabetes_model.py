@@ -68,19 +68,18 @@ X[num_for_scaler] = scaler.fit_transform(X[num_for_scaler])
 # Cross-validation
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
 
-# Optuna objective
+# Optuna objective (simpler, less specific ranges)
 def objective(trial):
     params = {
-        "n_estimators": trial.suggest_int("n_estimators", 300, 800),
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.15, log=True),
-        "num_leaves": trial.suggest_int("num_leaves", 16, 256),
-        "max_depth": trial.suggest_int("max_depth", 4, 12),
-        "min_child_samples": trial.suggest_int("min_child_samples", 10, 100),
-        "subsample": trial.suggest_float("subsample", 0.6, 1.0),
-        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
-        "reg_alpha": trial.suggest_float("reg_alpha", 0.0, 2.0),
-        "reg_lambda": trial.suggest_float("reg_lambda", 0.0, 2.0),
-        "min_gain_to_split": 0.0,
+        "n_estimators": trial.suggest_int("n_estimators", 300, 500),
+        "learning_rate": trial.suggest_float("learning_rate", 0.05, 0.1),
+        "num_leaves": trial.suggest_int("num_leaves", 32, 128),
+        "max_depth": trial.suggest_int("max_depth", 4, 8),
+        "min_child_samples": trial.suggest_int("min_child_samples", 20, 60),
+        "subsample": trial.suggest_float("subsample", 0.7, 1.0),
+        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.7, 1.0),
+        "reg_alpha": trial.suggest_float("reg_alpha", 0.0, 1.0),
+        "reg_lambda": trial.suggest_float("reg_lambda", 0.0, 1.0),
         "random_state": RANDOM_STATE,
         "n_jobs": -1,
     }
@@ -89,7 +88,7 @@ def objective(trial):
     return float(np.mean(scores))
 
 study = optuna.create_study(direction="maximize", study_name="lgbm_diabetes_auc")
-study.optimize(objective, n_trials=50, show_progress_bar=True)
+study.optimize(objective, n_trials=20, show_progress_bar=True)  # fewer trials for faster optimization
 
 best_params = study.best_params
 best_params.update({"random_state": RANDOM_STATE, "n_jobs": -1})
