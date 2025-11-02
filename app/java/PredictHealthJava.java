@@ -315,40 +315,42 @@ public class PredictHealthJava extends JFrame {
         registerPanel.add(backBtn, gbc);
 
         // Email
+        gbc.gridx = 0;
         gbc.gridy++;
+        gbc.gridwidth = 1;
+        JLabel emailLabel = new JLabel("E-mail");
+        emailLabel.setForeground(Color.WHITE);
+        emailLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        registerPanel.add(emailLabel, gbc);
         emailField = createTextField();
-        registerPanel.add(new JLabel("Email:") {{
-            setForeground(Color.WHITE);
-            setFont(new Font("SansSerif", Font.BOLD, 16));
-        }}, gbc);
         gbc.gridx = 1;
         registerPanel.add(emailField, gbc);
 
         // Password
         gbc.gridx = 0; gbc.gridy++;
+        JLabel passwordLabel = new JLabel("Contraseña");
+        passwordLabel.setForeground(Color.WHITE);
+        passwordLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        registerPanel.add(passwordLabel, gbc);
         passwordField = new JPasswordField();
         passwordField.setPreferredSize(new Dimension(200, 28));
         passwordField.setFont(new Font("SansSerif", Font.PLAIN, 16));
         passwordField.setBackground(new Color(0xF5F2E7));
         passwordField.setForeground(Color.BLACK);
-        registerPanel.add(new JLabel("Password:") {{
-            setForeground(Color.WHITE);
-            setFont(new Font("SansSerif", Font.BOLD, 16));
-        }}, gbc);
         gbc.gridx = 1;
         registerPanel.add(passwordField, gbc);
 
         // Confirm Password
         gbc.gridx = 0; gbc.gridy++;
+        JLabel confirmPasswordLabel = new JLabel("Confirmar Contraseña");
+        confirmPasswordLabel.setForeground(Color.WHITE);
+        confirmPasswordLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        registerPanel.add(confirmPasswordLabel, gbc);
         confirmPasswordField = new JPasswordField();
         confirmPasswordField.setPreferredSize(new Dimension(200, 28));
         confirmPasswordField.setFont(new Font("SansSerif", Font.PLAIN, 16));
         confirmPasswordField.setBackground(new Color(0xF5F2E7));
         confirmPasswordField.setForeground(Color.BLACK);
-        registerPanel.add(new JLabel("Confirm Password:") {{
-            setForeground(Color.WHITE);
-            setFont(new Font("SansSerif", Font.BOLD, 16));
-        }}, gbc);
         gbc.gridx = 1;
         registerPanel.add(confirmPasswordField, gbc);
 
@@ -408,24 +410,41 @@ public class PredictHealthJava extends JFrame {
         gbc.insets = new Insets(8,8,8,8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
+        // Back button
+        JButton backBtn = createNavButton("Atrás");
+        backBtn.addActionListener(e -> {
+            cardLayout.show(mainPanel, "Start");
+            updateNavButtons();
+        });
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2; gbc.anchor = GridBagConstraints.WEST;
+        step1Panel.add(backBtn, gbc);
+
+        // Email
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 1;
         JLabel emailLabel = createLabel("Email:");
         JTextField emailField = createTextField();
+        step1Panel.add(emailLabel, gbc);
+        gbc.gridx = 1;
+        step1Panel.add(emailField, gbc);
+
+        // Password
+        gbc.gridx = 0; gbc.gridy = 2;
         JLabel passwordLabel = createLabel("Password:");
         JPasswordField passwordField = new JPasswordField();
         passwordField.setPreferredSize(new Dimension(200,28));
+        step1Panel.add(passwordLabel, gbc);
+        gbc.gridx = 1;
+        step1Panel.add(passwordField, gbc);
 
-        gbc.gridx=0; gbc.gridy=0; step1Panel.add(emailLabel, gbc);
-        gbc.gridx=1; step1Panel.add(emailField, gbc);
-        gbc.gridx=0; gbc.gridy=1; step1Panel.add(passwordLabel, gbc);
-        gbc.gridx=1; step1Panel.add(passwordField, gbc);
-
+        // Login button
         JButton loginBtn = createNavButton("Login");
         loginBtn.addActionListener(e -> {
             sendLoginData(emailField.getText(), new String(passwordField.getPassword()));
             updateNavButtons();
         });
 
-        gbc.gridx=0; gbc.gridy=2; gbc.gridwidth=2; step1Panel.add(loginBtn, gbc);
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
+        step1Panel.add(loginBtn, gbc);
 
         return step1Panel;
     }
@@ -455,6 +474,13 @@ public class PredictHealthJava extends JFrame {
                 loggedIn = true;
                 JOptionPane.showMessageDialog(this, "Login successful!");
                 cardLayout.show(mainPanel, "Step2");
+            } else {
+                loggedIn = false;
+                if (code == 401) {
+                    JOptionPane.showMessageDialog(this, "Invalid credentials. Please check your email and password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Login failed. Please try again.", "Login Failed", JOptionPane.ERROR_MESSAGE);
+                }
             }
 
             conn.disconnect();
