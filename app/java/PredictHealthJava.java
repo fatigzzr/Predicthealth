@@ -77,15 +77,24 @@ public class PredictHealthJava extends JFrame {
 
         mainPanel.add(startPanel(), "Start");
         mainPanel.add(registerPanel(), "Register");
-        mainPanel.add(createStep1Panel(), "Step1");
-        mainPanel.add(step2Panel(), "Step2");
-        mainPanel.add(step3Panel(), "Step3"); 
-        mainPanel.add(step4Panel(), "Step4"); 
-        mainPanel.add(step4_5Panel(), "Step4_5"); 
-        mainPanel.add(step5Panel(), "Step5"); 
-        mainPanel.add(step6Panel(), "Step6"); 
-        mainPanel.add(step7Panel(), "Step7"); 
-        mainPanel.add(step8Panel(), "Step8"); 
+        step1Panel = createStep1Panel();
+        mainPanel.add(step1Panel, "Step1");
+        step2Panel = step2Panel();
+        mainPanel.add(step2Panel, "Step2");
+        step3Panel = step3Panel();
+        mainPanel.add(step3Panel, "Step3");
+        step4Panel = step4Panel();
+        mainPanel.add(step4Panel, "Step4");
+        step4_5Panel = step4_5Panel();
+        mainPanel.add(step4_5Panel, "Step4_5");
+        step5Panel = step5Panel();
+        mainPanel.add(step5Panel, "Step5");
+        step6Panel = step6Panel();
+        mainPanel.add(step6Panel, "Step6");
+        step7Panel = step7Panel();
+        mainPanel.add(step7Panel, "Step7");
+        step8Panel = step8Panel();
+        mainPanel.add(step8Panel, "Step8");
 
         add(mainPanel, BorderLayout.CENTER);
 
@@ -107,7 +116,17 @@ public class PredictHealthJava extends JFrame {
 
             // Call outputAllFieldsAsJson when on last panel
             if (isLastPanel(visible)) {
-                outputAllFieldsAsJson();
+                boolean dataSaved = outputAllFieldsAsJson();
+                if (!dataSaved) {
+                    JOptionPane.showMessageDialog(this, "Error guardando los datos. No se puede hacer la predicción.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                // --- Wait a moment for database to commit the transaction ---
+                try {
+                    Thread.sleep(1000); // 1 second delay to ensure database commit completes
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
                 // --- Predict diabetes risk after all questions, using model microservice ---
                 try {
                     // Get userId same as in outputAllFieldsAsJson
@@ -145,7 +164,7 @@ public class PredictHealthJava extends JFrame {
                                 JSONObject prediction = jsonResp.has("prediction") ? jsonResp.getJSONObject("prediction") : null;
                                 if (prediction != null) {
                                     double prob = prediction.optDouble("probability", -1);
-                                    String cat = prediction.optString("risk_category", "Desconocido");
+                                    String cat = prediction.optString("risk_label", "Desconocido");
                                     double pct = prediction.optDouble("percentage", -1);
                                     String msg = String.format("Probabilidad de diabetes: %.1f%%\nCategoría de riesgo: %s", pct, cat);
                                     JOptionPane.showMessageDialog(this, msg, "Predicción de riesgo de diabetes", JOptionPane.INFORMATION_MESSAGE);
@@ -901,7 +920,7 @@ public class PredictHealthJava extends JFrame {
         });
     }
 
-    private void outputAllFieldsAsJson() {
+    private boolean outputAllFieldsAsJson() {
         JSONObject paciente = new JSONObject();
         JSONObject salud = new JSONObject();
         JSONObject estilo_vida = new JSONObject();
@@ -981,6 +1000,7 @@ public class PredictHealthJava extends JFrame {
         if (userId != null) estilo_vida.put("id_usuario", userId);
 
         // POST Paciente JSON
+        boolean pacienteSaved = false;
         try {
             URL url = new URL("http://localhost:8003/paciente");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -995,12 +1015,15 @@ public class PredictHealthJava extends JFrame {
 
             int code = conn.getResponseCode();
             System.out.println("POST /paciente -> Response code: " + code);
+            pacienteSaved = (code >= 200 && code < 300);
             conn.disconnect();
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
         }
 
         // POST estilo_vida JSON
+        boolean estiloVidaSaved = false;
         try {
             URL url = new URL("http://localhost:8004/estilo_vida");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -1015,11 +1038,13 @@ public class PredictHealthJava extends JFrame {
 
             int code = conn.getResponseCode();
             System.out.println("POST /estilo_vida -> Response code: " + code);
+            estiloVidaSaved = (code >= 200 && code < 300);
             conn.disconnect();
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
         }
-
+        
         System.out.println("Paciente:");
         System.out.println(paciente.toString(4));
 
@@ -1028,6 +1053,9 @@ public class PredictHealthJava extends JFrame {
 
         System.out.println("Salud:");
         System.out.println(salud.toString(4));
+        
+        // Return true only if both POSTs succeeded
+        return pacienteSaved && estiloVidaSaved;
     }
 
 
