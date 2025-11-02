@@ -61,9 +61,10 @@ public class PredictHealthJava extends JFrame {
     private JPanel movilidadPanel;
     private JTextField salField;
     
-
     public PredictHealthJava() {
         loadConfig();
+        System.setProperty("java.net.preferIPv4Stack", "true");
+        System.setProperty("java.net.preferIPv6Addresses", "false");
 
         setTitle("PredictHealthJava");
         setSize(750, 600);
@@ -132,7 +133,7 @@ public class PredictHealthJava extends JFrame {
                     // Get userId same as in outputAllFieldsAsJson
                     String userId = null;
                     try {
-                        URL meUrl = new URL("http://localhost:8001/auth/me");
+                        URL meUrl = new URL("http://34.135.18.33:8001/auth/me");
                         HttpURLConnection authConn = (HttpURLConnection) meUrl.openConnection();
                         authConn.setRequestMethod("GET");
                         authConn.setRequestProperty("Authorization", "Bearer " + accessToken);
@@ -150,7 +151,7 @@ public class PredictHealthJava extends JFrame {
                         JOptionPane.showMessageDialog(this, "No se pudo obtener el ID de usuario para la predicción de riesgo", "Error", JOptionPane.ERROR_MESSAGE);
                     }
                     if (userId != null) {
-                        URL predUrl = new URL("http://localhost:8008/predict/" + userId);
+                        URL predUrl = new URL("http://34.135.18.33:8008/predict/" + userId);
                         HttpURLConnection predConn = (HttpURLConnection) predUrl.openConnection();
                         predConn.setRequestMethod("GET");
                         predConn.setRequestProperty("Accept", "application/json");
@@ -207,12 +208,12 @@ public class PredictHealthJava extends JFrame {
         Properties props = new Properties();
         try (InputStream in = new FileInputStream("config.properties")) {
             props.load(in);
-            loginUrl = props.getProperty("login.url", "http://localhost:8001/auth/login");
-            registerUrl = props.getProperty("register.url", "http://localhost:8002/register");
+            loginUrl = props.getProperty("login.url", "http://34.135.18.33:8001/auth/login");
+            registerUrl = props.getProperty("register.url", "http://34.135.18.33:8002/register");
         } catch (IOException e) {
             e.printStackTrace();
-            loginUrl = "http://localhost:8001/auth/login";
-            registerUrl = "http://localhost:8002/register";
+            loginUrl = "http://34.135.18.33:8001/auth/login";
+            registerUrl = "http://34.135.18.33:8002/register";
         }
     }
 
@@ -1004,7 +1005,7 @@ public class PredictHealthJava extends JFrame {
         // Retrieve user ID from Auth microservice
         String userId = null;
         try {
-            URL meUrl = new URL("http://localhost:8001/auth/me");
+            URL meUrl = new URL("http://34.135.18.33:8001/auth/me");
             HttpURLConnection authConn = (HttpURLConnection) meUrl.openConnection();
             authConn.setRequestMethod("GET");
             authConn.setRequestProperty("Authorization", "Bearer " + accessToken); // token saved from login
@@ -1028,7 +1029,7 @@ public class PredictHealthJava extends JFrame {
         // POST Paciente JSON
         boolean pacienteSaved = false;
         try {
-            URL url = new URL("http://localhost:8003/paciente");
+            URL url = new URL("http://34.135.18.33:8003/paciente");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; utf-8");
@@ -1051,7 +1052,7 @@ public class PredictHealthJava extends JFrame {
         // POST estilo_vida JSON
         boolean estiloVidaSaved = false;
         try {
-            URL url = new URL("http://localhost:8004/estilo_vida");
+            URL url = new URL("http://34.135.18.33:8004/estilo_vida");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; utf-8");

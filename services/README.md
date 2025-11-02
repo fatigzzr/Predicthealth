@@ -13,3 +13,7 @@ py -m services.patient_service.main
 # health_service: 8004
 
 py -m services.health_service.main 
+
+# diabetes_service: 8008
+
+py -m services.diabetes_service.main 
