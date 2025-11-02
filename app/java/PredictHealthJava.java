@@ -108,7 +108,62 @@ public class PredictHealthJava extends JFrame {
             // Call outputAllFieldsAsJson when on last panel
             if (isLastPanel(visible)) {
                 outputAllFieldsAsJson();
-                JOptionPane.showMessageDialog(this, "All data collected and output to console.");
+                // --- Predict diabetes risk after all questions, using model microservice ---
+                try {
+                    // Get userId same as in outputAllFieldsAsJson
+                    String userId = null;
+                    try {
+                        URL meUrl = new URL("http://localhost:8001/auth/me");
+                        HttpURLConnection authConn = (HttpURLConnection) meUrl.openConnection();
+                        authConn.setRequestMethod("GET");
+                        authConn.setRequestProperty("Authorization", "Bearer " + accessToken);
+                        if (authConn.getResponseCode() == 200) {
+                            try (BufferedReader br = new BufferedReader(new InputStreamReader(authConn.getInputStream(), "utf-8"))) {
+                                StringBuilder response = new StringBuilder();
+                                String line;
+                                while ((line = br.readLine()) != null) response.append(line);
+                                JSONObject me = new JSONObject(response.toString());
+                                userId = me.getString("sub");
+                            }
+                        }
+                        authConn.disconnect();
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(this, "Could not retrieve user ID for risk prediction", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                    if (userId != null) {
+                        URL predUrl = new URL("http://localhost:8008/predict/" + userId);
+                        HttpURLConnection predConn = (HttpURLConnection) predUrl.openConnection();
+                        predConn.setRequestMethod("GET");
+                        predConn.setRequestProperty("Accept", "application/json");
+                        int respCode = predConn.getResponseCode();
+                        if (respCode == 200) {
+                            try (BufferedReader br = new BufferedReader(new InputStreamReader(predConn.getInputStream(), "utf-8"))) {
+                                StringBuilder predResp = new StringBuilder();
+                                String line;
+                                while ((line = br.readLine()) != null) predResp.append(line);
+                                JSONObject jsonResp = new JSONObject(predResp.toString());
+                                JSONObject prediction = jsonResp.has("prediction") ? jsonResp.getJSONObject("prediction") : null;
+                                if (prediction != null) {
+                                    double prob = prediction.optDouble("probability", -1);
+                                    String cat = prediction.optString("risk_category", "Desconocido");
+                                    double pct = prediction.optDouble("percentage", -1);
+                                    String msg = String.format("Probabilidad de diabetes: %.1f%%\nCategoría de riesgo: %s", pct, cat);
+                                    JOptionPane.showMessageDialog(this, msg, "Predicción de riesgo de diabetes", JOptionPane.INFORMATION_MESSAGE);
+                                } else {
+                                    JOptionPane.showMessageDialog(this, "No prediction received!", "Predicción", JOptionPane.WARNING_MESSAGE);
+                                }
+                            }
+                        } else {
+                            JOptionPane.showMessageDialog(this, "Error consultando el microservicio de predicción: respuesta " + respCode, "Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                        predConn.disconnect();
+                    } else {
+                        JOptionPane.showMessageDialog(this, "User ID not found. No prediction can be made.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Error en la predicción: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    ex.printStackTrace();
+                }
                 return;
             }
 
@@ -896,10 +951,10 @@ public class PredictHealthJava extends JFrame {
         putNotNull(estilo_vida, "actividad_frecuente", getSelectedButtonText(step8Panel));
         putNotNull(estilo_vida, "horas_sueno", getTextFieldValue(step8Panel, 0));
         putNotNull(estilo_vida, "nivel_estres", getComboBoxSelected(step8Panel, 3));
-        putNotNull(estilo_vida, "salud_mental", getTextFieldValue(step8Panel, 4));
+        putNotNull(estilo_vida, "salud_mental", getTextFieldValue(step8Panel, 1));
         putNotNull(estilo_vida, "actividad_fisica", getComboBoxSelected(step8Panel, 6));
         //putNotNull(salud, "actividad_frecuente2", getSelectedButtonText(step8Panel, "Sí", "No"));
-        putNotNull(estilo_vida, "salud_fisica", getTextFieldValue(step8Panel, 8));
+        putNotNull(estilo_vida, "salud_fisica", getTextFieldValue(step8Panel, 2));
 
         // Retrieve user ID from Auth microservice
         String userId = null;
