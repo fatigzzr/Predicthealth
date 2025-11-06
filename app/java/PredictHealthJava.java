@@ -243,6 +243,11 @@ public class PredictHealthJava extends JFrame {
                                     if (res != null && res) JOptionPane.showMessageDialog(PredictHealthJava.this, messageToShow, "Predicción de riesgo de diabetes", JOptionPane.INFORMATION_MESSAGE);
                                     else JOptionPane.showMessageDialog(PredictHealthJava.this, messageToShow, "Predicción", JOptionPane.WARNING_MESSAGE);
                                 }
+                                // After showing the popup, always go back to the Status panel and refresh charts
+                                if (diabChart != null) diabChart.setPercentage((int)Math.round(lastDiabetesPct));
+                                if (hipChart != null) hipChart.setPercentage((int)Math.round(lastHypertensionPct));
+                                cardLayout.show(mainPanel, "Status");
+                                updateNavButtons();
                             } catch (Exception ex) {
                                 setCursor(Cursor.getDefaultCursor());
                                 nextButton.setEnabled(true);
