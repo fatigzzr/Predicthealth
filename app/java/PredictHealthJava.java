@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.net.URL;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.io.OutputStream;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
@@ -50,6 +51,12 @@ public class PredictHealthJava extends JFrame {
     private String loginUrl;
     private String registerUrl;
     private String accessToken;
+    private String logoutUrl;
+    private String authMeUrl;
+    private String pacienteUrl;
+    private String estiloVidaUrl;
+    // predictUrl already present
+    private String predictUrl;
 
     private JPanel sexoPanel;
     private JPanel saludPanel;
@@ -60,13 +67,34 @@ public class PredictHealthJava extends JFrame {
     private JPanel alcoholPanel;
     private JPanel movilidadPanel;
     private JTextField salField;
+    private JPanel statusPanel;
+    // Charts and last values
+    private PieChartPanel diabChart;
+    private PieChartPanel hipChart;
+    private double lastDiabetesPct = 55.0;
+    private double lastHypertensionPct = 28.0;
+    private String lastUserId = null;
+    // network timeouts (ms)
+    private final int CONNECT_TIMEOUT = 15000;
+    private final int READ_TIMEOUT = 15000;
     
     public PredictHealthJava() {
         loadConfig();
         System.setProperty("java.net.preferIPv4Stack", "true");
         System.setProperty("java.net.preferIPv6Addresses", "false");
+        // Clear common JVM proxy properties which can interfere with direct connections
+        try {
+            System.clearProperty("http.proxyHost");
+            System.clearProperty("http.proxyPort");
+            System.clearProperty("https.proxyHost");
+            System.clearProperty("https.proxyPort");
+            System.clearProperty("socksProxyHost");
+            System.clearProperty("socksProxyPort");
+        } catch (Exception ex) {
+            // ignore
+        }
 
-        setTitle("PredictHealthJava");
+        setTitle("PredictHealth");
         setSize(750, 600);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -80,6 +108,8 @@ public class PredictHealthJava extends JFrame {
         mainPanel.add(registerPanel(), "Register");
         step1Panel = createStep1Panel();
         mainPanel.add(step1Panel, "Step1");
+        statusPanel = statusPanel();
+        mainPanel.add(statusPanel, "Status");
         step2Panel = step2Panel();
         mainPanel.add(step2Panel, "Step2");
         step3Panel = step3Panel();
@@ -106,90 +136,130 @@ public class PredictHealthJava extends JFrame {
 
         nextButton.addActionListener(e -> {
             if (!validateCurrentStep()) return;
-            Component visible = getVisiblePanel();
-            String name = getPanelName(visible);
+                Component visible = getVisiblePanel();
+                String name = getPanelName(visible);
 
-            if (name.equals("Register")) sendRegisterData();
-            if (name.equals("Step1") && !loggedIn) {
-                JOptionPane.showMessageDialog(this, "Por favor inicie sesión primero.");
-                return;
-            }
-
-            // Call outputAllFieldsAsJson when on last panel
-            if (isLastPanel(visible)) {
-                boolean dataSaved = outputAllFieldsAsJson();
-                if (!dataSaved) {
-                    JOptionPane.showMessageDialog(this, "Error guardando los datos. No se puede hacer la predicción.", "Error", JOptionPane.ERROR_MESSAGE);
+                if (name.equals("Register")) sendRegisterData();
+                if (name.equals("Step1") && !loggedIn) {
+                    JOptionPane.showMessageDialog(this, "Por favor inicie sesión primero.");
                     return;
                 }
-                // --- Wait a moment for database to commit the transaction ---
-                try {
-                    Thread.sleep(1000); // 1 second delay to ensure database commit completes
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                }
-                // --- Predict diabetes risk after all questions, using model microservice ---
-                try {
-                    // Get userId same as in outputAllFieldsAsJson
-                    String userId = null;
-                    try {
-                        URL meUrl = new URL("http://34.135.18.33:8001/auth/me");
-                        HttpURLConnection authConn = (HttpURLConnection) meUrl.openConnection();
-                        authConn.setRequestMethod("GET");
-                        authConn.setRequestProperty("Authorization", "Bearer " + accessToken);
-                        if (authConn.getResponseCode() == 200) {
-                            try (BufferedReader br = new BufferedReader(new InputStreamReader(authConn.getInputStream(), "utf-8"))) {
-                                StringBuilder response = new StringBuilder();
-                                String line;
-                                while ((line = br.readLine()) != null) response.append(line);
-                                JSONObject me = new JSONObject(response.toString());
-                                userId = me.getString("sub");
-                            }
-                        }
-                        authConn.disconnect();
-                    } catch (Exception ex) {
-                        JOptionPane.showMessageDialog(this, "No se pudo obtener el ID de usuario para la predicción de riesgo", "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                    if (userId != null) {
-                        URL predUrl = new URL("http://34.135.18.33:8008/predict/" + userId);
-                        HttpURLConnection predConn = (HttpURLConnection) predUrl.openConnection();
-                        predConn.setRequestMethod("GET");
-                        predConn.setRequestProperty("Accept", "application/json");
-                        int respCode = predConn.getResponseCode();
-                        if (respCode == 200) {
-                            try (BufferedReader br = new BufferedReader(new InputStreamReader(predConn.getInputStream(), "utf-8"))) {
-                                StringBuilder predResp = new StringBuilder();
-                                String line;
-                                while ((line = br.readLine()) != null) predResp.append(line);
-                                JSONObject jsonResp = new JSONObject(predResp.toString());
-                                JSONObject prediction = jsonResp.has("prediction") ? jsonResp.getJSONObject("prediction") : null;
-                                if (prediction != null) {
-                                    double prob = prediction.optDouble("probability", -1);
-                                    String cat = prediction.optString("risk_label", "Desconocido");
-                                    double pct = prediction.optDouble("percentage", -1);
-                                    String msg = String.format("Probabilidad de diabetes: %.1f%%\nCategoría de riesgo: %s", pct, cat);
-                                    JOptionPane.showMessageDialog(this, msg, "Predicción de riesgo de diabetes", JOptionPane.INFORMATION_MESSAGE);
-                                } else {
-                                    JOptionPane.showMessageDialog(this, "¡No se recibió predicción!", "Predicción", JOptionPane.WARNING_MESSAGE);
-                                }
-                            }
-                        } else {
-                            JOptionPane.showMessageDialog(this, "Error consultando el microservicio de predicción: respuesta " + respCode, "Error", JOptionPane.ERROR_MESSAGE);
-                        }
-                        predConn.disconnect();
-                    } else {
-                        JOptionPane.showMessageDialog(this, "ID de usuario no encontrado. No se puede hacer la predicción.", "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(this, "Error en la predicción: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-                    ex.printStackTrace();
-                }
-                return;
-            }
 
-            cardLayout.next(mainPanel);
-            updateNavButtons();
-        });
+                // Call outputAllFieldsAsJson when on last panel
+                if (isLastPanel(visible)) {
+                    // run final save+prediction in background to avoid blocking EDT
+                    nextButton.setEnabled(false);
+                    prevButton.setEnabled(false);
+                    setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+
+                    SwingWorker<Boolean, Void> worker = new SwingWorker<>() {
+                        private String messageToShow = null;
+                        private boolean success = false;
+
+                        @Override
+                        protected Boolean doInBackground() throws Exception {
+                            boolean dataSaved = outputAllFieldsAsJson();
+                            if (!dataSaved) {
+                                messageToShow = "Error guardando los datos. No se puede hacer la predicción.";
+                                success = false;
+                                return false;
+                            }
+                            // small pause to allow DB commit
+                            try { Thread.sleep(1000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+
+                            // use lastUserId set by outputAllFieldsAsJson to call predict; avoid extra auth/me
+                            String userId = lastUserId;
+                            if (userId != null) {
+                                try {
+                                    System.out.println("Calling predict for userId=" + userId);
+                                    String basePredict = predictUrl;
+                                    if (!basePredict.endsWith("/")) basePredict = basePredict + "/";
+                                    URL predUrl = new URL(basePredict + userId);
+                                    // perform a quick TCP-level check first to help diagnose JVM-level networking issues
+                                    int testPort = predUrl.getPort() > 0 ? predUrl.getPort() : ("https".equalsIgnoreCase(predUrl.getProtocol()) ? 443 : 80);
+                                    if (!socketConnectTest(predUrl.getHost(), testPort, 5000)) {
+                                        messageToShow = "No se pudo establecer conexión TCP a " + predUrl.getHost() + ":" + testPort + ". Verifique conectividad o proxy JVM.";
+                                        success = false;
+                                        return success;
+                                    }
+                                    HttpURLConnection predConn = (HttpURLConnection) predUrl.openConnection();
+                                    predConn.setRequestMethod("GET");
+                                    predConn.setRequestProperty("Accept", "application/json");
+                                    predConn.setConnectTimeout(CONNECT_TIMEOUT);
+                                    predConn.setReadTimeout(READ_TIMEOUT);
+                                    int respCode = predConn.getResponseCode();
+                                    if (respCode == 200) {
+                                        try (BufferedReader br = new BufferedReader(new InputStreamReader(predConn.getInputStream(), "utf-8"))) {
+                                            StringBuilder predResp = new StringBuilder();
+                                            String line;
+                                            while ((line = br.readLine()) != null) predResp.append(line);
+                                            JSONObject jsonResp = new JSONObject(predResp.toString());
+                                            JSONObject prediction = jsonResp.has("prediction") ? jsonResp.getJSONObject("prediction") : null;
+                                            if (prediction != null) {
+                                                double pct = prediction.optDouble("percentage", -1);
+                                                String cat = prediction.optString("risk_label", "Desconocido");
+                                                messageToShow = String.format("Probabilidad de diabetes: %.1f%%\nCategoría de riesgo: %s", pct, cat);
+                                                if (pct >= 0) {
+                                                    lastDiabetesPct = pct;
+                                                    if (diabChart != null) diabChart.setPercentage((int)Math.round(pct));
+                                                    String redisKey = (userId != null && !userId.isEmpty()) ? ("user:" + userId + ":diabetes_probability") : "predict:diabetes:last";
+                                                    saveToRedis(redisKey, String.valueOf(pct));
+                                                }
+                                                success = true;
+                                            } else {
+                                                messageToShow = "¡No se recibió predicción!";
+                                                success = false;
+                                            }
+                                        }
+                                    } else {
+                                        messageToShow = "Error consultando el microservicio de predicción: respuesta " + respCode;
+                                        success = false;
+                                    }
+                                    predConn.disconnect();
+                                } catch (java.net.ConnectException ce) {
+                                    messageToShow = "No se pudo conectar al microservicio de predicción (timeout).";
+                                    success = false;
+                                } catch (Exception ex) {
+                                    messageToShow = "Error en la predicción: " + ex.getMessage();
+                                    success = false;
+                                }
+                            } else {
+                                messageToShow = "ID de usuario no disponible. No se puede hacer la predicción.";
+                                success = false;
+                            }
+
+                            return success;
+                        }
+
+                        @Override
+                        protected void done() {
+                            try {
+                                // restore UI
+                                setCursor(Cursor.getDefaultCursor());
+                                nextButton.setEnabled(true);
+                                prevButton.setEnabled(true);
+                                Boolean res = get();
+                                if (messageToShow != null) {
+                                    if (res != null && res) JOptionPane.showMessageDialog(PredictHealthJava.this, messageToShow, "Predicción de riesgo de diabetes", JOptionPane.INFORMATION_MESSAGE);
+                                    else JOptionPane.showMessageDialog(PredictHealthJava.this, messageToShow, "Predicción", JOptionPane.WARNING_MESSAGE);
+                                }
+                            } catch (Exception ex) {
+                                setCursor(Cursor.getDefaultCursor());
+                                nextButton.setEnabled(true);
+                                prevButton.setEnabled(true);
+                                JOptionPane.showMessageDialog(PredictHealthJava.this, "Error en el proceso final: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                            }
+                        }
+                    };
+
+                    worker.execute();
+                    return;
+                }
+
+                cardLayout.next(mainPanel);
+                updateNavButtons();
+            }
+        );
 
         prevButton.addActionListener(e -> {
             cardLayout.previous(mainPanel);
@@ -206,15 +276,35 @@ public class PredictHealthJava extends JFrame {
 
     private void loadConfig() {
         Properties props = new Properties();
+        boolean loaded = false;
         try (InputStream in = new FileInputStream("config.properties")) {
             props.load(in);
-            loginUrl = props.getProperty("login.url", "http://34.135.18.33:8001/auth/login");
-            registerUrl = props.getProperty("register.url", "http://34.135.18.33:8002/register");
+            loaded = true;
         } catch (IOException e) {
-            e.printStackTrace();
-            loginUrl = "http://34.135.18.33:8001/auth/login";
-            registerUrl = "http://34.135.18.33:8002/register";
+            // config not found or unreadable; we'll use defaults below
         }
+
+        // Read URLs from properties if present, otherwise use sensible defaults
+        loginUrl = props.getProperty("login.url", "http://34.135.18.33:8001/auth/login");
+        registerUrl = props.getProperty("register.url", "http://34.135.18.33:8002/register");
+        authMeUrl = props.getProperty("auth.me.url", "http://34.135.18.33:8001/auth/me");
+        pacienteUrl = props.getProperty("paciente.url", "http://34.135.18.33:8003/paciente");
+        estiloVidaUrl = props.getProperty("estilo_vida.url", "http://34.135.18.33:8004/estilo_vida");
+        logoutUrl = props.getProperty("logout.url", "");
+        predictUrl = props.getProperty("predict.url", "http://34.135.18.33:8008/predict");
+
+        // Debug: print resolved configuration so we know what the JVM will use
+        if (loaded) {
+            System.out.println("Loaded config.properties. Resolved endpoints:");
+        } else {
+            System.out.println("config.properties not found; using default endpoints:");
+        }
+        System.out.println("  login.url = " + loginUrl);
+        System.out.println("  auth.me.url = " + authMeUrl);
+        System.out.println("  paciente.url = " + pacienteUrl);
+        System.out.println("  estilo_vida.url = " + estiloVidaUrl);
+        System.out.println("  predict.url = " + predictUrl);
+        System.out.println("  logout.url = " + (logoutUrl == null || logoutUrl.isEmpty() ? "(not configured)" : logoutUrl));
     }
 
     private JButton createNavButton(String text) {
@@ -230,7 +320,8 @@ public class PredictHealthJava extends JFrame {
         Component visible = getVisiblePanel();
         String name = getPanelName(visible);
 
-        boolean showNav = loggedIn && !(name.equals("Start") || name.equals("Register"));
+    // Hide nav buttons on Start, Register, Status and the login screen (Step1)
+    boolean showNav = loggedIn && !(name.equals("Start") || name.equals("Register") || name.equals("Status") || name.equals("Step1"));
         prevButton.setVisible(showNav);
         nextButton.setVisible(showNav);
 
@@ -248,14 +339,15 @@ public class PredictHealthJava extends JFrame {
         if (comp == mainPanel.getComponent(0)) return "Start";
         if (comp == mainPanel.getComponent(1)) return "Register";
         if (comp == mainPanel.getComponent(2)) return "Step1";
-        if (comp == mainPanel.getComponent(3)) return "Step2";
-        if (comp == mainPanel.getComponent(4)) return "Step3";
-        if (comp == mainPanel.getComponent(5)) return "Step4";
-        if (comp == mainPanel.getComponent(6)) return "Step4_5";
-        if (comp == mainPanel.getComponent(7)) return "Step5";
-        if (comp == mainPanel.getComponent(8)) return "Step6";
-        if (comp == mainPanel.getComponent(9)) return "Step7";
-        if (comp == mainPanel.getComponent(10)) return "Step8";
+        if (comp == mainPanel.getComponent(3)) return "Status";
+        if (comp == mainPanel.getComponent(4)) return "Step2";
+        if (comp == mainPanel.getComponent(5)) return "Step3";
+        if (comp == mainPanel.getComponent(6)) return "Step4";
+        if (comp == mainPanel.getComponent(7)) return "Step4_5";
+        if (comp == mainPanel.getComponent(8)) return "Step5";
+        if (comp == mainPanel.getComponent(9)) return "Step6";
+        if (comp == mainPanel.getComponent(10)) return "Step7";
+        if (comp == mainPanel.getComponent(11)) return "Step8";
         return "";
     }
 
@@ -387,6 +479,8 @@ public class PredictHealthJava extends JFrame {
         try {
             java.net.URL url = new java.net.URL(registerUrl);
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(CONNECT_TIMEOUT);
+            conn.setReadTimeout(READ_TIMEOUT);
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type","application/json");
             conn.setDoOutput(true);
@@ -451,10 +545,12 @@ public class PredictHealthJava extends JFrame {
     }
 
     private void sendLoginData(String username, String password) {
-        try {
+            try {
             String json = String.format("{\"username\":\"%s\",\"password\":\"%s\"}", username, password);
             java.net.URL url = new java.net.URL(loginUrl);
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(CONNECT_TIMEOUT);
+            conn.setReadTimeout(READ_TIMEOUT);
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type","application/json");
             conn.setDoOutput(true);
@@ -474,7 +570,8 @@ public class PredictHealthJava extends JFrame {
 
                 loggedIn = true;
                 JOptionPane.showMessageDialog(this, "¡Inicio de sesión exitoso!");
-                cardLayout.show(mainPanel, "Step2");
+                // after login, show the status dashboard before the questionnaire
+                cardLayout.show(mainPanel, "Status");
             } else {
                 loggedIn = false;
                 if (code == 401) {
@@ -895,6 +992,87 @@ public class PredictHealthJava extends JFrame {
         return panel;
     }
 
+    // Status panel shown after login: two placeholder percentage graphs and a Nuevo Registro button
+    private JPanel statusPanel() {
+        if (statusPanel != null) return statusPanel;
+        statusPanel = new JPanel(new GridBagLayout());
+        statusPanel.setBackground(new Color(0x132232));
+        statusPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(12, 12, 12, 12);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel title = new JLabel("Estado de Salud");
+        title.setForeground(Color.WHITE);
+        title.setFont(new Font("SansSerif", Font.BOLD, 20));
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        statusPanel.add(title, gbc);
+
+        // Diabetes placeholder
+    JLabel diabLabel = createLabel("Diabetes (Estimado):");
+    diabChart = new PieChartPanel((int)Math.round(lastDiabetesPct), new Color(0xE53935));
+    diabChart.setPreferredSize(new Dimension(140,140));
+    gbc.gridwidth = 1; gbc.gridy++; gbc.gridx = 0;
+    statusPanel.add(diabLabel, gbc);
+    gbc.gridx = 1;
+    statusPanel.add(diabChart, gbc);
+
+        // Hypertension placeholder
+    JLabel hipLabel = createLabel("Hipertensión (Estimado):");
+    hipChart = new PieChartPanel((int)Math.round(lastHypertensionPct), new Color(0x1E88E5));
+    hipChart.setPreferredSize(new Dimension(140,140));
+    gbc.gridy++; gbc.gridx = 0;
+    statusPanel.add(hipLabel, gbc);
+    gbc.gridx = 1;
+    statusPanel.add(hipChart, gbc);
+
+        // Panel for buttons
+        JPanel btns = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        btns.setBackground(new Color(0x132232));
+
+        // Nuevo Registro button to start the questionnaire
+        JButton nuevoBtn = createNavButton("Nuevo Registro");
+        nuevoBtn.addActionListener(e -> {
+            // go to questionnaire (Step2) where the user can enter new record
+            cardLayout.show(mainPanel, "Step2");
+            updateNavButtons();
+        });
+        btns.add(nuevoBtn);
+
+        // Logout button
+        JButton logoutBtn = createNavButton("Cerrar sesión");
+        logoutBtn.addActionListener(e -> {
+            // Try to revoke token if logout URL configured
+            if (accessToken != null && !accessToken.isEmpty() && logoutUrl != null && !logoutUrl.isEmpty()) {
+                try {
+                    URL url = new URL(logoutUrl);
+                    HttpURLConnection con = (HttpURLConnection) url.openConnection();
+                    con.setRequestMethod("POST");
+            con.setRequestProperty("Authorization", "Bearer " + accessToken);
+                con.setConnectTimeout(CONNECT_TIMEOUT);
+                con.setReadTimeout(READ_TIMEOUT);
+                    con.setDoOutput(true);
+                    int code = con.getResponseCode();
+                    System.out.println("Logout call returned: " + code);
+                    con.disconnect();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+            // local cleanup
+            accessToken = null;
+            loggedIn = false;
+            cardLayout.show(mainPanel, "Start");
+            updateNavButtons();
+        });
+        btns.add(logoutBtn);
+
+        gbc.gridx = 0; gbc.gridy++; gbc.gridwidth = 2; gbc.anchor = GridBagConstraints.CENTER;
+        statusPanel.add(btns, gbc);
+
+        return statusPanel;
+    }
+
 
     // Step 9: Documentos
     /*private JPanel step9Panel() {
@@ -1005,10 +1183,12 @@ public class PredictHealthJava extends JFrame {
         // Retrieve user ID from Auth microservice
         String userId = null;
         try {
-            URL meUrl = new URL("http://34.135.18.33:8001/auth/me");
+            URL meUrl = new URL(authMeUrl);
             HttpURLConnection authConn = (HttpURLConnection) meUrl.openConnection();
             authConn.setRequestMethod("GET");
             authConn.setRequestProperty("Authorization", "Bearer " + accessToken); // token saved from login
+            authConn.setConnectTimeout(CONNECT_TIMEOUT);
+            authConn.setReadTimeout(READ_TIMEOUT);
 
             if (authConn.getResponseCode() == 200) {
                 try (BufferedReader br = new BufferedReader(new InputStreamReader(authConn.getInputStream(), "utf-8"))) {
@@ -1023,14 +1203,18 @@ public class PredictHealthJava extends JFrame {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        // store userId for later predict call to avoid calling auth/me again
+        if (userId != null) lastUserId = userId;
         if (userId != null) paciente.put("id_usuario", userId);
         if (userId != null) estilo_vida.put("id_usuario", userId);
 
         // POST Paciente JSON
         boolean pacienteSaved = false;
         try {
-            URL url = new URL("http://34.135.18.33:8003/paciente");
+            URL url = new URL(pacienteUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(CONNECT_TIMEOUT);
+                conn.setReadTimeout(READ_TIMEOUT);
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; utf-8");
             conn.setDoOutput(true);
@@ -1043,6 +1227,31 @@ public class PredictHealthJava extends JFrame {
             int code = conn.getResponseCode();
             System.out.println("POST /paciente -> Response code: " + code);
             pacienteSaved = (code >= 200 && code < 300);
+            // Try to parse returned body for an id if auth/me wasn't available
+            if (pacienteSaved) {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                    StringBuilder respBody = new StringBuilder();
+                    String l;
+                    while ((l = br.readLine()) != null) respBody.append(l);
+                    if (respBody.length() > 0) {
+                        try {
+                            JSONObject respJson = new JSONObject(respBody.toString());
+                            String found = null;
+                            if (respJson.has("id_usuario")) found = respJson.optString("id_usuario", null);
+                            else if (respJson.has("id")) found = respJson.optString("id", null);
+                            else if (respJson.has("user_id")) found = respJson.optString("user_id", null);
+                            if (found != null && !found.isEmpty()) {
+                                lastUserId = found;
+                                System.out.println("Found userId from paciente response: " + lastUserId);
+                            }
+                        } catch (Exception ex) {
+                            // ignore parse errors
+                        }
+                    }
+                } catch (Exception ex) {
+                    // ignore
+                }
+            }
             conn.disconnect();
         } catch (Exception e) {
             e.printStackTrace();
@@ -1052,8 +1261,10 @@ public class PredictHealthJava extends JFrame {
         // POST estilo_vida JSON
         boolean estiloVidaSaved = false;
         try {
-            URL url = new URL("http://34.135.18.33:8004/estilo_vida");
+            URL url = new URL(estiloVidaUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(CONNECT_TIMEOUT);
+                conn.setReadTimeout(READ_TIMEOUT);
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; utf-8");
             conn.setDoOutput(true);
@@ -1094,6 +1305,93 @@ public class PredictHealthJava extends JFrame {
         int age = today.get(Calendar.YEAR) - birthCal.get(Calendar.YEAR);
         if(today.get(Calendar.DAY_OF_YEAR) < birthCal.get(Calendar.DAY_OF_YEAR)) age--;
         return age;
+    }
+
+    // Minimal Redis SET via RESP protocol (best-effort, non-blocking for app)
+    private void saveToRedis(String key, String value) {
+        try (java.net.Socket s = new java.net.Socket("127.0.0.1", 6379)) {
+            OutputStream os = s.getOutputStream();
+            // Build RESP: *3\r\n$3\r\nSET\r\n$<klen>\r\nkey\r\n$<vlen>\r\nvalue\r\n
+            String cmd = "*3\r\n$3\r\nSET\r\n$" + key.getBytes("utf-8").length + "\r\n" + key + "\r\n$" + value.getBytes("utf-8").length + "\r\n" + value + "\r\n";
+            os.write(cmd.getBytes("utf-8"));
+            os.flush();
+            // read simple reply line
+            BufferedReader br = new BufferedReader(new InputStreamReader(s.getInputStream(), "utf-8"));
+            String resp = br.readLine();
+            System.out.println("Redis SET response: " + resp);
+        } catch (Exception e) {
+            // best-effort, do not block app
+            System.out.println("Could not save to Redis: " + e.getMessage());
+        }
+    }
+
+    // Simple TCP connect test to check if JVM can reach a host:port (helps diagnose Java vs curl differences)
+    private boolean socketConnectTest(String host, int port, int timeoutMs) {
+        if (host == null || host.isEmpty() || port <= 0) return false;
+        try (java.net.Socket sock = new java.net.Socket()) {
+            sock.connect(new InetSocketAddress(host, port), timeoutMs);
+            return true;
+        } catch (Exception e) {
+            System.out.println("Socket test to " + host + ":" + port + " failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // Small Pie chart panel for percentage visualization
+    private static class PieChartPanel extends JPanel {
+        private int percentage = 0;
+        private Color arcColor = Color.RED;
+
+        public PieChartPanel(int pct, Color color) {
+            this.percentage = Math.max(0, Math.min(100, pct));
+            this.arcColor = color;
+            setOpaque(false);
+        }
+
+        public void setPercentage(int pct) {
+            this.percentage = Math.max(0, Math.min(100, pct));
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            int w = getWidth();
+            int h = getHeight();
+            int size = Math.min(w, h) - 6;
+            int x = (w - size) / 2;
+            int y = (h - size) / 2;
+
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            // background circle (light gray ring)
+            g2.setColor(new Color(0x333333));
+            g2.fillOval(x, y, size, size);
+
+            // arc for percentage
+            int angle = (int) Math.round(percentage * 360.0 / 100.0);
+            g2.setColor(arcColor);
+            g2.fillArc(x + 2, y + 2, size - 4, size - 4, 90, -angle);
+
+            // inner cutout for donut effect
+            int inner = Math.max(8, size / 3);
+            g2.setColor(new Color(0x132232));
+            g2.fillOval(x + inner/2, y + inner/2, size - inner, size - inner);
+
+            // percentage text
+            String txt = percentage + "%";
+            Font f = getFont().deriveFont(Font.BOLD, Math.max(12, size / 6));
+            g2.setFont(f);
+            FontMetrics fm = g2.getFontMetrics();
+            int tx = x + (size - fm.stringWidth(txt)) / 2;
+            int ty = y + (size + fm.getAscent()) / 2 - fm.getDescent();
+            // pick text color with good contrast
+            g2.setColor(Color.WHITE);
+            g2.drawString(txt, tx, ty);
+
+            g2.dispose();
+        }
     }
 
     // Example: get selected radio button text from a panel
