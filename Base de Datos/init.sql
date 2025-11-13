@@ -509,6 +509,170 @@ ORDER BY
     fecha;
 
 -- =====================================
+-- STORED PROCEDURE: Guardar Información del Formulario
+-- =====================================
+CREATE OR REPLACE PROCEDURE sp_guardar_paciente_historial(
+    p_id_usuario        INT,
+    p_nombre            TEXT,
+    p_apellido          TEXT,
+    p_sexo              CHAR(1),
+    p_fecha_nacimiento  DATE,
+    p_diabetes          BOOLEAN,
+    p_hipertension      BOOLEAN,
+    p_colesterol        TEXT,
+    p_colesterol_alto   TEXT,
+    p_bmi               NUMERIC,
+    p_presion           TEXT,
+    p_salud_general     TEXT,
+    p_acv               TEXT,
+    p_problemas_corazon TEXT,
+    p_medicamentos      TEXT[],
+    p_estilo_vida       JSONB
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_historial_meds INT;
+    v_historial_diag INT;
+    v_id_med_diag INT;
+    v_id_enf_diabetes INT;
+    v_id_enf_hipertension INT;
+BEGIN
+    -- Identificadores auxiliares para diagnósticos
+    SELECT id_medicion INTO v_id_med_diag
+    FROM Tipo_Medicion
+    WHERE nombre = 'diagnostico';
+
+    IF v_id_med_diag IS NULL THEN
+        SELECT id_medicion INTO v_id_med_diag
+        FROM Tipo_Medicion
+        WHERE nombre = 'salud general';
+    END IF;
+
+    IF v_id_med_diag IS NULL THEN
+        RAISE EXCEPTION 'No existe un Tipo_Medicion válido para registrar diagnósticos';
+    END IF;
+
+    SELECT id_enfermedad INTO v_id_enf_diabetes
+    FROM Enfermedad
+    WHERE LOWER(nombre) = 'diabetes'
+    LIMIT 1;
+
+    SELECT id_enfermedad INTO v_id_enf_hipertension
+    FROM Enfermedad
+    WHERE LOWER(nombre) IN ('hipertensión','hipertension')
+    LIMIT 1;
+
+    -- Datos demográficos del paciente
+    INSERT INTO Paciente (id_usuario, nombre, apellido, fecha_nacimiento, sexo)
+    VALUES (p_id_usuario, p_nombre, p_apellido, p_fecha_nacimiento, p_sexo)
+    ON CONFLICT (id_usuario) DO UPDATE
+    SET nombre = EXCLUDED.nombre,
+        apellido = EXCLUDED.apellido,
+        fecha_nacimiento = EXCLUDED.fecha_nacimiento,
+        sexo = EXCLUDED.sexo,
+        fecha = NOW();
+
+    -- Mediciones clínicas básicas
+    WITH mediciones(nombre, valor) AS (
+        VALUES
+            ('colesterol',        NULLIF(p_colesterol, '')),
+            ('colesterol alto',   NULLIF(p_colesterol_alto, '')),
+            ('bmi',               CASE WHEN p_bmi IS NULL OR p_bmi = 0 THEN NULL ELSE p_bmi::TEXT END),
+            ('presión arterial',  NULLIF(p_presion, '')),
+            ('salud general',     NULLIF(p_salud_general, '')),
+            ('acv',               NULLIF(p_acv, '')),
+            ('problemas_corazon', NULLIF(p_problemas_corazon, ''))
+    )
+    INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha)
+    SELECT p_id_usuario, tm.id_medicion, m.valor, NOW()
+    FROM mediciones m
+    JOIN Tipo_Medicion tm ON tm.nombre = m.nombre
+    WHERE m.valor IS NOT NULL;
+
+    -- Diagnósticos declarados
+    IF COALESCE(p_diabetes, FALSE) AND v_id_enf_diabetes IS NOT NULL THEN
+        INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha)
+        VALUES (p_id_usuario, v_id_med_diag, 'diagnostico_diabetes', NOW())
+        RETURNING id_historial INTO v_historial_diag;
+
+        INSERT INTO Historial_Enfermedad (id_historial, id_enfermedad)
+        VALUES (v_historial_diag, v_id_enf_diabetes);
+    END IF;
+
+    IF COALESCE(p_hipertension, FALSE) AND v_id_enf_hipertension IS NOT NULL THEN
+        INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha)
+        VALUES (p_id_usuario, v_id_med_diag, 'diagnostico_hipertension', NOW())
+        RETURNING id_historial INTO v_historial_diag;
+
+        INSERT INTO Historial_Enfermedad (id_historial, id_enfermedad)
+        VALUES (v_historial_diag, v_id_enf_hipertension);
+    END IF;
+
+    -- Bloque de medicaciones (un solo historial + detalle por medicamento)
+    IF p_medicamentos IS NOT NULL AND array_length(p_medicamentos, 1) > 0 THEN
+        INSERT INTO Historial_Medico (id_usuario, id_medicion, valor, fecha)
+        VALUES (
+            p_id_usuario,
+            (SELECT id_medicion FROM Tipo_Medicion WHERE nombre = 'medicacion'),
+            'medicamentos declarados',
+            NOW()
+        )
+        RETURNING id_historial INTO v_historial_meds;
+
+        INSERT INTO Historial_Medicamento (id_historial, id_medicamento)
+        SELECT v_historial_meds, m.id_medicamento
+        FROM Medicamento m
+        WHERE LOWER(m.nombre) = ANY (
+            SELECT LOWER(unnest(p_medicamentos))
+        );
+    END IF;
+
+    -- Respuestas de estilo de vida (respeta unidades de Pregunta/Unidad)
+    WITH respuestas(pregunta, clave, unidad) AS (
+        VALUES
+            ('Consume frutas diariamente?',             'consumeFrutas',       'si/no'),
+            ('Consume verduras diariamente?',           'consumeVerduras',     'si/no'),
+            ('Cuánta sal consumes diariamente (en gramos)?','salDiaria',       'número'),
+            ('Fuma actualmente?',                       'fuma',                'si/no'),
+            ('Consume alcohol en exceso?',              'alcoholExceso',       'si/no'),
+            ('Tiene dificultades para caminar o desplazarse sin ayuda?','dificultadCaminar','si/no'),
+            ('Cuántas horas duermes cada día en promedio?','horasSueno',       'número'),
+            ('Nivel de estrés actual (0–10)',           'nivelEstres',         'número'),
+            ('Número de días en los últimos 30 en que la salud mental fue mala','diasSaludMentalMala','número'),
+            ('Cuál es tu nivel de actividad física?',   'nivelActividad',      'escala'),
+            ('Realiza actividad física al menos 3 veces por semana?','actividad3Veces','si/no'),
+            ('Número de días en los últimos 30 en que la salud física fue mala','diasSaludFisicaMala','número')
+    )
+    INSERT INTO Respuesta_Estilo_Vida (id_usuario, id_pregunta, valor)
+    SELECT
+        p_id_usuario,
+        pr.id_pregunta,
+        CASE r.unidad
+            WHEN 'si/no' THEN
+                CASE (p_estilo_vida->>r.clave)::BOOLEAN
+                    WHEN TRUE THEN 'True'
+                    ELSE 'False'
+                END
+            WHEN 'número' THEN
+                ((p_estilo_vida->>r.clave)::NUMERIC)::TEXT
+            WHEN 'escala' THEN
+                CASE
+                    WHEN (p_estilo_vida->>r.clave) ~ '^\\s*1\\s*$' THEN 'Bajo'
+                    WHEN (p_estilo_vida->>r.clave) ~ '^\\s*2\\s*$' THEN 'Moderado'
+                    WHEN (p_estilo_vida->>r.clave) ~ '^\\s*3\\s*$' THEN 'Alto'
+                    ELSE INITCAP(TRIM(p_estilo_vida->>r.clave))
+                END
+        END
+    FROM respuestas r
+    JOIN Pregunta pr ON pr.pregunta = r.pregunta
+    JOIN Unidad u ON pr.id_unidad = u.id_unidad AND u.unidad = r.unidad
+    WHERE p_estilo_vida ? r.clave
+      AND NULLIF(p_estilo_vida->>r.clave, '') IS NOT NULL;
+END;
+$$;
+
+-- =====================================
 -- STORED PROCEDURE: Dashboard 1 - Monitoreo PA Completo
 -- =====================================
 CREATE OR REPLACE PROCEDURE sp_dashboard_monitoreo_pa(
@@ -2557,6 +2721,8 @@ INSERT INTO Tipo_Medicion (nombre, id_unidad) VALUES ('presión arterial', 9);
 INSERT INTO Tipo_Medicion (nombre, id_unidad) VALUES ('acv', 5);
 INSERT INTO Tipo_Medicion (nombre, id_unidad) VALUES ('problemas_corazon', 5);
 INSERT INTO Tipo_Medicion (nombre, id_unidad) VALUES ('salud general', 9);
+INSERT INTO Tipo_Medicion (nombre, id_unidad)VALUES ('medicacion', 9);
+INSERT INTO Tipo_Medicion (nombre, id_unidad) VALUES ('diagnostico', 9);
 
 -- =====================================
 -- INSERTAR MEDICAMENTOS
@@ -14813,4 +14979,3 @@ SELECT (SELECT id_enfermedad FROM Enfermedad WHERE nombre = 'Hipertensión'),
        False, 
        CURRENT_TIMESTAMP, 
        0.2;
-

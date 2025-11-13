@@ -189,7 +189,10 @@ class PredictHealthWizard:
             "bmi": float(self.bmi_var.get() or 0),
             "presion": self.presion_var.get(),
             "saludGeneral": self.salud_var.get()
+            # Faltan 'acv' y 'problemas_corazon'
         }
+
+        # Falta lo de ¿Toma alguna de las siguientes medicaciones? (opción múltiple: ninguna, beta blocker, diurético, ACE inhibitor, otro)
 
         self.data['estiloDeVida'] = {
             "consumeFrutas": self.frutas_var.get()=="Si",
@@ -199,6 +202,12 @@ class PredictHealthWizard:
             "alcoholExceso": self.alcohol_var.get(),
             "horasSueno": int(self.horas_sueno_var.get() or 0),
             "nivelEstres": int(self.nivel_estres_var.get() or 0)
+            # Falta:
+            # Tiene dificultades para caminar o desplazarse sin ayuda?'
+            # Número de días en los últimos 30 en que la salud mental fue mala
+            # Cuál es tu nivel de actividad física?
+            # Realiza actividad física al menos 3 veces por semana?
+            # Número de días en los últimos 30 en que la salud física fue mala
         }
 
         messagebox.showinfo("Formulario enviado", json.dumps(self.data, indent=2))
