@@ -143,19 +143,6 @@ docker compose down -v
 
 > También puedes levantar backend + base de datos con `docker compose up` para tener todo el stack corriendo (el backend usa el contenedor `db` como host).
 
-### Cargar datos sintéticos (opcional)
-
-El contenedor de Postgres incluye un script `load_synthetic_data.sh` que puede importar los archivos SQL generados por los datasets (por defecto busca `Base de Datos/Data/diabetes_sql_commands.sql` y `hypertension_sql_commands.sql`).  
-Para activarlo, define la variable `LOAD_SYNTHETIC_DATA=true` cuando levantes la base:
-
-```bash
-LOAD_SYNTHETIC_DATA=true docker compose up db
-```
-
-- Si mantienes el valor por defecto (`false`), sólo se ejecutará `init.sql`.
-- Asegúrate de que los archivos SQL existan (ejecutando previamente los scripts de datos en `Base de Datos/Data`) antes de habilitar la carga.
-- Puedes modificar la lista de archivos editando `Base de Datos/scripts/load_synthetic_data.sh`.
-
 ### Estructura de Archivos
 
 ```
