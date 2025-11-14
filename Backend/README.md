@@ -52,6 +52,41 @@ export JWT_EXPIRES_MIN=60
 python3 app.py
 ```
 
+## 🐳 Docker
+También puedes ejecutar el backend dentro de un contenedor aislado.
+
+### 1. Construir la imagen
+```bash
+# Desde la raíz del repositorio
+docker build -t predicthealth-backend -f Backend/Dockerfile .
+```
+
+### 2. Definir variables de entorno
+Crea un archivo `backend.env` (o usa tus propias variables) con la configuración de tu base de datos y JWT:
+```bash
+cat <<'EOF' > backend.env
+PGHOST=localhost
+PGPORT=5432
+PGDATABASE=predicthealth
+PGUSER=predicthealth_user
+PGPASSWORD=666
+JWT_SECRET=dev-secret-change-me
+JWT_EXPIRES_MIN=60
+EOF
+```
+
+### 3. Ejecutar el contenedor
+```bash
+docker run --rm \
+  --env-file backend.env \
+  -p 5001:5001 \
+  predicthealth-backend
+```
+
+> Si Postgres corre en otro contenedor, colócalos en la misma red (`docker network create predicthealth-net` y luego `--network predicthealth-net`) y apunta `PGHOST` al nombre del servicio de Postgres.
+>
+> Alternativamente puedes levantar backend + base de datos con `docker compose up` desde la raíz del proyecto (usa `docker compose up backend` si ya tienes la DB levantada).
+
 ## 🔧 Configuración
 
 ### Variables de Entorno

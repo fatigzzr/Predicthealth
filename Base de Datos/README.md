@@ -114,6 +114,47 @@ psql -d predicthealth -f hypertension_sql_commands.sql
 SELECT COUNT(*) FROM Usuario;
 ```
 
+## 🐳 Docker (PostgreSQL listo para usar)
+
+Si prefieres evitar instalar PostgreSQL localmente, puedes levantar la base de datos con Docker. Desde la raíz del repositorio:
+
+```bash
+# Construye (si es necesario) y levanta solo la base de datos
+docker compose up db
+```
+
+- Imagen base: `postgres:15`
+- Base de datos inicial: `predicthealth`
+- Usuario/contraseña: `predicthealth_user` / `666`
+- Script `Base de Datos/init.sql` se carga automáticamente la primera vez (montado en `/docker-entrypoint-initdb.d/01-init.sql`)
+- Los datos se guardan en el volumen `predicthealth-db-data`
+
+Cuando quieras detener la base de datos:
+
+```bash
+docker compose down
+```
+
+Si quieres limpiar los datos y re-ejecutar `init.sql`, borra el volumen:
+
+```bash
+docker compose down -v
+```
+
+> También puedes levantar backend + base de datos con `docker compose up` para tener todo el stack corriendo (el backend usa el contenedor `db` como host).
+
+### Ejecutar scripts SQL adicionales dentro del contenedor
+
+Si necesitas correr un script puntual (por ejemplo `Base de Datos/prueba.sql`) después de tener la base arriba:
+
+```bash
+sudo docker cp "Base de Datos/prueba.sql" predicthealth-db:/tmp/prueba.sql
+sudo docker compose exec db \
+  psql -U predicthealth_user -d predicthealth -f /tmp/prueba.sql
+```
+
+> Si tu usuario no pertenece al grupo `docker`, agrega `sudo` (como en el ejemplo) para acceder al daemon.
+
 ### Estructura de Archivos
 
 ```

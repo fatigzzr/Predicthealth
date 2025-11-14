@@ -1,0 +1,28 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Git and IDE metadata
+.git
+.gitignore
+.DS_Store
+.vscode/
+.idea/
+
+# Virtual environments
+env/
+venv/
+.venv/
+
+# Local environment/config files
+.env
+.env.*
+
+# Project-specific folders not required inside the backend image
+Base de Datos/
+app/
+services/
+setup.sh

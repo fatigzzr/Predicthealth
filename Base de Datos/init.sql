@@ -2029,7 +2029,7 @@ CREATE OR REPLACE PROCEDURE sp_get_audit_records(
     p_user_id INTEGER DEFAULT NULL,
     p_entity_id INTEGER DEFAULT NULL,
     p_action VARCHAR(20) DEFAULT NULL,
-    INOUT p_result REFCURSOR
+    INOUT p_result REFCURSOR DEFAULT 'audit_cursor'
 ) AS $$
 BEGIN
     OPEN p_result FOR
@@ -2059,7 +2059,7 @@ $$ LANGUAGE plpgsql;
 -- =====================================
 CREATE OR REPLACE PROCEDURE sp_get_audit_stats(
     p_days INTEGER DEFAULT 30,
-    INOUT p_result REFCURSOR
+    INOUT p_result REFCURSOR DEFAULT 'audit_stats_cursor'
 ) AS $$
 BEGIN
     OPEN p_result FOR
@@ -14813,4 +14813,3 @@ SELECT (SELECT id_enfermedad FROM Enfermedad WHERE nombre = 'Hipertensión'),
        False, 
        CURRENT_TIMESTAMP, 
        0.2;
-

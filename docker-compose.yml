@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:15
+    container_name: predicthealth-db
+    environment:
+      POSTGRES_DB: predicthealth
+      POSTGRES_USER: predicthealth_user
+      POSTGRES_PASSWORD: 666
+    ports:
+      - "5432:5432"
+    volumes:
+      - predicthealth-db-data:/var/lib/postgresql/data
+      - "./Base de Datos/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U predicthealth_user -d predicthealth"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  backend:
+    container_name: predicthealth-backend
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: predicthealth
+      PGUSER: predicthealth_user
+      PGPASSWORD: 666
+      JWT_SECRET: dev-secret-change-me
+      JWT_EXPIRES_MIN: 60
+    ports:
+      - "5001:5001"
+
+volumes:
+  predicthealth-db-data:
