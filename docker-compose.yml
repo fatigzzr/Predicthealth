@@ -6,11 +6,14 @@ services:
       POSTGRES_DB: predicthealth
       POSTGRES_USER: predicthealth_user
       POSTGRES_PASSWORD: 666
+      LOAD_SYNTHETIC_DATA: "false"
     ports:
       - "5432:5432"
     volumes:
       - predicthealth-db-data:/var/lib/postgresql/data
       - "./Base de Datos/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro"
+      - "./Base de Datos/scripts/load_synthetic_data.sh:/docker-entrypoint-initdb.d/02-load-synthetic-data.sh:ro"
+      - "./Base de Datos/Data:/seed-data:ro"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U predicthealth_user -d predicthealth"]
       interval: 10s
