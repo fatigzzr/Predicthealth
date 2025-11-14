@@ -143,6 +143,18 @@ docker compose down -v
 
 > También puedes levantar backend + base de datos con `docker compose up` para tener todo el stack corriendo (el backend usa el contenedor `db` como host).
 
+### Ejecutar scripts SQL adicionales dentro del contenedor
+
+Si necesitas correr un script puntual (por ejemplo `Base de Datos/prueba.sql`) después de tener la base arriba:
+
+```bash
+sudo docker cp "Base de Datos/prueba.sql" predicthealth-db:/tmp/prueba.sql
+sudo docker compose exec db \
+  psql -U predicthealth_user -d predicthealth -f /tmp/prueba.sql
+```
+
+> Si tu usuario no pertenece al grupo `docker`, agrega `sudo` (como en el ejemplo) para acceder al daemon.
+
 ### Estructura de Archivos
 
 ```
