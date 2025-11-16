@@ -58,7 +58,7 @@ print("CV AUC mean:", float(np.mean(scores)))
 
 # Fit final model on all data and calibrate probabilities
 model.fit(X, y)
-calibrated = CalibratedClassifierCV(base_estimator=model, cv=cv, method="sigmoid")
+calibrated = CalibratedClassifierCV(model, cv=cv, method="sigmoid")
 calibrated.fit(X, y)
 
 # Save artifacts
