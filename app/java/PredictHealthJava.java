@@ -71,8 +71,9 @@ public class PredictHealthJava extends JFrame {
     // Charts and last values
     private PieChartPanel diabChart;
     private PieChartPanel hipChart;
-    private double lastDiabetesPct = 55.0;
-    private double lastHypertensionPct = 28.0;
+    // use -1.0 to indicate N/A (no prediction available)
+    private double lastDiabetesPct = -1.0;
+    private double lastHypertensionPct = -1.0;
     private String lastUserId = null;
     // network timeouts (ms)
     private final int CONNECT_TIMEOUT = 15000;
@@ -576,6 +577,12 @@ public class PredictHealthJava extends JFrame {
                 loggedIn = true;
                 JOptionPane.showMessageDialog(this, "¡Inicio de sesión exitoso!");
                 // after login, show the status dashboard before the questionnaire
+                // retrieve user id from auth/me and refresh latest predictions
+                String meId = getUserIdFromAuth();
+                if (meId != null && !meId.isEmpty()) {
+                    lastUserId = meId;
+                    fetchLatestPredictions(meId);
+                }
                 cardLayout.show(mainPanel, "Status");
             } else {
                 loggedIn = false;
@@ -592,6 +599,92 @@ public class PredictHealthJava extends JFrame {
             JOptionPane.showMessageDialog(this,"Error al contactar el servicio de autenticación");
             ex.printStackTrace();
         }
+    }
+
+    // Helper to call auth.me and return the user id (sub)
+    private String getUserIdFromAuth() {
+        if (accessToken == null || accessToken.isEmpty()) return null;
+        try {
+            URL meUrl = new URL(authMeUrl);
+            HttpURLConnection authConn = (HttpURLConnection) meUrl.openConnection();
+            authConn.setRequestMethod("GET");
+            authConn.setRequestProperty("Authorization", "Bearer " + accessToken);
+            authConn.setConnectTimeout(CONNECT_TIMEOUT);
+            authConn.setReadTimeout(READ_TIMEOUT);
+            if (authConn.getResponseCode() == 200) {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(authConn.getInputStream(), "utf-8"))) {
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) response.append(line);
+                    JSONObject me = new JSONObject(response.toString());
+                    if (me.has("sub")) return me.getString("sub");
+                }
+            }
+            authConn.disconnect();
+        } catch (Exception e) {
+            System.out.println("Could not call auth/me: " + e.getMessage());
+        }
+        return null;
+    }
+
+    // Fetch latest Prediccion rows from the diabetes service and update charts
+    private void fetchLatestPredictions(String userId) {
+        if (userId == null || userId.isEmpty()) return;
+        // Run in background to avoid blocking UI
+        SwingWorker<Void, Void> worker = new SwingWorker<>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                    try {
+                        URL base = new URL(predictUrl);
+                        String hostPart = base.getProtocol() + "://" + base.getHost() + (base.getPort() > 0 ? ":" + base.getPort() : "");
+                        String path = "/prediccion/latest/diabetes/" + userId;
+                        URL url = new URL(hostPart + path);
+                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                        conn.setRequestMethod("GET");
+                        conn.setRequestProperty("Accept", "application/json");
+                        conn.setConnectTimeout(CONNECT_TIMEOUT);
+                        conn.setReadTimeout(READ_TIMEOUT);
+
+                        int rc = conn.getResponseCode();
+                        if (rc == 200) {
+                            try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                                StringBuilder sb = new StringBuilder();
+                                String line;
+                                while ((line = br.readLine()) != null) sb.append(line);
+                                JSONObject resp = new JSONObject(sb.toString());
+                                if (resp.has("prediction") && !resp.isNull("prediction")) {
+                                    JSONObject p = resp.getJSONObject("prediction");
+                                    if (!p.isNull("percentage")) {
+                                        double pct = p.optDouble("percentage", -1);
+                                        if (pct >= 0) lastDiabetesPct = pct;
+                                    }
+                                } else {
+                                    // no prediction row for this user
+                                    lastDiabetesPct = -1.0;
+                                }
+                            }
+                        } else {
+                            System.out.println("Could not fetch latest diabetes prediccion: HTTP " + rc);
+                        }
+                        conn.disconnect();
+                    } catch (Exception ex) {
+                        System.out.println("Error fetching latest diabetes prediction: " + ex.getMessage());
+                        lastDiabetesPct = -1.0;
+                    }
+                    return null;
+            }
+
+            @Override
+            protected void done() {
+                // update UI on EDT
+                if (diabChart != null) diabChart.setPercentage((int)Math.round(lastDiabetesPct >= 0 ? lastDiabetesPct : -1));
+                if (hipChart != null) hipChart.setPercentage((int)Math.round(lastHypertensionPct >= 0 ? lastHypertensionPct : -1));
+                // If value not present, we set inner text to N/A by setting to 0 and optionally could show label; keeping simple for now
+                cardLayout.show(mainPanel, "Status");
+                updateNavButtons();
+            }
+        };
+        worker.execute();
     }
 
     // Step 2: Usuario info 
@@ -1348,13 +1441,15 @@ public class PredictHealthJava extends JFrame {
         private Color arcColor = Color.RED;
 
         public PieChartPanel(int pct, Color color) {
-            this.percentage = Math.max(0, Math.min(100, pct));
+            if (pct < 0) this.percentage = -1;
+            else this.percentage = Math.max(0, Math.min(100, pct));
             this.arcColor = color;
             setOpaque(false);
         }
 
         public void setPercentage(int pct) {
-            this.percentage = Math.max(0, Math.min(100, pct));
+            if (pct < 0) this.percentage = -1;
+            else this.percentage = Math.max(0, Math.min(100, pct));
             repaint();
         }
 
@@ -1374,18 +1469,25 @@ public class PredictHealthJava extends JFrame {
             g2.setColor(new Color(0x333333));
             g2.fillOval(x, y, size, size);
 
-            // arc for percentage
-            int angle = (int) Math.round(percentage * 360.0 / 100.0);
-            g2.setColor(arcColor);
-            g2.fillArc(x + 2, y + 2, size - 4, size - 4, 90, -angle);
+            // arc for percentage (skip if N/A)
+            if (percentage >= 0) {
+                int angle = (int) Math.round(percentage * 360.0 / 100.0);
+                g2.setColor(arcColor);
+                g2.fillArc(x + 2, y + 2, size - 4, size - 4, 90, -angle);
+            }
 
             // inner cutout for donut effect
             int inner = Math.max(8, size / 3);
             g2.setColor(new Color(0x132232));
             g2.fillOval(x + inner/2, y + inner/2, size - inner, size - inner);
 
-            // percentage text
-            String txt = percentage + "%";
+                // percentage text
+                String txt;
+                if (percentage < 0) {
+                    txt = "N/A";
+                } else {
+                    txt = percentage + "%";
+                }
             Font f = getFont().deriveFont(Font.BOLD, Math.max(12, size / 6));
             g2.setFont(f);
             FontMetrics fm = g2.getFontMetrics();

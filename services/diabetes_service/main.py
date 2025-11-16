@@ -268,6 +268,108 @@ def predict(user_id: int):
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
+@app.get("/prediccion/latest/{user_id}")
+def latest_predicciones(user_id: int):
+    """Return the latest Prediccion rows for diabetes (1) and hypertension (2) for a user."""
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT DISTINCT ON (id_enfermedad)
+                        id_enfermedad, probabilidad, prediccion, fecha
+                    FROM Prediccion
+                    WHERE id_usuario = %s AND id_enfermedad IN (1,2)
+                    ORDER BY id_enfermedad, fecha DESC
+                    """,
+                    (user_id,)
+                )
+                rows = cur.fetchall()
+                result = {"user_id": user_id, "predictions": []}
+                for r in rows:
+                    id_enf = r.get('id_enfermedad')
+                    prob = r.get('probabilidad')
+                    pred_bool = r.get('prediccion')
+                    fecha = r.get('fecha')
+                    # compute a display percentage for diabetes using same scaling as predict_risk
+                    pct = None
+                    if prob is not None:
+                        try:
+                            prob_f = float(prob)
+                            if id_enf == 1:
+                                threshold = 0.2
+                                raw_risk = prob_f / threshold
+                                pct = float(min(raw_risk / 1.75 * 100, 100))
+                            else:
+                                pct = float(min(prob_f * 100, 100))
+                        except Exception:
+                            pct = None
+
+                    result['predictions'].append({
+                        'id_enfermedad': id_enf,
+                        'probabilidad': prob,
+                        'percentage': pct,
+                        'prediccion': pred_bool,
+                        'fecha': str(fecha) if fecha is not None else None
+                    })
+                return result
+    except Exception as e:
+        import traceback
+        print(f"Error fetching latest prediccion: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/prediccion/latest/diabetes/{user_id}")
+def latest_prediccion_diabetes(user_id: int):
+    """Return the newest Prediccion row for diabetes (id_enfermedad=1) for a user."""
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id_enfermedad, probabilidad, prediccion, fecha
+                    FROM Prediccion
+                    WHERE id_usuario = %s AND id_enfermedad = 1
+                    ORDER BY fecha DESC
+                    LIMIT 1
+                    """,
+                    (user_id,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    # return empty result indicating no prediction
+                    return {"user_id": user_id, "prediction": None}
+
+                prob = row.get('probabilidad')
+                pred_bool = row.get('prediccion')
+                fecha = row.get('fecha')
+
+                pct = None
+                if prob is not None:
+                    try:
+                        prob_f = float(prob)
+                        threshold = 0.2
+                        raw_risk = prob_f / threshold
+                        pct = float(min(raw_risk / 1.75 * 100, 100))
+                    except Exception:
+                        pct = None
+
+                return {
+                    'user_id': user_id,
+                    'prediction': {
+                        'id_enfermedad': 1,
+                        'probabilidad': prob,
+                        'percentage': pct,
+                        'prediccion': pred_bool,
+                        'fecha': str(fecha) if fecha is not None else None
+                    }
+                }
+    except Exception as e:
+        import traceback
+        print(f"Error fetching latest diabetes prediccion: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ---- Run ----
 if __name__ == "__main__":
     import uvicorn
