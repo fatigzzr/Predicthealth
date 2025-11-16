@@ -4,6 +4,8 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from services.shared.db import get_conn
 from datetime import date
+import json
+from psycopg2.extras import Json
 
 # --- Load artifacts ---
 ARTIFACT_DIR = "Backend/AI/diabetesv3/artifacts"
@@ -228,11 +230,34 @@ def predict_risk(user_id: int):
 app = FastAPI(title="Diabetes Risk Service", version="2.0")
 
 
-@app.get("/predict/{user_id}")
+@app.get("/predict_diabetes/{user_id}")
 def predict(user_id: int):
     """Predict diabetes risk for a user by ID."""
     try:
         result = predict_risk(user_id)
+        # After computing the prediction, persist a row to Prediccion table (best-effort)
+        try:
+            probability = float(result.get("probability", 0.0))
+            pred_bool = True if probability > 0.2 else False
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, probabilidad, fecha, explicabilidad)
+                        VALUES (%s, %s, %s, %s, %s, NOW(), %s)
+                        RETURNING id_prediccion
+                        """,
+                        (1, user_id, 1, pred_bool, probability, Json({}))
+                    )
+                    inserted = cur.fetchone()
+                    if inserted and 'id_prediccion' in inserted:
+                        pred_id = inserted['id_prediccion']
+                        print(f"Inserted Prediccion id={pred_id} for user={user_id} prob={probability}")
+                    else:
+                        print(f"Inserted Prediccion (no id returned) for user={user_id} prob={probability}")
+        except Exception as db_ex:
+            import traceback
+            print(f"Warning: could not insert Prediccion row: {traceback.format_exc()}")
         return {"user_id": user_id, "prediction": result}
     except HTTPException:
         raise
