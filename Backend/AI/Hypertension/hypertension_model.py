@@ -11,7 +11,7 @@ from scipy import stats
 import shap
 
 RANDOM_STATE = 0
-DATA_PATH = "Backend/AI/Hypertension/hypertension_train.csv"
+DATA_PATH = "Backend/AI/Hypertension/split/hypertension_train.csv"
 ARTIFACT_DIR = "Backend/AI/Hypertension/artifacts"
 os.makedirs(ARTIFACT_DIR, exist_ok=True)
 

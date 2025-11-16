@@ -12,7 +12,7 @@ calibrated = pipeline["calibrated"]
 FEATURES = pipeline["feature_columns"]
 
 # --- Load test CSV ---
-df = pd.read_csv("Backend/AI/Hypertension/hypertension_train.csv")
+df = pd.read_csv("Backend/AI/Hypertension/split/hypertension_test.csv")
 
 # --- Target ---
 df["Has_Hypertension"] = df["Has_Hypertension"].map({"Yes": 1, "No": 0})
