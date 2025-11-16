@@ -113,6 +113,8 @@ public class PredictHealthJava extends JFrame {
         mainPanel.add(statusPanel, "Status");
         step2Panel = step2Panel();
         mainPanel.add(step2Panel, "Step2");
+        // user data panel (moved personal fields)
+        mainPanel.add(userDataPanel(), "UserData");
         step3Panel = step3Panel();
         mainPanel.add(step3Panel, "Step3");
         step4Panel = step4Panel();
@@ -268,7 +270,14 @@ public class PredictHealthJava extends JFrame {
         );
 
         prevButton.addActionListener(e -> {
-            cardLayout.previous(mainPanel);
+            Component visible = getVisiblePanel();
+            String name = getPanelName(visible);
+            // If we're on the first real questionnaire step (Step3), go back to Status
+            if ("Step3".equals(name)) {
+                cardLayout.show(mainPanel, "Status");
+            } else {
+                cardLayout.previous(mainPanel);
+            }
             updateNavButtons();
         });
 
@@ -327,7 +336,7 @@ public class PredictHealthJava extends JFrame {
         String name = getPanelName(visible);
 
     // Hide nav buttons on Start, Register, Status and the login screen (Step1)
-    boolean showNav = loggedIn && !(name.equals("Start") || name.equals("Register") || name.equals("Status") || name.equals("Step1"));
+    boolean showNav = loggedIn && !(name.equals("Start") || name.equals("Register") || name.equals("Status") || name.equals("Step1") || name.equals("UserData"));
         prevButton.setVisible(showNav);
         nextButton.setVisible(showNav);
 
@@ -347,13 +356,14 @@ public class PredictHealthJava extends JFrame {
         if (comp == mainPanel.getComponent(2)) return "Step1";
         if (comp == mainPanel.getComponent(3)) return "Status";
         if (comp == mainPanel.getComponent(4)) return "Step2";
-        if (comp == mainPanel.getComponent(5)) return "Step3";
-        if (comp == mainPanel.getComponent(6)) return "Step4";
-        if (comp == mainPanel.getComponent(7)) return "Step4_5";
-        if (comp == mainPanel.getComponent(8)) return "Step5";
-        if (comp == mainPanel.getComponent(9)) return "Step6";
-        if (comp == mainPanel.getComponent(10)) return "Step7";
-        if (comp == mainPanel.getComponent(11)) return "Step8";
+        if (comp == mainPanel.getComponent(5)) return "UserData";
+        if (comp == mainPanel.getComponent(6)) return "Step3";
+        if (comp == mainPanel.getComponent(7)) return "Step4";
+        if (comp == mainPanel.getComponent(8)) return "Step4_5";
+        if (comp == mainPanel.getComponent(9)) return "Step5";
+        if (comp == mainPanel.getComponent(10)) return "Step6";
+        if (comp == mainPanel.getComponent(11)) return "Step7";
+        if (comp == mainPanel.getComponent(12)) return "Step8";
         return "";
     }
 
@@ -627,6 +637,79 @@ public class PredictHealthJava extends JFrame {
         return null;
     }
 
+    // Load paciente data for user and populate the userDataPanel fields
+    private void loadUserData(String userId) {
+        if (userId == null || userId.isEmpty()) return;
+        SwingWorker<Void, Void> w = new SwingWorker<>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                try {
+                    URL base = new URL(pacienteUrl);
+                    String path = base.toString();
+                    if (!path.endsWith("/")) path = path + "/";
+                    URL url = new URL(path + userId);
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("GET");
+                    conn.setRequestProperty("Accept", "application/json");
+                    conn.setConnectTimeout(CONNECT_TIMEOUT);
+                    conn.setReadTimeout(READ_TIMEOUT);
+                    int rc = conn.getResponseCode();
+                    if (rc == 200) {
+                        try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                            StringBuilder sb = new StringBuilder();
+                            String line;
+                            while ((line = br.readLine()) != null) sb.append(line);
+                            JSONObject resp = new JSONObject(sb.toString());
+                            final String nombre = resp.optString("nombre", "");
+                            final String apellido = resp.optString("apellido", "");
+                            final String fechaNac = resp.optString("fecha_nacimiento", "");
+                            final String sexo = resp.optString("sexo", "");
+                            SwingUtilities.invokeLater(() -> {
+                                if (nombreField == null) nombreField = createTextField();
+                                if (apellidoField == null) apellidoField = createTextField();
+                                if (fechaNacimientoSpinner == null) {
+                                    SpinnerDateModel dm = new SpinnerDateModel();
+                                    fechaNacimientoSpinner = new JSpinner(dm);
+                                    fechaNacimientoSpinner.setEditor(new JSpinner.DateEditor(fechaNacimientoSpinner, "yyyy-MM-dd"));
+                                    fechaNacimientoSpinner.setPreferredSize(new Dimension(200,28));
+                                }
+                                nombreField.setText(nombre);
+                                apellidoField.setText(apellido);
+                                try {
+                                    if (fechaNac != null && !fechaNac.isEmpty()) {
+                                        java.util.Date d = new java.text.SimpleDateFormat("yyyy-MM-dd").parse(fechaNac);
+                                        fechaNacimientoSpinner.setValue(d);
+                                        // update age display after setting spinner value
+                                        SwingUtilities.invokeLater(() -> updateEdadLabel());
+                                    }
+                                } catch (Exception ex) {
+                                    // ignore parse
+                                }
+                                // set sex radio
+                                if (sexoPanel != null) {
+                                    for (Component c : sexoPanel.getComponents()) {
+                                        if (c instanceof JRadioButton rb) {
+                                            if (rb.getText().equalsIgnoreCase("Hombre") && ("M".equalsIgnoreCase(sexo) || "Hombre".equalsIgnoreCase(sexo))) rb.setSelected(true);
+                                            else if (rb.getText().equalsIgnoreCase("Mujer") && ("F".equalsIgnoreCase(sexo) || "Mujer".equalsIgnoreCase(sexo))) rb.setSelected(true);
+                                            else if (rb.getText().equalsIgnoreCase("Otro") && ("O".equalsIgnoreCase(sexo) || "Otro".equalsIgnoreCase(sexo))) rb.setSelected(true);
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    } else {
+                        System.out.println("Could not load paciente: HTTP " + rc);
+                    }
+                    conn.disconnect();
+                } catch (Exception ex) {
+                    System.out.println("Error loading paciente data: " + ex.getMessage());
+                }
+                return null;
+            }
+        };
+        w.execute();
+    }
+
     // Fetch latest Prediccion rows from the diabetes service and update charts
     private void fetchLatestPredictions(String userId) {
         if (userId == null || userId.isEmpty()) return;
@@ -696,40 +779,11 @@ public class PredictHealthJava extends JFrame {
         gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        JLabel nombreLabel = createLabel("Nombre:");
-        nombreField = createTextField();
-
-        JLabel apellidoLabel = createLabel("Apellido:");
-        apellidoField = createTextField();
-
-        JLabel fechaLabel = createLabel("Fecha de nacimiento:");
-        SpinnerDateModel dateModel = new SpinnerDateModel();
-        fechaNacimientoSpinner = new JSpinner(dateModel);
-        fechaNacimientoSpinner.setEditor(new JSpinner.DateEditor(fechaNacimientoSpinner, "yyyy-MM-dd"));
-        fechaNacimientoSpinner.setPreferredSize(new Dimension(200,28));
-        fechaNacimientoSpinner.addChangeListener(e -> updateEdadLabel());
-
-        edadLabel = createLabel("Edad: ");
-
-        JLabel sexoLabel = createLabel("Sexo:");
-        JRadioButton hombreRadio = new JRadioButton("Hombre");
-        JRadioButton mujerRadio = new JRadioButton("Mujer");
-        JRadioButton otroRadio = new JRadioButton("Otro");
-        ButtonGroup sexoGroup = new ButtonGroup();
-        sexoGroup.add(hombreRadio); sexoGroup.add(mujerRadio); sexoGroup.add(otroRadio);
-        sexoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        sexoPanel.setBackground(new Color(0x132232));
-        sexoPanel.add(hombreRadio); sexoPanel.add(mujerRadio); sexoPanel.add(otroRadio);
-
-        gbc.gridx=0; gbc.gridy=0; panel.add(nombreLabel, gbc);
-        gbc.gridx=1; panel.add(nombreField, gbc);
-        gbc.gridx=0; gbc.gridy++; panel.add(apellidoLabel, gbc);
-        gbc.gridx=1; panel.add(apellidoField, gbc);
-        gbc.gridx=0; gbc.gridy++; panel.add(fechaLabel, gbc);
-        gbc.gridx=1; panel.add(fechaNacimientoSpinner, gbc);
-        gbc.gridx=0; gbc.gridy++; panel.add(edadLabel, gbc);
-        gbc.gridx=0; gbc.gridy++; panel.add(sexoLabel, gbc);
-        gbc.gridx=1; panel.add(sexoPanel, gbc);
+        // Personal data moved to "Datos de Usuario" screen. Show a short note and link.
+        JLabel info = createLabel("Los datos personales (Nombre, Apellido, Fecha de Nacimiento, Sexo) se encuentran en 'Datos de Usuario'.");
+        info.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        panel.add(info, gbc);
 
         return panel;
     }
@@ -1131,11 +1185,30 @@ public class PredictHealthJava extends JFrame {
         // Nuevo Registro button to start the questionnaire
         JButton nuevoBtn = createNavButton("Nuevo Registro");
         nuevoBtn.addActionListener(e -> {
-            // go to questionnaire (Step2) where the user can enter new record
-            cardLayout.show(mainPanel, "Step2");
+            // start questionnaire at the first actual question step (Step3)
+            cardLayout.show(mainPanel, "Step3");
             updateNavButtons();
         });
         btns.add(nuevoBtn);
+
+        // Datos de Usuario button to view/edit persistent user fields
+        JButton datosBtn = createNavButton("Datos de Usuario");
+        datosBtn.addActionListener(e -> {
+            // ensure we have the user id
+            if (lastUserId == null || lastUserId.isEmpty()) {
+                String me = getUserIdFromAuth();
+                if (me != null) lastUserId = me;
+            }
+            if (lastUserId == null || lastUserId.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No se encontró el ID de usuario. Por favor inicie sesión nuevamente.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            // show panel and load data
+            cardLayout.show(mainPanel, "UserData");
+            updateNavButtons();
+            loadUserData(lastUserId);
+        });
+        btns.add(datosBtn);
 
         // Logout button
         JButton logoutBtn = createNavButton("Cerrar sesión");
@@ -1169,6 +1242,134 @@ public class PredictHealthJava extends JFrame {
         statusPanel.add(btns, gbc);
 
         return statusPanel;
+    }
+
+    // Panel for persistent user data: Nombre, Apellido, Fecha de Nacimiento, Sexo
+    private JPanel userDataPanel() {
+        if (/*reuse*/ false) return null; // placeholder to satisfy structure
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(0x132232));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8,8,8,8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JButton backBtn = createNavButton("Atrás");
+        backBtn.addActionListener(e -> {
+            cardLayout.show(mainPanel, "Status");
+            updateNavButtons();
+        });
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2; gbc.anchor = GridBagConstraints.WEST;
+        panel.add(backBtn, gbc);
+
+        // Ensure fields exist
+        if (nombreField == null) nombreField = createTextField();
+        if (apellidoField == null) apellidoField = createTextField();
+        if (fechaNacimientoSpinner == null) {
+            SpinnerDateModel dateModel = new SpinnerDateModel();
+            fechaNacimientoSpinner = new JSpinner(dateModel);
+            fechaNacimientoSpinner.setEditor(new JSpinner.DateEditor(fechaNacimientoSpinner, "yyyy-MM-dd"));
+            fechaNacimientoSpinner.setPreferredSize(new Dimension(200,28));
+            fechaNacimientoSpinner.addChangeListener(e -> updateEdadLabel());
+        }
+        // Edad label (auto-calculated)
+        if (edadLabel == null) {
+            edadLabel = new JLabel("Edad: N/A");
+            edadLabel.setForeground(Color.WHITE);
+            edadLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        }
+        if (sexoPanel == null) {
+            JRadioButton hombreRadio = new JRadioButton("Hombre");
+            JRadioButton mujerRadio = new JRadioButton("Mujer");
+            JRadioButton otroRadio = new JRadioButton("Otro");
+            ButtonGroup sexoGroup = new ButtonGroup();
+            sexoGroup.add(hombreRadio); sexoGroup.add(mujerRadio); sexoGroup.add(otroRadio);
+            sexoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            sexoPanel.setBackground(new Color(0x132232));
+            sexoPanel.add(hombreRadio); sexoPanel.add(mujerRadio); sexoPanel.add(otroRadio);
+        }
+
+        gbc.gridwidth = 1; gbc.gridx = 0; gbc.gridy++;
+        panel.add(createLabel("Nombre:"), gbc);
+        gbc.gridx = 1; panel.add(nombreField, gbc);
+
+        gbc.gridx = 0; gbc.gridy++; panel.add(createLabel("Apellido:"), gbc);
+        gbc.gridx = 1; panel.add(apellidoField, gbc);
+
+        gbc.gridx = 0; gbc.gridy++; panel.add(createLabel("Fecha de nacimiento:"), gbc);
+        gbc.gridx = 1; panel.add(fechaNacimientoSpinner, gbc);
+
+        // Age display
+        gbc.gridx = 0; gbc.gridy++; panel.add(createLabel("Edad:"), gbc);
+        gbc.gridx = 1; panel.add(edadLabel, gbc);
+
+        gbc.gridx = 0; gbc.gridy++; panel.add(createLabel("Sexo:"), gbc);
+        gbc.gridx = 1; panel.add(sexoPanel, gbc);
+
+        // Save button
+        gbc.gridx = 0; gbc.gridy++; gbc.gridwidth = 2; gbc.anchor = GridBagConstraints.CENTER;
+        JButton saveBtn = createNavButton("Guardar");
+        saveBtn.addActionListener(e -> {
+            // Validate
+            if (nombreField.getText().trim().isEmpty() || apellidoField.getText().trim().isEmpty() || fechaNacimientoSpinner.getValue() == null || getSelectedButtonText(sexoPanel).isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Complete todos los campos personales antes de guardar.", "Campos incompletos", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            // Save to patient service (POST /paciente does upsert)
+            SwingWorker<Void, Void> w = new SwingWorker<>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    try {
+                        String userId = lastUserId != null ? lastUserId : getUserIdFromAuth();
+                        if (userId == null) {
+                            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(PredictHealthJava.this, "ID de usuario no disponible. Por favor inicie sesión de nuevo.", "Error", JOptionPane.ERROR_MESSAGE));
+                            return null;
+                        }
+                        JSONObject pac = new JSONObject();
+                        pac.put("id_usuario", Integer.parseInt(userId));
+                        pac.put("nombre", nombreField.getText().trim());
+                        pac.put("apellido", apellidoField.getText().trim());
+                        java.util.Date bd = (java.util.Date) fechaNacimientoSpinner.getValue();
+                        pac.put("fecha_nacimiento", new java.text.SimpleDateFormat("yyyy-MM-dd").format(bd));
+                        // store sexo as single-char: M, F, O
+                        String sexoForSave = getSelectedButtonText(sexoPanel);
+                        if ("Hombre".equalsIgnoreCase(sexoForSave) || "M".equalsIgnoreCase(sexoForSave)) sexoForSave = "M";
+                        else if ("Mujer".equalsIgnoreCase(sexoForSave) || "F".equalsIgnoreCase(sexoForSave)) sexoForSave = "F";
+                        else if ("Otro".equalsIgnoreCase(sexoForSave) || "O".equalsIgnoreCase(sexoForSave)) sexoForSave = "O";
+                        else sexoForSave = "";
+                        pac.put("sexo", sexoForSave);
+
+                        URL url = new URL(pacienteUrl + "/" );
+                        // use POST /paciente endpoint (it upserts by id_usuario)
+                        URL postUrl = new URL(pacienteUrl);
+                        HttpURLConnection conn = (HttpURLConnection) postUrl.openConnection();
+                        conn.setRequestMethod("POST");
+                        conn.setRequestProperty("Content-Type", "application/json; utf-8");
+                        conn.setConnectTimeout(CONNECT_TIMEOUT);
+                        conn.setReadTimeout(READ_TIMEOUT);
+                        conn.setDoOutput(true);
+                        try (OutputStream os = conn.getOutputStream()) {
+                            byte[] input = pac.toString().getBytes("utf-8");
+                            os.write(input, 0, input.length);
+                        }
+                        int code = conn.getResponseCode();
+                        conn.disconnect();
+                        if (code >= 200 && code < 300) {
+                            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(PredictHealthJava.this, "Datos de usuario guardados."));
+                        } else {
+                            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(PredictHealthJava.this, "Error guardando datos: HTTP " + code, "Error", JOptionPane.ERROR_MESSAGE));
+                        }
+                    } catch (Exception ex) {
+                        SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(PredictHealthJava.this, "Error guardando datos: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+                    }
+                    return null;
+                }
+            };
+            w.execute();
+        });
+        panel.add(saveBtn, gbc);
+
+        return panel;
     }
 
 
@@ -1235,9 +1436,11 @@ public class PredictHealthJava extends JFrame {
         putNotNull(paciente, "fecha_nacimiento", birth != null ? new java.text.SimpleDateFormat("yyyy-MM-dd").format(birth) : "");
         
         String sexoValue = getSelectedButtonText(sexoPanel);
-        if ("Hombre".equals(sexoValue)) sexoValue = "M";
-        else if ("Mujer".equals(sexoValue)) sexoValue = "F";
-        else if ("Otro".equals(sexoValue)) sexoValue = "";
+        // Map displayed radio text to single-char DB value: M, F, O
+        if ("Hombre".equalsIgnoreCase(sexoValue) || "M".equalsIgnoreCase(sexoValue)) sexoValue = "M";
+        else if ("Mujer".equalsIgnoreCase(sexoValue) || "F".equalsIgnoreCase(sexoValue)) sexoValue = "F";
+        else if ("Otro".equalsIgnoreCase(sexoValue) || "O".equalsIgnoreCase(sexoValue)) sexoValue = "O";
+        else sexoValue = "";
         putNotNull(paciente, "sexo", sexoValue);
 
         putNotNull(paciente, "fecha", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
