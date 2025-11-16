@@ -8,44 +8,45 @@ import json
 from psycopg2.extras import Json
 
 # --- Load artifacts ---
-ARTIFACT_DIR = "Backend/AI/diabetesv3/artifacts"
+ARTIFACT_DIR = "Backend/AI/Hypertension/artifacts"
 try:
-    pipeline_path = os.path.join(ARTIFACT_DIR, "diabetes_pipeline.joblib")
+    pipeline_path = os.path.join(ARTIFACT_DIR, "hypertension_pipeline.joblib")
     if not os.path.exists(pipeline_path):
         raise FileNotFoundError(f"Model file not found: {pipeline_path}")
     pipeline = joblib.load(pipeline_path)
     scaler = pipeline["scaler"]
     calibrated = pipeline["calibrated"]
     FEATURES = pipeline["features"]
-    print(f"Successfully loaded diabetes v3 model with {len(FEATURES)} features")
+    print(f"Successfully loaded hypertension model with {len(FEATURES)} features")
 except Exception as e:
     import traceback
     print(f"ERROR loading model: {traceback.format_exc()}")
     raise
 
-APP_PORT = 8008
+APP_PORT = 8009
 
-# --- Mapping id_pregunta to model features ---
+# --- Mapping id_pregunta to model features (hypertension model) ---
+# Hypertension model features: Age, Salt_Intake, Stress_Score, BP_History, Sleep_Duration, BMI, Medication, Family_History, Exercise_Level, Smoking_Status
 PREGUNTA_TO_FEATURE = {
-    1: "Fruits",
-    2: "Veggies",
-    4: "Smoker",
-    5: "HvyAlcoholConsump",
-    6: "DiffWalk",
-    9: "MentHlth",
-    11: "PhysActivity",
-    12: "PhysHlth"
+    4: "Smoking_Status",  # ¿Fuma?
+    # 5: "Medication",     #missing - no pregunta maps to current medications in estilo_vida
+    # 7: "Family_History", #missing - family history not captured
+    # 8: "BP_History",     #missing - blood pressure history not in estilo_vida
+    # 10: "Sleep_Duration",#missing - sleep hours tracked in step 8 but not persisted to estilo_vida
+    # 13: "Exercise_Level",#missing - exercise level not captured as structured data
+    14: "Stress_Score",   # stress level (1-10) from step 8
+    # 15: "Salt_Intake",   #missing - salt intake from step 7 but units may not match model
 }
 
 # --- Helper functions ---
 def get_patient_data(user_id: int) -> pd.DataFrame:
-    """Gather all needed patient features from database."""
+    """Gather all needed patient features from database for hypertension prediction."""
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
-                # --- Get Sex from Paciente (newest fecha) ---
+                # --- Get Age, BMI from Paciente (newest fecha) ---
                 cur.execute("""
-                    SELECT sexo
+                    SELECT sexo, fecha_nacimiento
                     FROM Paciente
                     WHERE id_usuario = %s
                     ORDER BY fecha DESC
@@ -54,11 +55,14 @@ def get_patient_data(user_id: int) -> pd.DataFrame:
                 row = cur.fetchone()
                 if not row:
                     raise HTTPException(status_code=404, detail="Patient not found")
-                sexo_value = row["sexo"]
-                sex = 1 if sexo_value == 'M' else 0
-
-                # --- Get lifestyle responses (newest fecha per id_pregunta) ---
-                # Use window function approach with explicit timestamp ordering including microseconds
+                
+                # Calculate Age from fecha_nacimiento
+                from datetime import datetime
+                birth_date = row["fecha_nacimiento"]
+                today = datetime.now().date()
+                age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+                
+                # --- Get lifestyle/salud responses (newest fecha per id_pregunta) ---
                 cur.execute("""
                     SELECT id_pregunta, valor
                     FROM (
@@ -69,71 +73,102 @@ def get_patient_data(user_id: int) -> pd.DataFrame:
                             ROW_NUMBER() OVER (PARTITION BY id_pregunta ORDER BY fecha DESC NULLS LAST, id_respuesta DESC) as rn
                         FROM Respuesta_Estilo_Vida
                         WHERE id_usuario = %s
-                            AND id_pregunta IN (1, 2, 4, 5, 6, 9, 11, 12)
                     ) ranked
                     WHERE rn = 1
                     ORDER BY id_pregunta
                 """, (user_id,))
-                rows = cur.fetchall()
+                estilo_rows = cur.fetchall()
+                estilo_map = {row["id_pregunta"]: row["valor"] for row in estilo_rows}
                 
-                # Build a map of id_pregunta -> valor
-                valor_map = {row["id_pregunta"]: row["valor"] for row in rows}
+                # --- Get Salud responses (for BMI, pressure, etc.) ---
+                cur.execute("""
+                    SELECT id_pregunta, valor
+                    FROM (
+                        SELECT 
+                            id_pregunta, 
+                            valor,
+                            fecha,
+                            ROW_NUMBER() OVER (PARTITION BY id_pregunta ORDER BY fecha DESC NULLS LAST, id_respuesta DESC) as rn
+                        FROM Respuesta_Salud
+                        WHERE id_usuario = %s
+                    ) ranked
+                    WHERE rn = 1
+                    ORDER BY id_pregunta
+                """, (user_id,))
+                salud_rows = cur.fetchall()
+                salud_map = {row["id_pregunta"]: row["valor"] for row in salud_rows}
                 
-                # Debug: Print raw values
-                print(f"DEBUG: Raw valor_map for user {user_id}: {valor_map}")
+                print(f"DEBUG: estilo_map for user {user_id}: {estilo_map}")
+                print(f"DEBUG: salud_map for user {user_id}: {salud_map}")
 
                 # Map binary values (si/no questions)
                 def map_binary(val):
                     if val is None:
                         return 0
                     val_str = str(val).strip()
-                    # Check for yes/true values (note: "Sí" becomes "SÍ" when uppercased)
                     if val_str.upper() in ["TRUE", "YES", "SÍ", "SI", "1", "S", "Y"]:
                         return 1
                     return 0
 
-                # Extract values with proper mapping
-                # Note: For worst case scenario (high risk):
-                # Fruits=No (0), Veggies=No (0), Smoker=Sí (1), Alcohol=Sí (1), 
-                # DiffWalk=Sí (1), PhysActivity=No (0) are all correct for high risk
-                fruits = map_binary(valor_map.get(1, 0))
-                veggies = map_binary(valor_map.get(2, 0))
-                smoker = map_binary(valor_map.get(4, 0))
-                hvy_alcohol = map_binary(valor_map.get(5, 0))
-                diff_walk = map_binary(valor_map.get(6, 0))
-                phys_activity = map_binary(valor_map.get(11, 0))
-                
-                # Extract numeric values
                 def map_numeric(val, default=0):
                     if val is None:
                         return default
                     try:
-                        result = float(val)
-                        return max(0, min(result, 30))  # Clamp between 0-30 for health days
+                        return float(val)
                     except (ValueError, TypeError):
                         return default
 
-                ment_hlth = map_numeric(valor_map.get(9, 0))
-                phys_hlth = map_numeric(valor_map.get(12, 0))
-
+                # Extract hypertension model features
+                # Age: calculated from fecha_nacimiento
+                age_val = age
+                
+                # Salt_Intake: from estilo_vida pregunta 15 (if available) #missing - may need validation
+                salt_intake = map_numeric(estilo_map.get(15, 0), 0)  # #missing
+                
+                # Stress_Score: from estilo_vida pregunta 14 (stress level 1-10)
+                stress_score = map_numeric(estilo_map.get(14, 0), 5)  # #missing - assuming default 5 if not found
+                
+                # BP_History: from salud pregunta (presion arterial) #missing - may not be boolean
+                bp_history = 0  # #missing - need to map from presion responses
+                
+                # Sleep_Duration: from estilo_vida pregunta 13 #missing - not yet in responses
+                sleep_duration = map_numeric(estilo_map.get(13, 0), 7)  # #missing - assuming default 7 hours
+                
+                # BMI: from salud pregunta (BMI field) #missing - need to extract from salud responses
+                bmi = map_numeric(salud_map.get(5, 0), 25)  # #missing - assuming default 25 if not found
+                
+                # Medication: from salud responses #missing - no direct pregunta for current medications
+                medication = 0  # #missing
+                
+                # Family_History: from salud responses #missing - family history not captured
+                family_history = 0  # #missing
+                
+                # Exercise_Level: from estilo_vida #missing - need structured exercise level
+                exercise_level = map_numeric(estilo_map.get(11, 0), 0)  # #missing - using phys_activity proxy
+                
+                # Smoking_Status: from estilo_vida pregunta 4 (¿Fuma?)
+                smoking_status = map_binary(estilo_map.get(4, 0))
+                
                 # Build DataFrame matching the model's expected format
                 df = pd.DataFrame([{
-                    "Sex": sex,
-                    "Smoker": smoker,
-                    "Fruits": fruits,
-                    "Veggies": veggies,
-                    "HvyAlcoholConsump": hvy_alcohol,
-                    "DiffWalk": diff_walk,
-                    "PhysActivity": phys_activity,
-                    "MentHlth": ment_hlth,
-                    "PhysHlth": phys_hlth
+                    "Age": age_val,
+                    "Salt_Intake": salt_intake,
+                    "Stress_Score": stress_score,
+                    "BP_History": bp_history,
+                    "Sleep_Duration": sleep_duration,
+                    "BMI": bmi,
+                    "Medication": medication,
+                    "Family_History": family_history,
+                    "Exercise_Level": exercise_level,
+                    "Smoking_Status": smoking_status
                 }])
                 
                 # Debug: Print processed values
-                print(f"DEBUG: Processed features for user {user_id}:")
-                print(f"  Sex={sex}, Smoker={smoker}, Fruits={fruits}, Veggies={veggies}")
-                print(f"  HvyAlcoholConsump={hvy_alcohol}, DiffWalk={diff_walk}, PhysActivity={phys_activity}")
-                print(f"  MentHlth={ment_hlth}, PhysHlth={phys_hlth}")
+                print(f"DEBUG: Processed hypertension features for user {user_id}:")
+                print(f"  Age={age_val}, Salt_Intake={salt_intake}, Stress_Score={stress_score}")
+                print(f"  BP_History={bp_history}, Sleep_Duration={sleep_duration}, BMI={bmi}")
+                print(f"  Medication={medication}, Family_History={family_history}")
+                print(f"  Exercise_Level={exercise_level}, Smoking_Status={smoking_status}")
                 
                 return df
 
@@ -147,11 +182,11 @@ def get_patient_data(user_id: int) -> pd.DataFrame:
 
 
 def preprocess_patient(df_in):
-    """Preprocess patient data to match model requirements."""
+    """Preprocess patient data to match hypertension model requirements."""
     df = df_in.copy()
     used_feats = [
-        "Sex", "Smoker", "Fruits", "Veggies", "HvyAlcoholConsump",
-        "DiffWalk", "PhysActivity", "MentHlth", "PhysHlth"
+        "Age", "Salt_Intake", "Stress_Score", "BP_History", "Sleep_Duration",
+        "BMI", "Medication", "Family_History", "Exercise_Level", "Smoking_Status"
     ]
     df = df[[c for c in used_feats if c in df.columns]].copy()
 
@@ -159,14 +194,18 @@ def preprocess_patient(df_in):
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-    # Scale continuous features
-    cont_feats = ["PhysHlth", "MentHlth"]
+    # Scale continuous features if scaler expects them
+    cont_feats = ["Age", "Salt_Intake", "Stress_Score", "Sleep_Duration", "BMI"]
     for c in cont_feats:
         if c not in df.columns:
             df[c] = 0
     
-    # Transform continuous features with scaler
-    df[cont_feats] = scaler.transform(df[cont_feats].values)
+    # Transform continuous features with scaler (if applicable)
+    if hasattr(scaler, 'transform'):
+        try:
+            df[cont_feats] = scaler.transform(df[cont_feats].values)
+        except Exception as e:
+            print(f"Warning: scaler transform failed: {e}")
 
     # Ensure all FEATURES are present
     for c in FEATURES:
@@ -177,7 +216,7 @@ def preprocess_patient(df_in):
 
 
 def predict_risk(user_id: int):
-    """Predict diabetes risk for a user."""
+    """Predict hypertension risk for a user."""
     df = get_patient_data(user_id)
     X_patient = preprocess_patient(df)
     
@@ -227,12 +266,12 @@ def predict_risk(user_id: int):
 
 
 # --- FastAPI setup ---
-app = FastAPI(title="Diabetes Risk Service", version="2.0")
+app = FastAPI(title="Hypertension Risk Service", version="2.0")
 
 
-@app.get("/predict_diabetes/{user_id}")
+@app.get("/predict_hypertension/{user_id}")
 def predict(user_id: int):
-    """Predict diabetes risk for a user by ID."""
+    """Predict hypertension risk for a user by ID."""
     try:
         result = predict_risk(user_id)
         # After computing the prediction, persist a row to Prediccion table (best-effort)
@@ -247,7 +286,7 @@ def predict(user_id: int):
                         VALUES (%s, %s, %s, %s, %s, NOW(), %s)
                         RETURNING id_prediccion
                         """,
-                        (1, user_id, 1, pred_bool, probability, Json({}))
+                        (2, user_id, 2, pred_bool, probability, Json({}))
                     )
                     inserted = cur.fetchone()
                     if inserted and 'id_prediccion' in inserted:
@@ -319,9 +358,9 @@ def latest_predicciones(user_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/prediccion/latest/diabetes/{user_id}")
-def latest_prediccion_diabetes(user_id: int):
-    """Return the newest Prediccion row for diabetes (id_enfermedad=1) for a user."""
+@app.get("/prediccion/latest/hypertension/{user_id}")
+def latest_prediccion_hypertension(user_id: int):
+    """Return the newest Prediccion row for hypertension (id_enfermedad=2) for a user."""
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -329,7 +368,7 @@ def latest_prediccion_diabetes(user_id: int):
                     """
                     SELECT id_enfermedad, probabilidad, prediccion, fecha
                     FROM Prediccion
-                    WHERE id_usuario = %s AND id_enfermedad = 1
+                    WHERE id_usuario = %s AND id_enfermedad = 2
                     ORDER BY fecha DESC
                     LIMIT 1
                     """,
@@ -348,16 +387,15 @@ def latest_prediccion_diabetes(user_id: int):
                 if prob is not None:
                     try:
                         prob_f = float(prob)
-                        threshold = 0.2
-                        raw_risk = prob_f / threshold
-                        pct = float(min(raw_risk / 1.75 * 100, 100))
+                        # For hypertension, scale probability directly (threshold may differ)
+                        pct = float(min(prob_f * 100, 100))
                     except Exception:
                         pct = None
 
                 return {
                     'user_id': user_id,
                     'prediction': {
-                        'id_enfermedad': 1,
+                        'id_enfermedad': 2,
                         'probabilidad': prob,
                         'percentage': pct,
                         'prediccion': pred_bool,
@@ -366,7 +404,7 @@ def latest_prediccion_diabetes(user_id: int):
                 }
     except Exception as e:
         import traceback
-        print(f"Error fetching latest diabetes prediccion: {traceback.format_exc()}")
+        print(f"Error fetching latest hypertension prediccion: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

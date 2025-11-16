@@ -70,6 +70,35 @@ async def create_paciente(paciente: Paciente):
 
     return {"status": "ok", "id_datos": inserted["id_datos"]}
 
+
+@app.get("/paciente/{user_id}")
+def get_paciente(user_id: int):
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id_datos, id_usuario, nombre, apellido, fecha_nacimiento, sexo, fecha
+                    FROM Paciente
+                    WHERE id_usuario = %s
+                    ORDER BY fecha DESC
+                    LIMIT 1
+                    """,
+                    (user_id,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=404, detail="Paciente not found")
+                return dict(row)
+    except HTTPException:
+        raise
+    except Exception as e:
+        tb = traceback.format_exc()
+        print("=== DATABASE ERROR (get paciente) ===")
+        print(tb)
+        print("======================")
+        raise HTTPException(status_code=500, detail=f"DB error: {e}")
+
 # ---- Run ----
 if __name__ == "__main__":
     import uvicorn

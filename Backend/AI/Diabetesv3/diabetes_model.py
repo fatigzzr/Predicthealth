@@ -11,8 +11,8 @@ import shap
 from scipy import stats
 
 RANDOM_STATE = 42
-DATA_PATH = "Backend/AI/diabetesv3/diabetes_train.csv"
-ARTIFACT_DIR = "Backend/AI/diabetesv3/artifacts"
+DATA_PATH = "Backend/AI/Diabetesv3/diabetes_train.csv"
+ARTIFACT_DIR = "Backend/AI/Diabetesv3/artifacts"
 os.makedirs(ARTIFACT_DIR, exist_ok=True)
 
 # Load data
