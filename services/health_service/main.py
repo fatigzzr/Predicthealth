@@ -1,15 +1,26 @@
 # services/health_service/main.py
 import os
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from services.shared.db import get_conn
+from services.shared.auth import require_auth
 import traceback
 from typing import Optional
 
 APP_PORT = int(os.getenv("HEALTH_PORT", "8004"))
 
 app = FastAPI(title="Health Service", version="0.1.0")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 # ---- Pydantic model ----
 class HealthEntry(BaseModel):
@@ -46,7 +57,12 @@ KEY_TO_PREGUNTA_ID = {
 
 # ---- Endpoint ----
 @app.post("/estilo_vida")
-async def create_health_entries(entry: HealthEntry):
+async def create_health_entries(entry: HealthEntry, user: dict = Depends(require_auth)):
+    """Create health/lifestyle entries. Requires valid JWT token."""
+    # Verify the user is accessing their own data or is an admin
+    if str(entry.id_usuario) != user["sub"] and user.get("roleId") != 1:
+        raise HTTPException(status_code=403, detail="Access denied: Cannot modify other users' data")
+    
     fecha = entry.fecha or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     try:

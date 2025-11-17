@@ -1,8 +1,10 @@
 import os
 import joblib
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from services.shared.db import get_conn
+from services.shared.auth import require_auth
 from datetime import date
 import json
 from psycopg2.extras import Json
@@ -450,10 +452,24 @@ def predict_risk_from_df(df: pd.DataFrame):
 # --- FastAPI setup ---
 app = FastAPI(title="Hypertension Risk Service", version="2.0")
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
 
 @app.post("/predict_hypertension")
-def predict_hypertension_post(data: dict):
-    """Predict hypertension risk given extracted features from questionnaire."""
+def predict_hypertension_post(data: dict, user: dict = Depends(require_auth)):
+    """Predict hypertension risk given extracted features from questionnaire. Requires valid JWT token."""
+    # Verify the user is accessing their own data or is an admin
+    user_id = data.get("id_usuario")
+    if user_id and str(user_id) != user["sub"] and user.get("roleId") != 1:
+        raise HTTPException(status_code=403, detail="Access denied: Cannot access other users' data")
+    
     print(f"=== HYPERTENSION PREDICT CALLED WITH DATA: {data} ===")
     try:
         # Extract fields from POST data
@@ -532,8 +548,11 @@ def predict_hypertension_post(data: dict):
 
 
 @app.get("/prediccion/latest/{user_id}")
-def latest_predicciones(user_id: int):
-    """Return the latest Prediccion rows for diabetes (1) and hypertension (2) for a user."""
+def latest_predicciones(user_id: int, user: dict = Depends(require_auth)):
+    """Return the latest Prediccion rows for diabetes (1) and hypertension (2) for a user. Requires valid JWT token."""
+    # Verify the user is accessing their own data or is an admin
+    if str(user_id) != user["sub"] and user.get("roleId") != 1:
+        raise HTTPException(status_code=403, detail="Access denied: Cannot access other users' data")
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -593,8 +612,11 @@ def latest_predicciones(user_id: int):
 
 
 @app.get("/prediccion/latest/hypertension/{user_id}")
-def latest_prediccion_hypertension(user_id: int):
-    """Return the newest Prediccion row for hypertension (id_enfermedad=2) for a user."""
+def latest_prediccion_hypertension(user_id: int, user: dict = Depends(require_auth)):
+    """Return the newest Prediccion row for hypertension (id_enfermedad=2) for a user. Requires valid JWT token."""
+    # Verify the user is accessing their own data or is an admin
+    if str(user_id) != user["sub"] and user.get("roleId") != 1:
+        raise HTTPException(status_code=403, detail="Access denied: Cannot access other users' data")
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:

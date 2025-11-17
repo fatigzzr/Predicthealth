@@ -1,16 +1,27 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from services.shared.db import get_conn
+from services.shared.auth import require_auth
 from psycopg2.extras import Json
 import traceback
 
 app = FastAPI(title="Data Service - Guardar Historial", version="0.1")
 APP_PORT = int(os.getenv("DATA_SERVICE_PORT", "8010"))
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
 
 @app.post("/guardar_historial")
-def guardar_historial(data: dict):
-    """Receive a full patient payload and call the stored procedure sp_guardar_paciente_historial.
+def guardar_historial(data: dict, user: dict = Depends(require_auth)):
+    """Receive a full patient payload and call the stored procedure sp_guardar_paciente_historial. Requires valid JWT token.
 
     Expected fields in `data` (best-effort tolerant):
       - id_usuario (int or string)
@@ -20,6 +31,10 @@ def guardar_historial(data: dict):
       - medicamentos: array of strings
       - estilo_vida: JSON object
     """
+    # Verify the user is accessing their own data or is an admin
+    uid = data.get("id_usuario")
+    if uid and str(uid) != user["sub"] and user.get("roleId") != 1:
+        raise HTTPException(status_code=403, detail="Access denied: Cannot modify other users' data")
     try:
         # Normalize fields and provide safe defaults
         uid = data.get("id_usuario")

@@ -253,6 +253,9 @@ public class PredictHealthJava extends JFrame {
                                     HttpURLConnection predConn = (HttpURLConnection) predUrl.openConnection();
                                     predConn.setRequestMethod("GET");
                                     predConn.setRequestProperty("Accept", "application/json");
+                                    if (accessToken != null && !accessToken.isEmpty()) {
+                                        predConn.setRequestProperty("Authorization", "Bearer " + accessToken);
+                                    }
                                     predConn.setConnectTimeout(CONNECT_TIMEOUT);
                                     predConn.setReadTimeout(READ_TIMEOUT);
                                     int respCode = predConn.getResponseCode();
@@ -296,6 +299,9 @@ public class PredictHealthJava extends JFrame {
                                     HttpURLConnection hypConn = (HttpURLConnection) hypUrl.openConnection();
                                     hypConn.setRequestMethod("POST");
                                     hypConn.setRequestProperty("Content-Type", "application/json");
+                                    if (accessToken != null && !accessToken.isEmpty()) {
+                                        hypConn.setRequestProperty("Authorization", "Bearer " + accessToken);
+                                    }
                                     hypConn.setConnectTimeout(CONNECT_TIMEOUT);
                                     hypConn.setReadTimeout(READ_TIMEOUT);
                                     hypConn.setDoOutput(true);
@@ -656,6 +662,9 @@ public class PredictHealthJava extends JFrame {
                     HttpURLConnection conn = (HttpURLConnection) recUrl.openConnection();
                     conn.setRequestMethod("GET");
                     conn.setRequestProperty("Accept", "application/json");
+                    if (accessToken != null && !accessToken.isEmpty()) {
+                        conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+                    }
                     conn.setConnectTimeout(CONNECT_TIMEOUT);
                     conn.setReadTimeout(READ_TIMEOUT);
 
@@ -947,6 +956,9 @@ public class PredictHealthJava extends JFrame {
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("GET");
                     conn.setRequestProperty("Accept", "application/json");
+                    if (accessToken != null && !accessToken.isEmpty()) {
+                        conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+                    }
                     conn.setConnectTimeout(CONNECT_TIMEOUT);
                     conn.setReadTimeout(READ_TIMEOUT);
                     int rc = conn.getResponseCode();
@@ -1022,6 +1034,9 @@ public class PredictHealthJava extends JFrame {
                         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                         conn.setRequestMethod("GET");
                         conn.setRequestProperty("Accept", "application/json");
+                        if (accessToken != null && !accessToken.isEmpty()) {
+                            conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+                        }
                         conn.setConnectTimeout(CONNECT_TIMEOUT);
                         conn.setReadTimeout(READ_TIMEOUT);
 
@@ -1060,6 +1075,9 @@ public class PredictHealthJava extends JFrame {
                         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                         conn.setRequestMethod("GET");
                         conn.setRequestProperty("Accept", "application/json");
+                        if (accessToken != null && !accessToken.isEmpty()) {
+                            conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+                        }
                         conn.setConnectTimeout(CONNECT_TIMEOUT);
                         conn.setReadTimeout(READ_TIMEOUT);
 
@@ -1707,6 +1725,9 @@ public class PredictHealthJava extends JFrame {
                         HttpURLConnection conn = (HttpURLConnection) postUrl.openConnection();
                         conn.setRequestMethod("POST");
                         conn.setRequestProperty("Content-Type", "application/json; utf-8");
+                        if (accessToken != null && !accessToken.isEmpty()) {
+                            conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+                        }
                         conn.setConnectTimeout(CONNECT_TIMEOUT);
                         conn.setReadTimeout(READ_TIMEOUT);
                         conn.setDoOutput(true);
@@ -1897,6 +1918,9 @@ public class PredictHealthJava extends JFrame {
                 conn.setReadTimeout(READ_TIMEOUT);
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; utf-8");
+            if (accessToken != null && !accessToken.isEmpty()) {
+                conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+            }
             conn.setDoOutput(true);
 
             try (OutputStream os = conn.getOutputStream()) {
@@ -1947,6 +1971,9 @@ public class PredictHealthJava extends JFrame {
                 conn.setReadTimeout(READ_TIMEOUT);
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; utf-8");
+            if (accessToken != null && !accessToken.isEmpty()) {
+                conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+            }
             conn.setDoOutput(true);
 
             try (OutputStream os = conn.getOutputStream()) {
@@ -2008,6 +2035,9 @@ public class PredictHealthJava extends JFrame {
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json; utf-8");
+                if (accessToken != null && !accessToken.isEmpty()) {
+                    conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+                }
                 conn.setConnectTimeout(CONNECT_TIMEOUT);
                 conn.setReadTimeout(READ_TIMEOUT);
                 conn.setDoOutput(true);

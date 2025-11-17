@@ -5,7 +5,8 @@ import uuid
 import time
 from datetime import datetime, timedelta
 import jwt
-from fastapi import HTTPException
+from fastapi import HTTPException, Header, Depends
+from typing import Optional
 from .redis import allowlist_jti, revoke_jti, is_jti_allowed
 
 # JWT configuration
@@ -57,3 +58,38 @@ def revoke_jwt(jti: str):
     Revoke a JWT by removing its jti from Redis.
     """
     revoke_jti(jti)
+
+
+# FastAPI dependency for JWT authentication
+async def require_auth(authorization: Optional[str] = Header(None)) -> dict:
+    """
+    FastAPI dependency that requires a valid JWT token.
+    Returns the decoded payload with user information.
+    
+    Usage in endpoints:
+        @app.get("/protected")
+        async def protected_endpoint(user: dict = Depends(require_auth)):
+            user_id = user["sub"]
+            email = user["email"]
+            role_id = user["roleId"]
+            ...
+    """
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    
+    if not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization header format. Expected: Bearer <token>")
+    
+    try:
+        token = authorization.split()[1]
+    except IndexError:
+        raise HTTPException(status_code=401, detail="Invalid authorization header format")
+    
+    # Verify and decode the token
+    try:
+        payload = verify_jwt_and_jti(token)
+        return payload
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Token validation failed: {str(e)}")

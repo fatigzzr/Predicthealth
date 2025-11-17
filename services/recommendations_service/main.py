@@ -1,15 +1,30 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from services.shared.db import get_conn
+from services.shared.auth import require_auth
 import traceback
 
 app = FastAPI(title="Recommendations Service", version="1.0")
 APP_PORT = int(os.getenv("RECOMMENDATIONS_SERVICE_PORT", "8011"))
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
 
 @app.get("/recommendations/{user_id}")
-def get_recommendations(user_id: int):
-    """Get personalized health recommendations based on user's latest predictions."""
+def get_recommendations(user_id: int, user: dict = Depends(require_auth)):
+    """Get personalized health recommendations based on user's latest predictions. Requires valid JWT token."""
+    # Verify the user is accessing their own data or is an admin
+    if str(user_id) != user["sub"] and user.get("roleId") != 1:
+        raise HTTPException(status_code=403, detail="Access denied: Cannot access other users' data")
+    
     print(f"=== GET RECOMMENDATIONS FOR USER {user_id} ===")
     try:
         with get_conn() as conn:

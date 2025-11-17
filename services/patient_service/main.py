@@ -1,12 +1,14 @@
 # services/paciente_service/main.py
 import os
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import traceback
 from services.shared.db import get_conn
+from services.shared.auth import require_auth
 from typing import Optional
 
 # ---- Config ----
@@ -14,6 +16,15 @@ APP_PORT = int(os.getenv("PACIENTE_PORT", "8003"))
 
 # ---- FastAPI app ----
 app = FastAPI(title="Paciente Service", version="0.1.0")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 # ---- Pydantic model ----
 class Paciente(BaseModel):
@@ -26,7 +37,12 @@ class Paciente(BaseModel):
 
 # ---- Endpoint ----
 @app.post("/paciente")
-async def create_paciente(paciente: Paciente):
+async def create_paciente(paciente: Paciente, user: dict = Depends(require_auth)):
+    """Create or update patient data. Requires valid JWT token."""
+    # Verify the user is accessing their own data or is an admin
+    if str(paciente.id_usuario) != user["sub"] and user.get("roleId") != 1:
+        raise HTTPException(status_code=403, detail="Access denied: Cannot modify other users' data")
+    
     fecha = paciente.fecha or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Debug: Print incoming data
