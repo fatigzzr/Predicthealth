@@ -22,6 +22,9 @@ py -m services.diabetes_service.main
 
 py -m services.hypertension_service.main 
 
+# data_service: 8010
+
+py -m services.data_service.main 
 
 
 ## Python version
@@ -49,3 +52,7 @@ python -m services.diabetes_service.main
 # diabetes_service: 8009
 
 python -m services.hypertension_service.main 
+
+# data_service: 8010
+
+python -m services.data_service.main 

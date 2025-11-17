@@ -58,6 +58,7 @@ public class PredictHealthJava extends JFrame {
     // diabetesUrl already present
     private String diabetesUrl;
     private String hypertensionUrl;
+    private String dataServiceUrl;
 
     private JPanel sexoPanel;
     private JPanel saludPanel;
@@ -420,6 +421,7 @@ public class PredictHealthJava extends JFrame {
         logoutUrl = props.getProperty("logout.url", "");
         diabetesUrl = props.getProperty("diabetes.url", "http://34.135.18.33:8008/predict_diabetes");
         hypertensionUrl = props.getProperty("hypertension.url", "http://34.135.18.33:8009/predict_hypertension");
+        dataServiceUrl = props.getProperty("data_service.url", "http://34.135.18.33:8010/guardar_historial");
 
         // Debug: print resolved configuration so we know what the JVM will use
         if (loaded) {
@@ -433,6 +435,7 @@ public class PredictHealthJava extends JFrame {
         System.out.println("  estilo_vida.url = " + estiloVidaUrl);
         System.out.println("  diabetes.url = " + diabetesUrl);
         System.out.println("  hypertension.url = " + hypertensionUrl);
+        System.out.println("  data_service.url = " + dataServiceUrl);
         System.out.println("  logout.url = " + (logoutUrl == null || logoutUrl.isEmpty() ? "(not configured)" : logoutUrl));
     }
 
@@ -1711,6 +1714,67 @@ public class PredictHealthJava extends JFrame {
         System.out.println("Salud:");
         System.out.println(salud.toString(4));
         
+        // If both paciente and estilo_vida were saved, try to POST the combined payload to data_service
+        if (pacienteSaved && estiloVidaSaved && dataServiceUrl != null && !dataServiceUrl.isEmpty()) {
+            try {
+                JSONObject combined = new JSONObject();
+                if (userId != null) combined.put("id_usuario", userId);
+                combined.put("nombre", paciente.optString("nombre", ""));
+                combined.put("apellido", paciente.optString("apellido", ""));
+                combined.put("sexo", paciente.optString("sexo", ""));
+                combined.put("fecha_nacimiento", paciente.optString("fecha_nacimiento", ""));
+
+                combined.put("diabetes", salud.optBoolean("diabetes", false));
+                combined.put("hipertension", salud.optBoolean("hipertension", false));
+                combined.put("colesterol", salud.optString("colesterol", ""));
+                combined.put("colesterol_alto", salud.optString("colesterol_alto", ""));
+                // bmi: attempt numeric conversion
+                try { combined.put("bmi", Double.parseDouble(salud.optString("bmi", "0"))); } catch (Exception ex) { combined.put("bmi", 0); }
+                combined.put("presion", salud.optString("presion", ""));
+                combined.put("salud_general", salud.optString("salud_general", ""));
+                combined.put("acv", salud.optString("acv", ""));
+                combined.put("problemas_corazon", salud.optString("problemas_corazon", ""));
+
+                // medicamentos: try to include as array
+                try {
+                    org.json.JSONArray medsArr = new org.json.JSONArray(getSelectedMedications());
+                    combined.put("medicamentos", medsArr);
+                } catch (Exception ex) {
+                    combined.put("medicamentos", new org.json.JSONArray());
+                }
+
+                combined.put("estilo_vida", estilo_vida);
+
+                System.out.println("DEBUG: Posting combined payload to data_service: " + combined.toString());
+                URL url = new URL(dataServiceUrl);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json; utf-8");
+                conn.setConnectTimeout(CONNECT_TIMEOUT);
+                conn.setReadTimeout(READ_TIMEOUT);
+                conn.setDoOutput(true);
+                try (OutputStream os = conn.getOutputStream()) {
+                    byte[] input = combined.toString().getBytes("utf-8");
+                    os.write(input, 0, input.length);
+                }
+                int code = conn.getResponseCode();
+                System.out.println("POST data_service -> Response code: " + code);
+                if (code >= 200 && code < 300) {
+                    try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                        StringBuilder respBody = new StringBuilder();
+                        String l;
+                        while ((l = br.readLine()) != null) respBody.append(l);
+                        if (respBody.length() > 0) System.out.println("data_service response: " + respBody.toString());
+                    }
+                } else {
+                    System.out.println("data_service call returned HTTP " + code);
+                }
+                conn.disconnect();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+
         // Return true only if both POSTs succeeded
         return pacienteSaved && estiloVidaSaved;
     }
