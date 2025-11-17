@@ -18,6 +18,11 @@ py -m services.health_service.main
 
 py -m services.diabetes_service.main 
 
+# hypertension_service: 8009
+
+py -m services.hypertension_service.main 
+
+
 
 ## Python version
 
@@ -40,3 +45,7 @@ python -m services.health_service.main
 # diabetes_service: 8008
 
 python -m services.diabetes_service.main 
+
+# diabetes_service: 8009
+
+python -m services.hypertension_service.main 

@@ -16,7 +16,76 @@ try:
     pipeline = joblib.load(pipeline_path)
     scaler = pipeline["scaler"]
     calibrated = pipeline["calibrated"]
-    FEATURES = pipeline["features"]
+    # Try to load features from pipeline, otherwise use hardcoded list
+    if "features" in pipeline:
+        FEATURES = pipeline["features"]
+    else:
+        FEATURES = ["Age", "Salt_Intake", "Stress_Score", "BP_History", "Sleep_Duration",
+                    "BMI", "Medication", "Family_History", "Exercise_Level", "Smoking_Status"]
+
+    # Attempt to discover underlying LightGBM booster and its feature names for robust prediction
+    MODEL_FEATURE_NAMES = None
+    try:
+        booster = None
+        # Common places for a booster: inside calibrated (CalibratedClassifierCV), or directly in pipeline
+        # 1) If calibrated is a CalibratedClassifierCV, inspect its calibrated_classifiers_
+        if 'calibrated' in locals() and hasattr(calibrated, 'calibrated_classifiers_'):
+            try:
+                cc = calibrated.calibrated_classifiers_[0]
+                be = getattr(cc, 'base_estimator', None)
+                if be is None:
+                    be = cc
+                if hasattr(be, 'booster_'):
+                    booster = be.booster_
+                elif hasattr(be, 'get_booster'):
+                    booster = be.get_booster()
+            except Exception:
+                booster = None
+
+        # 2) Sometimes the pipeline stores the raw model under other keys
+        if booster is None:
+            for key in ['model', 'estimator', 'clf', 'classifier']:
+                if key in pipeline:
+                    cand = pipeline[key]
+                    if hasattr(cand, 'booster_'):
+                        booster = cand.booster_
+                        break
+                    if hasattr(cand, 'get_booster'):
+                        try:
+                            booster = cand.get_booster()
+                            break
+                        except Exception:
+                            pass
+
+        # 3) As a last resort, check top-level objects for booster-like attributes
+        if booster is None:
+            for obj in pipeline.values():
+                try:
+                    if hasattr(obj, 'booster_'):
+                        booster = obj.booster_
+                        break
+                    if hasattr(obj, 'get_booster'):
+                        booster = obj.get_booster()
+                        break
+                except Exception:
+                    continue
+
+        if booster is not None:
+            try:
+                if hasattr(booster, 'feature_name'):
+                    MODEL_FEATURE_NAMES = list(booster.feature_name())
+                elif hasattr(booster, 'feature_name_'):
+                    MODEL_FEATURE_NAMES = list(booster.feature_name_)
+            except Exception:
+                MODEL_FEATURE_NAMES = None
+
+        if MODEL_FEATURE_NAMES is not None:
+            print(f"Discovered booster with {len(MODEL_FEATURE_NAMES)} feature names: {MODEL_FEATURE_NAMES}")
+        else:
+            print(f"No booster feature names discovered at load time; using FEATURES list of length {len(FEATURES)}")
+    except Exception as e:
+        print(f"Warning: failed to inspect pipeline for booster/feature names: {e}")
+
     print(f"Successfully loaded hypertension model with {len(FEATURES)} features")
 except Exception as e:
     import traceback
@@ -24,6 +93,11 @@ except Exception as e:
     raise
 
 APP_PORT = 8009
+
+# Scaling configuration (can be overridden with environment variables)
+SCALE_METHOD = os.getenv("HYPERTENSION_SCALE", "thresholded")  # options: direct, thresholded
+SCALE_THRESHOLD = float(os.getenv("HYPERTENSION_THRESHOLD", "0.8"))
+SCALE_GAMMA = float(os.getenv("HYPERTENSION_GAMMA", "12"))
 
 # --- Mapping id_pregunta to model features (hypertension model) ---
 # Hypertension model features: Age, Salt_Intake, Stress_Score, BP_History, Sleep_Duration, BMI, Medication, Family_History, Exercise_Level, Smoking_Status
@@ -207,54 +281,160 @@ def preprocess_patient(df_in):
         except Exception as e:
             print(f"Warning: scaler transform failed: {e}")
 
-    # Ensure all FEATURES are present
-    for c in FEATURES:
+    # Ensure all expected features are present. Prefer discovered MODEL_FEATURE_NAMES if available.
+    expected = None
+    try:
+        if 'MODEL_FEATURE_NAMES' in globals() and MODEL_FEATURE_NAMES:
+            expected = MODEL_FEATURE_NAMES
+        else:
+            expected = FEATURES
+    except Exception:
+        expected = FEATURES
+
+    for c in expected:
         if c not in df.columns:
             df[c] = 0
-    df = df[FEATURES].copy()
+    df = df[expected].copy()
     return df
 
 
 def predict_risk(user_id: int):
-    """Predict hypertension risk for a user."""
+    """Predict hypertension risk for a user (reads from DB)."""
     df = get_patient_data(user_id)
+    return predict_risk_from_df(df)
+
+
+def predict_risk_from_df(df: pd.DataFrame):
+    """Predict hypertension risk from a dataframe of features."""
     X_patient = preprocess_patient(df)
-    
+
     # Debug: Print preprocessed features
     print(f"DEBUG: Preprocessed features (first row):")
     for col in X_patient.columns:
         print(f"  {col}={X_patient[col].iloc[0]}")
-    
-    y_prob = calibrated.predict_proba(X_patient)[:, 1][0]
-    
+
+    # Try normal predict_proba, but catch shape mismatches from LightGBM and attempt
+    # to recover by aligning input columns with the model (if possible) or calling
+    # the underlying booster with shape-check disabled.
+    try:
+        y_prob = calibrated.predict_proba(X_patient)[:, 1][0]
+    except Exception as e:
+        err = str(e)
+        print(f"Warning: prediction failed on first attempt: {err}")
+        # Attempt 1: try to discover feature names from the fitted model/booster
+        booster = None
+        feature_names = None
+        try:
+            # common access patterns
+            if hasattr(calibrated, 'get_booster'):
+                try:
+                    booster = calibrated.get_booster()
+                except Exception:
+                    booster = None
+            if booster is None and hasattr(calibrated, 'booster_'):
+                booster = getattr(calibrated, 'booster_')
+            # Try calibrated.calibrated_classifiers_ (sklearn's CalibratedClassifierCV)
+            if booster is None and hasattr(calibrated, 'calibrated_classifiers_'):
+                try:
+                    cc = calibrated.calibrated_classifiers_[0]
+                    if hasattr(cc, 'base_estimator'):
+                        be = cc.base_estimator
+                        if hasattr(be, 'booster_'):
+                            booster = be.booster_
+                        elif hasattr(be, 'get_booster'):
+                            booster = be.get_booster()
+                except Exception:
+                    booster = None
+            # If we have a booster, try to get feature names
+            if booster is not None:
+                try:
+                    # booster may be a lightgbm.Booster or sklearn wrapper
+                    if hasattr(booster, 'feature_name'):
+                        feature_names = list(booster.feature_name())
+                    elif hasattr(booster, 'feature_name_'):
+                        feature_names = list(booster.feature_name_)
+                except Exception:
+                    feature_names = None
+
+            # If we got feature names, pad missing cols with zeros and reorder
+            if feature_names:
+                missing = [c for c in feature_names if c not in X_patient.columns]
+                if missing:
+                    print(f"DEBUG: Padding missing features: {missing}")
+                    for c in missing:
+                        X_patient[c] = 0
+                # Reorder to match model
+                X_patient = X_patient[feature_names]
+                try:
+                    # Try predict_proba again
+                    y_prob = calibrated.predict_proba(X_patient)[:, 1][0]
+                except Exception as e2:
+                    print(f"Retry predict_proba after padding failed: {e2}")
+                    y_prob = None
+            else:
+                y_prob = None
+
+            # If still failing, and we have a booster, call its predict with shape check disabled
+            if (y_prob is None or (isinstance(y_prob, float) and (pd.isna(y_prob)))) and booster is not None:
+                try:
+                    arr = X_patient.values if hasattr(X_patient, 'values') else X_patient
+                    # LightGBM Booster.predict returns probabilities for binary if pred_leaf False
+                    preds = booster.predict(arr, predict_disable_shape_check=True)
+                    # preds could be shape (n_samples,) for positive class probability or (n_samples,2)
+                    if hasattr(preds, 'ndim') and getattr(preds, 'ndim') == 2:
+                        prob = float(preds[0, 1])
+                    else:
+                        prob = float(preds[0])
+                    y_prob = prob
+                    print("DEBUG: Obtained probability via booster.predict with shape check disabled")
+                except Exception as e3:
+                    print(f"Final fallback predict via booster failed: {e3}")
+                    raise
+        except Exception as outer_e:
+            print(f"Unexpected error while attempting recovery from prediction error: {outer_e}")
+            raise
+
+    # At this point we must have a y_prob
+    if y_prob is None:
+        raise RuntimeError("Could not compute prediction probability (y_prob is None)")
+
     # Debug: Print raw probability
     print(f"DEBUG: Raw model probability: {y_prob:.6f}")
 
-    # --- Scale threshold-relative risk to 0-100% ---
-    # Threshold is 0.2 - anything above this is concerning
-    # Scale so that 0.36 (1.8x threshold) maps to 100%
-    # Formula: risk_percentage = min((y_prob / threshold) / 1.75 * 100, 100)
-    threshold = 0.2
-    raw_risk = y_prob / threshold
-    risk_percentage = float(min(raw_risk / 1.75 * 100, 100))
+    # --- Map raw probability to a 0-100% scale ---
+    if SCALE_METHOD == "direct":
+        # Direct mapping: probability -> percentage
+        risk_percentage = float(max(0.0, min(y_prob * 100.0, 100.0)))
+    else:
+        # Thresholded mapping: treat SCALE_THRESHOLD as the 'high-risk' point (maps to 100%)
+        T = max(0.0, min(1.0, SCALE_THRESHOLD))
+        gamma = max(1.0, float(SCALE_GAMMA))
+        if y_prob >= T:
+            # At or above threshold, consider high risk
+            risk_percentage = 100.0
+        else:
+            # Compute normalized proximity to T (0 .. 1)
+            proximity = max(0.0, 1.0 - ((T - y_prob) / T))
+            # Apply a power curve to emphasize closeness to the threshold
+            risk_percentage = float((proximity ** gamma) * 100.0)
 
     # --- Risk level ranges based on percentage (0-100%) ---
-    if risk_percentage <= 20:
+    if risk_percentage <= 10:
         risk_level = 1
         risk_label = "Muy Bajo"
-    elif risk_percentage <= 40:
+    elif risk_percentage <= 30:
         risk_level = 2
         risk_label = "Bajo"
-    elif risk_percentage <= 60:
+    elif risk_percentage <= 50:
         risk_level = 3
         risk_label = "Medio"
-    elif risk_percentage <= 80:
+    elif risk_percentage <= 75:
         risk_level = 4
         risk_label = "Alto"
-    else:  # 81-100
+    else:
         risk_level = 5
         risk_label = "Muy Alto"
-    
+
     print(f"DEBUG: Scaled risk percentage: {risk_percentage:.2f}%")
 
     return {
@@ -269,41 +449,71 @@ def predict_risk(user_id: int):
 app = FastAPI(title="Hypertension Risk Service", version="2.0")
 
 
-@app.get("/predict_hypertension/{user_id}")
-def predict(user_id: int):
-    """Predict hypertension risk for a user by ID."""
+@app.post("/predict_hypertension")
+def predict_hypertension_post(data: dict):
+    """Predict hypertension risk given extracted features from questionnaire."""
     try:
-        result = predict_risk(user_id)
+        # Extract fields from POST data
+        user_id = data.get("id_usuario")
+        age = float(data.get("age", 50))
+        salt_intake = float(data.get("salt_intake", 0))
+        stress_score = float(data.get("stress_score", 5))
+        sleep_duration = float(data.get("sleep_duration", 7))
+        bmi = float(data.get("bmi", 25))
+        medication = int(data.get("medication", 0))
+        family_history = int(data.get("family_history", 0))
+        exercise_level = float(data.get("exercise_level", 0))
+        smoking_status = int(data.get("smoking_status", 0))
+        bp_history = int(data.get("bp_history", 0))
+        
+        # Build DataFrame with the provided features
+        df = pd.DataFrame([{
+            "Age": age,
+            "Salt_Intake": salt_intake,
+            "Stress_Score": stress_score,
+            "BP_History": bp_history,
+            "Sleep_Duration": sleep_duration,
+            "BMI": bmi,
+            "Medication": medication,
+            "Family_History": family_history,
+            "Exercise_Level": exercise_level,
+            "Smoking_Status": smoking_status
+        }])
+        
+        print(f"DEBUG: Received hypertension features from POST: age={age}, stress={stress_score}, bmi={bmi}, smoking={smoking_status}, exercise={exercise_level}")
+        
+        result = predict_risk_from_df(df)
+        
         # After computing the prediction, persist a row to Prediccion table (best-effort)
-        try:
-            probability = float(result.get("probability", 0.0))
-            pred_bool = True if probability > 0.2 else False
-            with get_conn() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, probabilidad, fecha, explicabilidad)
-                        VALUES (%s, %s, %s, %s, %s, NOW(), %s)
-                        RETURNING id_prediccion
-                        """,
-                        (2, user_id, 2, pred_bool, probability, Json({}))
-                    )
-                    inserted = cur.fetchone()
-                    if inserted and 'id_prediccion' in inserted:
-                        pred_id = inserted['id_prediccion']
-                        print(f"Inserted Prediccion id={pred_id} for user={user_id} prob={probability}")
-                    else:
-                        print(f"Inserted Prediccion (no id returned) for user={user_id} prob={probability}")
-        except Exception as db_ex:
-            import traceback
-            print(f"Warning: could not insert Prediccion row: {traceback.format_exc()}")
+        if user_id:
+            try:
+                probability = float(result.get("probability", 0.0))
+                pred_bool = True if probability > 0.2 else False
+                with get_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            """
+                            INSERT INTO Prediccion (id_enfermedad, id_usuario, id_modelo, prediccion, probabilidad, fecha, explicabilidad)
+                            VALUES (%s, %s, %s, %s, %s, NOW(), %s)
+                            RETURNING id_prediccion
+                            """,
+                            (2, user_id, 2, pred_bool, probability, Json({}))
+                        )
+                        inserted = cur.fetchone()
+                        if inserted and 'id_prediccion' in inserted:
+                            pred_id = inserted['id_prediccion']
+                            print(f"Inserted Prediccion id={pred_id} for user={user_id} prob={probability}")
+                        else:
+                            print(f"Inserted Prediccion (no id returned) for user={user_id} prob={probability}")
+            except Exception as db_ex:
+                import traceback
+                print(f"Warning: could not insert Prediccion row: {traceback.format_exc()}")
+        
         return {"user_id": user_id, "prediction": result}
-    except HTTPException:
-        raise
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
-        print(f"Error in predict endpoint: {error_trace}")
+        print(f"Error in predict_hypertension_post endpoint: {error_trace}")
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 

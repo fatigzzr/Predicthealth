@@ -29,6 +29,15 @@ class Paciente(BaseModel):
 async def create_paciente(paciente: Paciente):
     fecha = paciente.fecha or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # Debug: Print incoming data
+    print(f"DEBUG: Received paciente data:")
+    print(f"  id_usuario={paciente.id_usuario}")
+    print(f"  nombre='{paciente.nombre}'")
+    print(f"  apellido='{paciente.apellido}'")
+    print(f"  fecha_nacimiento='{paciente.fecha_nacimiento}'")
+    print(f"  sexo='{paciente.sexo}' (length={len(paciente.sexo)}, repr={repr(paciente.sexo)})")
+    print(f"  fecha='{fecha}'")
+
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:

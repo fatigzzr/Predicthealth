@@ -55,8 +55,9 @@ public class PredictHealthJava extends JFrame {
     private String authMeUrl;
     private String pacienteUrl;
     private String estiloVidaUrl;
-    // predictUrl already present
-    private String predictUrl;
+    // diabetesUrl already present
+    private String diabetesUrl;
+    private String hypertensionUrl;
 
     private JPanel sexoPanel;
     private JPanel saludPanel;
@@ -156,35 +157,95 @@ public class PredictHealthJava extends JFrame {
                     setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
                     SwingWorker<Boolean, Void> worker = new SwingWorker<>() {
-                        private String messageToShow = null;
+                        private String diabetesMessage = null;
+                        private String hypertensionMessage = null;
                         private boolean success = false;
 
                         @Override
                         protected Boolean doInBackground() throws Exception {
                             boolean dataSaved = outputAllFieldsAsJson();
                             if (!dataSaved) {
-                                messageToShow = "Error guardando los datos. No se puede hacer la predicción.";
+                                diabetesMessage = "Error guardando los datos. No se puede hacer la predicción.";
                                 success = false;
                                 return false;
                             }
                             // small pause to allow DB commit
                             try { Thread.sleep(1000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
 
-                            // use lastUserId set by outputAllFieldsAsJson to call predict; avoid extra auth/me
+                            // Prepare shared fields for predictions
                             String userId = lastUserId;
-                            if (userId != null) {
+                            if (userId == null) {
+                                diabetesMessage = "ID de usuario no disponible. No se puede hacer la predicción.";
+                                success = false;
+                                return false;
+                            }
+                            
+                            // Gather all questionnaire data into JSON for hypertension service
+                            JSONObject predictData = new JSONObject();
+                            predictData.put("id_usuario", userId);
+                            
+                            // Extract age from fecha_nacimiento
+                            if (fechaNacimientoSpinner != null && fechaNacimientoSpinner.getValue() != null) {
                                 try {
-                                    System.out.println("Calling predict for userId=" + userId);
-                                    String basePredict = predictUrl;
-                                    if (!basePredict.endsWith("/")) basePredict = basePredict + "/";
-                                    URL predUrl = new URL(basePredict + userId);
-                                    // perform a quick TCP-level check first to help diagnose JVM-level networking issues
-                                    int testPort = predUrl.getPort() > 0 ? predUrl.getPort() : ("https".equalsIgnoreCase(predUrl.getProtocol()) ? 443 : 80);
-                                    if (!socketConnectTest(predUrl.getHost(), testPort, 5000)) {
-                                        messageToShow = "No se pudo establecer conexión TCP a " + predUrl.getHost() + ":" + testPort + ". Verifique conectividad o proxy JVM.";
-                                        success = false;
-                                        return success;
-                                    }
+                                    Date bd = (Date) fechaNacimientoSpinner.getValue();
+                                    Calendar birthCal = Calendar.getInstance();
+                                    birthCal.setTime(bd);
+                                    Calendar today = Calendar.getInstance();
+                                    int age = today.get(Calendar.YEAR) - birthCal.get(Calendar.YEAR);
+                                    if(today.get(Calendar.DAY_OF_YEAR) < birthCal.get(Calendar.DAY_OF_YEAR)) age--;
+                                    predictData.put("age", age);
+                                } catch (Exception ex) {
+                                    predictData.put("age", 50);
+                                }
+                            }
+                            
+                            // Extract BMI from step5
+                            predictData.put("bmi", getTextFieldValue(step5Panel, 0));
+                            
+                            // Extract stress score from step 8 (stress level 1-10)
+                            String stressVal = getComboBoxSelected(step8Panel, 3).toString();
+                            try {
+                                predictData.put("stress_score", Float.parseFloat(stressVal));
+                            } catch (Exception ex) {
+                                predictData.put("stress_score", 5.0);
+                            }
+                            
+                            // Extract sleep duration from step 8
+                            predictData.put("sleep_duration", getTextFieldValue(step8Panel, 0));
+                            
+                            // Extract exercise level from step 8 (actividadCombo is at index 7)
+                            Object exerciseObj = getComboBoxSelected(step8Panel, 7);
+                            float exerciseLevel = 0;
+                            try {
+                                exerciseLevel = Float.parseFloat(exerciseObj.toString());
+                            } catch (Exception ex) {
+                                exerciseLevel = 0;
+                            }
+                            predictData.put("exercise_level", exerciseLevel);
+                            
+                            // Extract salt intake from step 7 (sal field)
+                            String salVal = (salField != null && !salField.getText().trim().isEmpty()) ? salField.getText().trim() : "0";
+                            predictData.put("salt_intake", Float.parseFloat(salVal));
+                            
+                            // Extract smoking status from step 7
+                            predictData.put("smoking_status", "Sí".equalsIgnoreCase(getSelectedButtonText(fumaPanel)) ? 1 : 0);
+                            
+                            // Missing fields (set to defaults)
+                            predictData.put("medication", 0);
+                            predictData.put("family_history", 0);
+                            predictData.put("bp_history", 0);
+                            
+                            // === Call Diabetes Service ===
+                            try {
+                                System.out.println("Calling diabetes predict for userId=" + userId);
+                                String basePredict = diabetesUrl;
+                                if (!basePredict.endsWith("/")) basePredict = basePredict + "/";
+                                URL predUrl = new URL(basePredict + userId);
+                                int testPort = predUrl.getPort() > 0 ? predUrl.getPort() : ("https".equalsIgnoreCase(predUrl.getProtocol()) ? 443 : 80);
+                                if (!socketConnectTest(predUrl.getHost(), testPort, 5000)) {
+                                    diabetesMessage = "No se pudo conectar a diabetes service.";
+                                    success = false;
+                                } else {
                                     HttpURLConnection predConn = (HttpURLConnection) predUrl.openConnection();
                                     predConn.setRequestMethod("GET");
                                     predConn.setRequestProperty("Accept", "application/json");
@@ -201,7 +262,7 @@ public class PredictHealthJava extends JFrame {
                                             if (prediction != null) {
                                                 double pct = prediction.optDouble("percentage", -1);
                                                 String cat = prediction.optString("risk_label", "Desconocido");
-                                                messageToShow = String.format("Probabilidad de diabetes: %.1f%%\nCategoría de riesgo: %s", pct, cat);
+                                                diabetesMessage = String.format("Diabetes: %.1f%% (%s)", pct, cat);
                                                 if (pct >= 0) {
                                                     lastDiabetesPct = pct;
                                                     if (diabChart != null) diabChart.setPercentage((int)Math.round(pct));
@@ -209,26 +270,62 @@ public class PredictHealthJava extends JFrame {
                                                     saveToRedis(redisKey, String.valueOf(pct));
                                                 }
                                                 success = true;
-                                            } else {
-                                                messageToShow = "¡No se recibió predicción!";
-                                                success = false;
                                             }
                                         }
                                     } else {
-                                        messageToShow = "Error consultando el microservicio de predicción: respuesta " + respCode;
-                                        success = false;
+                                        diabetesMessage = "Diabetes service error: " + respCode;
                                     }
                                     predConn.disconnect();
-                                } catch (java.net.ConnectException ce) {
-                                    messageToShow = "No se pudo conectar al microservicio de predicción (timeout).";
-                                    success = false;
-                                } catch (Exception ex) {
-                                    messageToShow = "Error en la predicción: " + ex.getMessage();
-                                    success = false;
                                 }
-                            } else {
-                                messageToShow = "ID de usuario no disponible. No se puede hacer la predicción.";
-                                success = false;
+                            } catch (Exception ex) {
+                                diabetesMessage = "Diabetes error: " + ex.getMessage();
+                            }
+                            
+                            // === Call Hypertension Service ===
+                            try {
+                                System.out.println("Calling hypertension predict with features");
+                                URL hypUrl = new URL(hypertensionUrl);
+                                int testPort = hypUrl.getPort() > 0 ? hypUrl.getPort() : ("https".equalsIgnoreCase(hypUrl.getProtocol()) ? 443 : 80);
+                                if (!socketConnectTest(hypUrl.getHost(), testPort, 5000)) {
+                                    hypertensionMessage = "No se pudo conectar a hypertension service.";
+                                } else {
+                                    HttpURLConnection hypConn = (HttpURLConnection) hypUrl.openConnection();
+                                    hypConn.setRequestMethod("POST");
+                                    hypConn.setRequestProperty("Content-Type", "application/json");
+                                    hypConn.setConnectTimeout(CONNECT_TIMEOUT);
+                                    hypConn.setReadTimeout(READ_TIMEOUT);
+                                    hypConn.setDoOutput(true);
+                                    try (OutputStream os = hypConn.getOutputStream()) {
+                                        byte[] input = predictData.toString().getBytes("utf-8");
+                                        os.write(input, 0, input.length);
+                                    }
+                                    int respCode = hypConn.getResponseCode();
+                                    if (respCode == 200) {
+                                        try (BufferedReader br = new BufferedReader(new InputStreamReader(hypConn.getInputStream(), "utf-8"))) {
+                                            StringBuilder hypResp = new StringBuilder();
+                                            String line;
+                                            while ((line = br.readLine()) != null) hypResp.append(line);
+                                            JSONObject jsonResp = new JSONObject(hypResp.toString());
+                                            JSONObject prediction = jsonResp.has("prediction") ? jsonResp.getJSONObject("prediction") : null;
+                                            if (prediction != null) {
+                                                double pct = prediction.optDouble("percentage", -1);
+                                                String cat = prediction.optString("risk_label", "Desconocido");
+                                                hypertensionMessage = String.format("Hipertensión: %.1f%% (%s)", pct, cat);
+                                                if (pct >= 0) {
+                                                    lastHypertensionPct = pct;
+                                                    if (hipChart != null) hipChart.setPercentage((int)Math.round(pct));
+                                                    String redisKey = (userId != null && !userId.isEmpty()) ? ("user:" + userId + ":hypertension_probability") : "predict:hypertension:last";
+                                                    saveToRedis(redisKey, String.valueOf(pct));
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        hypertensionMessage = "Hypertension service error: " + respCode;
+                                    }
+                                    hypConn.disconnect();
+                                }
+                            } catch (Exception ex) {
+                                hypertensionMessage = "Hypertension error: " + ex.getMessage();
                             }
 
                             return success;
@@ -242,10 +339,25 @@ public class PredictHealthJava extends JFrame {
                                 nextButton.setEnabled(true);
                                 prevButton.setEnabled(true);
                                 Boolean res = get();
-                                if (messageToShow != null) {
-                                    if (res != null && res) JOptionPane.showMessageDialog(PredictHealthJava.this, messageToShow, "Predicción de riesgo de diabetes", JOptionPane.INFORMATION_MESSAGE);
-                                    else JOptionPane.showMessageDialog(PredictHealthJava.this, messageToShow, "Predicción", JOptionPane.WARNING_MESSAGE);
+                                
+                                // Build combined message
+                                StringBuilder fullMessage = new StringBuilder();
+                                if (diabetesMessage != null && !diabetesMessage.isEmpty()) {
+                                    fullMessage.append(diabetesMessage);
                                 }
+                                if (hypertensionMessage != null && !hypertensionMessage.isEmpty()) {
+                                    if (fullMessage.length() > 0) fullMessage.append("\n\n");
+                                    fullMessage.append(hypertensionMessage);
+                                }
+                                
+                                if (fullMessage.length() > 0) {
+                                    if (res != null && res) {
+                                        JOptionPane.showMessageDialog(PredictHealthJava.this, fullMessage.toString(), "Predicción de Riesgo", JOptionPane.INFORMATION_MESSAGE);
+                                    } else {
+                                        JOptionPane.showMessageDialog(PredictHealthJava.this, fullMessage.toString(), "Predicción", JOptionPane.WARNING_MESSAGE);
+                                    }
+                                }
+                                
                                 // After showing the popup, always go back to the Status panel and refresh charts
                                 if (diabChart != null) diabChart.setPercentage((int)Math.round(lastDiabetesPct));
                                 if (hipChart != null) hipChart.setPercentage((int)Math.round(lastHypertensionPct));
@@ -306,7 +418,8 @@ public class PredictHealthJava extends JFrame {
         pacienteUrl = props.getProperty("paciente.url", "http://34.135.18.33:8003/paciente");
         estiloVidaUrl = props.getProperty("estilo_vida.url", "http://34.135.18.33:8004/estilo_vida");
         logoutUrl = props.getProperty("logout.url", "");
-        predictUrl = props.getProperty("predict.url", "http://34.135.18.33:8008/predict");
+        diabetesUrl = props.getProperty("diabetes.url", "http://34.135.18.33:8008/predict_diabetes");
+        hypertensionUrl = props.getProperty("hypertension.url", "http://34.135.18.33:8009/predict_hypertension");
 
         // Debug: print resolved configuration so we know what the JVM will use
         if (loaded) {
@@ -318,7 +431,8 @@ public class PredictHealthJava extends JFrame {
         System.out.println("  auth.me.url = " + authMeUrl);
         System.out.println("  paciente.url = " + pacienteUrl);
         System.out.println("  estilo_vida.url = " + estiloVidaUrl);
-        System.out.println("  predict.url = " + predictUrl);
+        System.out.println("  diabetes.url = " + diabetesUrl);
+        System.out.println("  hypertension.url = " + hypertensionUrl);
         System.out.println("  logout.url = " + (logoutUrl == null || logoutUrl.isEmpty() ? "(not configured)" : logoutUrl));
     }
 
@@ -718,7 +832,7 @@ public class PredictHealthJava extends JFrame {
             @Override
             protected Void doInBackground() throws Exception {
                     try {
-                        URL base = new URL(predictUrl);
+                        URL base = new URL(diabetesUrl);
                         String hostPart = base.getProtocol() + "://" + base.getHost() + (base.getPort() > 0 ? ":" + base.getPort() : "");
                         String path = "/prediccion/latest/diabetes/" + userId;
                         URL url = new URL(hostPart + path);
@@ -1436,11 +1550,14 @@ public class PredictHealthJava extends JFrame {
         putNotNull(paciente, "fecha_nacimiento", birth != null ? new java.text.SimpleDateFormat("yyyy-MM-dd").format(birth) : "");
         
         String sexoValue = getSelectedButtonText(sexoPanel);
-        // Map displayed radio text to single-char DB value: M, F, O
-        if ("Hombre".equalsIgnoreCase(sexoValue) || "M".equalsIgnoreCase(sexoValue)) sexoValue = "M";
-        else if ("Mujer".equalsIgnoreCase(sexoValue) || "F".equalsIgnoreCase(sexoValue)) sexoValue = "F";
-        else if ("Otro".equalsIgnoreCase(sexoValue) || "O".equalsIgnoreCase(sexoValue)) sexoValue = "O";
-        else sexoValue = "";
+        // Map displayed radio text to single-char DB value: M, F (only M and F allowed by database)
+        if ("Hombre".equalsIgnoreCase(sexoValue)) sexoValue = "M";
+        else if ("Mujer".equalsIgnoreCase(sexoValue)) sexoValue = "F";
+        else if ("Otro".equalsIgnoreCase(sexoValue)) sexoValue = "M";  // Default "Otro" to "M"
+        else if ("M".equalsIgnoreCase(sexoValue)) sexoValue = "M";
+        else if ("F".equalsIgnoreCase(sexoValue)) sexoValue = "F";
+        // If still empty or invalid, default to "M"
+        if (sexoValue == null || sexoValue.trim().isEmpty()) sexoValue = "M";
         putNotNull(paciente, "sexo", sexoValue);
 
         putNotNull(paciente, "fecha", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
@@ -1477,7 +1594,7 @@ public class PredictHealthJava extends JFrame {
         putNotNull(estilo_vida, "horas_sueno", getTextFieldValue(step8Panel, 0));
         putNotNull(estilo_vida, "nivel_estres", getComboBoxSelected(step8Panel, 3));
         putNotNull(estilo_vida, "salud_mental", getTextFieldValue(step8Panel, 1));
-        putNotNull(estilo_vida, "actividad_fisica", getComboBoxSelected(step8Panel, 6));
+        putNotNull(estilo_vida, "actividad_fisica", getComboBoxSelected(step8Panel, 7));
         //putNotNull(salud, "actividad_frecuente2", getSelectedButtonText(step8Panel, "Sí", "No"));
         putNotNull(estilo_vida, "salud_fisica", getTextFieldValue(step8Panel, 2));
 
@@ -1512,6 +1629,7 @@ public class PredictHealthJava extends JFrame {
         // POST Paciente JSON
         boolean pacienteSaved = false;
         try {
+            System.out.println("DEBUG: Paciente JSON to send: " + paciente.toString());
             URL url = new URL(pacienteUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setConnectTimeout(CONNECT_TIMEOUT);
