@@ -469,7 +469,12 @@ public class PredictHealthJava extends JFrame {
     }
 
     private boolean isLastPanel(Component comp) {
-        return comp == mainPanel.getComponent(mainPanel.getComponentCount() - 1);
+        // Treat the questionnaire's final step (Step8) as the logical "last" panel
+        // so that the Next/Finalizar behavior applies to the questionnaire and
+        // does not include the independent Recommendations panel which lives
+        // after the questionnaire in the CardLayout.
+        String name = getPanelName(comp);
+        return "Step8".equals(name);
     }
 
     private String getPanelName(Component comp) {
@@ -627,7 +632,9 @@ public class PredictHealthJava extends JFrame {
         JScrollPane scrollPane = new JScrollPane(recPanel);
         scrollPane.setBackground(new Color(0x132232));
         scrollPane.getViewport().setBackground(new Color(0x132232));
+        // Only vertical scrolling is needed for recommendations; disable horizontal scrolling
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.setBorder(new EmptyBorder(10, 10, 10, 10));
         panel.add(scrollPane, BorderLayout.CENTER);
 
