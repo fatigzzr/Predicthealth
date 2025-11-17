@@ -490,9 +490,10 @@ def predict_hypertension_post(data: dict):
         if user_id:
             try:
                 probability = float(result.get("probability", 0.0))
-                pred_bool = True if probability > 0.2 else False
+                pred_bool = True if probability > 0.8 else False
                 print(f"DEBUG: About to insert Prediccion: user_id={user_id}, prob={probability}, pred_bool={pred_bool}")
-                with get_conn() as conn:
+                conn = get_conn()
+                try:
                     with conn.cursor() as cur:
                         cur.execute(
                             """
@@ -508,7 +509,11 @@ def predict_hypertension_post(data: dict):
                             print(f"*** SUCCESSFULLY INSERTED Prediccion id={pred_id} for user={user_id} prob={probability} ***")
                         else:
                             print(f"*** INSERTED Prediccion (no id returned) for user={user_id} prob={probability} ***")
-                    conn.commit()
+                    # Explicitly commit before closing connection (even though autocommit=True)
+                    if not conn.autocommit:
+                        conn.commit()
+                finally:
+                    conn.close()
             except Exception as db_ex:
                 import traceback
                 print(f"!!! ERROR INSERTING PREDICCION: {traceback.format_exc()}")

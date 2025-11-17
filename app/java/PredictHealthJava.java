@@ -720,10 +720,19 @@ public class PredictHealthJava extends JFrame {
                                             String descripcion = rec.optString("descripcion", "");
                                             // Fix double-encoded UTF-8 for both titulo and descripcion
                                             try {
+                                                // Only apply fix if text contains mojibake patterns (C3 83 sequences)
                                                 byte[] tituloBytes = titulo.getBytes("ISO-8859-1");
-                                                titulo = new String(tituloBytes, "UTF-8");
+                                                String fixedTitulo = new String(tituloBytes, "UTF-8");
+                                                // Check if fix improved the string (no replacement characters)
+                                                if (!fixedTitulo.contains("\uFFFD")) {
+                                                    titulo = fixedTitulo;
+                                                }
+                                                
                                                 byte[] descBytes = descripcion.getBytes("ISO-8859-1");
-                                                descripcion = new String(descBytes, "UTF-8");
+                                                String fixedDesc = new String(descBytes, "UTF-8");
+                                                if (!fixedDesc.contains("\uFFFD")) {
+                                                    descripcion = fixedDesc;
+                                                }
                                             } catch (Exception __e) { /* ignore encoding fix failure */ }
                                             descripcion = escapeHtmlEntities(descripcion);                                            // Bullet point
                                             JLabel bulletLabel = new JLabel("• " + titulo);
