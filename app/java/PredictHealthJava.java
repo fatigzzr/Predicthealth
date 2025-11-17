@@ -457,8 +457,8 @@ public class PredictHealthJava extends JFrame {
         Component visible = getVisiblePanel();
         String name = getPanelName(visible);
 
-    // Hide nav buttons on Start, Register, Status and the login screen (Step1)
-    boolean showNav = loggedIn && !(name.equals("Start") || name.equals("Register") || name.equals("Status") || name.equals("Step1") || name.equals("UserData"));
+        // Hide nav buttons on Start, Register, Status, Recommendations and the login screen (Step1)
+        boolean showNav = loggedIn && !(name.equals("Start") || name.equals("Register") || name.equals("Status") || name.equals("Step1") || name.equals("UserData") || name.equals("Recommendations"));
         prevButton.setVisible(showNav);
         nextButton.setVisible(showNav);
 
@@ -486,6 +486,7 @@ public class PredictHealthJava extends JFrame {
         if (comp == mainPanel.getComponent(10)) return "Step6";
         if (comp == mainPanel.getComponent(11)) return "Step7";
         if (comp == mainPanel.getComponent(12)) return "Step8";
+        if (comp == mainPanel.getComponent(mainPanel.getComponentCount() - 1)) return "Recommendations";
         return "";
     }
 
@@ -711,7 +712,8 @@ public class PredictHealthJava extends JFrame {
                                         for (int i = 0; i < fRecs.length(); i++) {
                                             JSONObject rec = fRecs.getJSONObject(i);
                                             String titulo = rec.optString("titulo", "Recomendación");
-                                            String descripcion = rec.optString("descripcion", "");
+                                                String descripcion = rec.optString("descripcion", "");
+                                                descripcion = escapeHtmlEntities(descripcion);
 
                                             // Bullet point
                                             JLabel bulletLabel = new JLabel("• " + titulo);
@@ -721,7 +723,7 @@ public class PredictHealthJava extends JFrame {
                                             finalRecPanel.add(bulletLabel);
 
                                             // Description (wrapped)
-                                            JLabel descLabel = new JLabel("<html><p style='margin-left:20px; color:#E0E0E0;'>" + descripcion + "</p></html>");
+                                                JLabel descLabel = new JLabel("<html><p style='margin-left:20px; color:#E0E0E0;'>" + descripcion + "</p></html>");
                                             descLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
                                             descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
                                             descLabel.setMaximumSize(new Dimension(650, 200));
@@ -1453,23 +1455,26 @@ public class PredictHealthJava extends JFrame {
     gbc.gridx = 1;
     statusPanel.add(hipChart, gbc);
 
-        // Panel for buttons
-        JPanel btns = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        // Panel for buttons: use 3 rows to match requested layout
+        JPanel btns = new JPanel(new GridLayout(3, 1, 0, 8));
         btns.setBackground(new Color(0x132232));
 
-        // Nuevo Registro button to start the questionnaire
+        // Row 1: Nuevo Registro centered
+        JPanel row1 = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        row1.setBackground(new Color(0x132232));
         JButton nuevoBtn = createNavButton("Nuevo Registro");
         nuevoBtn.addActionListener(e -> {
             // start questionnaire at the first actual question step (Step3)
             cardLayout.show(mainPanel, "Step3");
             updateNavButtons();
         });
-        btns.add(nuevoBtn);
+        row1.add(nuevoBtn);
 
-        // Datos de Usuario button to view/edit persistent user fields
+        // Row 2: Datos de Usuario and Recomendaciones
+        JPanel row2 = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        row2.setBackground(new Color(0x132232));
         JButton datosBtn = createNavButton("Datos de Usuario");
         datosBtn.addActionListener(e -> {
-            // ensure we have the user id
             if (lastUserId == null || lastUserId.isEmpty()) {
                 String me = getUserIdFromAuth();
                 if (me != null) lastUserId = me;
@@ -1478,17 +1483,14 @@ public class PredictHealthJava extends JFrame {
                 JOptionPane.showMessageDialog(this, "No se encontró el ID de usuario. Por favor inicie sesión nuevamente.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            // show panel and load data
             cardLayout.show(mainPanel, "UserData");
             updateNavButtons();
             loadUserData(lastUserId);
         });
-        btns.add(datosBtn);
+        row2.add(datosBtn);
 
-        // Recommendations button
         JButton recsBtn = createNavButton("Recomendaciones");
         recsBtn.addActionListener(e -> {
-            // ensure we have the user id
             if (lastUserId == null || lastUserId.isEmpty()) {
                 String me = getUserIdFromAuth();
                 if (me != null) lastUserId = me;
@@ -1497,25 +1499,30 @@ public class PredictHealthJava extends JFrame {
                 JOptionPane.showMessageDialog(this, "No se encontró el ID de usuario. Por favor inicie sesión nuevamente.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            // fetch and show recommendations
             cardLayout.show(mainPanel, "Recommendations");
             updateNavButtons();
             loadRecommendations(lastUserId);
         });
-        btns.add(recsBtn);
+        row2.add(recsBtn);
 
-        // Logout button
+        // Row 3: Logout centered and styled pink
+        JPanel row3 = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        row3.setBackground(new Color(0x132232));
         JButton logoutBtn = createNavButton("Cerrar sesión");
+        // style logout button with pink/red for heuristic
+        logoutBtn.setBackground(new Color(0xE91E63));
+        logoutBtn.setForeground(Color.WHITE);
+        logoutBtn.setOpaque(true);
+        logoutBtn.setBorderPainted(false);
         logoutBtn.addActionListener(e -> {
-            // Try to revoke token if logout URL configured
             if (accessToken != null && !accessToken.isEmpty() && logoutUrl != null && !logoutUrl.isEmpty()) {
                 try {
                     URL url = new URL(logoutUrl);
                     HttpURLConnection con = (HttpURLConnection) url.openConnection();
                     con.setRequestMethod("POST");
-            con.setRequestProperty("Authorization", "Bearer " + accessToken);
-                con.setConnectTimeout(CONNECT_TIMEOUT);
-                con.setReadTimeout(READ_TIMEOUT);
+                    con.setRequestProperty("Authorization", "Bearer " + accessToken);
+                    con.setConnectTimeout(CONNECT_TIMEOUT);
+                    con.setReadTimeout(READ_TIMEOUT);
                     con.setDoOutput(true);
                     int code = con.getResponseCode();
                     System.out.println("Logout call returned: " + code);
@@ -1524,13 +1531,16 @@ public class PredictHealthJava extends JFrame {
                     ex.printStackTrace();
                 }
             }
-            // local cleanup
             accessToken = null;
             loggedIn = false;
             cardLayout.show(mainPanel, "Start");
             updateNavButtons();
         });
-        btns.add(logoutBtn);
+        row3.add(logoutBtn);
+
+        btns.add(row1);
+        btns.add(row2);
+        btns.add(row3);
 
         gbc.gridx = 0; gbc.gridy++; gbc.gridwidth = 2; gbc.anchor = GridBagConstraints.CENTER;
         statusPanel.add(btns, gbc);
@@ -1692,6 +1702,28 @@ public class PredictHealthJava extends JFrame {
         lbl.setForeground(Color.WHITE);
         lbl.setFont(new Font("SansSerif", Font.BOLD, 16));
         return lbl;
+    }
+
+    // Escape basic HTML entities and common Spanish accented characters to HTML entities
+    private String escapeHtmlEntities(String s) {
+        if (s == null) return "";
+        String out = s;
+        out = out.replace("&", "&amp;");
+        out = out.replace("<", "&lt;");
+        out = out.replace(">", "&gt;");
+        out = out.replace("á", "&aacute;");
+        out = out.replace("é", "&eacute;");
+        out = out.replace("í", "&iacute;");
+        out = out.replace("ó", "&oacute;");
+        out = out.replace("ú", "&uacute;");
+        out = out.replace("Á", "&Aacute;");
+        out = out.replace("É", "&Eacute;");
+        out = out.replace("Í", "&Iacute;");
+        out = out.replace("Ó", "&Oacute;");
+        out = out.replace("Ú", "&Uacute;");
+        out = out.replace("ñ", "&ntilde;");
+        out = out.replace("Ñ", "&Ntilde;");
+        return out;
     }
 
     private JTextField createTextField() {
