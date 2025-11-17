@@ -16,9 +16,11 @@ Plataforma integral de IA para predicción de enfermedades crónicas (diabetes e
 Predicthealth/
 ├── app/
 │   ├── web/          # Frontend React
+│   ├── java/          # App Java
 │   └── android/       # App Android
 ├── Backend/           # API Flask
-└── Base de Datos/     # PostgreSQL + Scripts
+├── Base de Datos/     # PostgreSQL + Scripts
+└── services/          # Microservicios
 ```
 
 ## 🚀 Instalación Rápida
@@ -105,6 +107,10 @@ export PGHOST=localhost PGPORT=5432 PGDATABASE=predicthealth PGUSER=predicthealt
 python app.py
 ```
 
+Debe tenerse, en el directorio root, un archivo .env definiendo las siguientes variables:
+
+DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, REDIS_HOST, REDIS_PORT, REDIS_DB, JWT_SECRET, JWT_ALG, JWT_AUD, ACCESS_TTL_MIN, REFRESH_TTL_DAYS, AUTH_PORT, REGISTER_PORT, PACIENTE_PORT, HEALTH_PORT, DATA_SERVICE_PORT, RECOMMENDATIONS_SERVICE_PORT, HYPERTENSION_SCALE, HYPERTENSION_THRESHOLD, HYPERTENSION_GAMMA
+
 #### Configuración Frontend
 ```bash
 cd app/web
@@ -162,3 +168,47 @@ npm start
 ---
 
 **Versión**: 2.0 | **Estado**: ✅ Funcional | **Última actualización**: Diciembre 2024
+
+
+## Microservicios: Instrucciones
+
+Para utilizar los microservicios, deben lanzarse utilizando los siguientes comandos:
+
+# auth_service: 8001
+
+python -m services.auth_service.main 
+
+# register_service: 8002
+
+python -m services.register_service.main 
+
+# patient_service: 8003
+
+python -m services.patient_service.main 
+
+# health_service: 8004
+
+python -m services.health_service.main 
+
+# diabetes_service: 8008
+
+python -m services.diabetes_service.main 
+
+# diabetes_service: 8009
+
+python -m services.hypertension_service.main 
+
+# data_service: 8010
+
+python -m services.data_service.main 
+
+# recommendations_service: 8011
+
+python -m services.recommendations_service.main 
+
+
+## Java app: Instrucciones
+
+Antes de lanzar la Java App, debe modificarse el archivo config.properties para utilizar la ip correcta según la dirección donde se estén hosteando los microservicios.
+
+Para compilar y lanzar la app, debe correrse el archivo run.bat.
