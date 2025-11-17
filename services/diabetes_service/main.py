@@ -233,12 +233,15 @@ app = FastAPI(title="Diabetes Risk Service", version="2.0")
 @app.get("/predict_diabetes/{user_id}")
 def predict(user_id: int):
     """Predict diabetes risk for a user by ID."""
+    print(f"=== DIABETES PREDICT CALLED FOR USER {user_id} ===")
     try:
         result = predict_risk(user_id)
+        print(f"DEBUG: Prediction result: {result}")
         # After computing the prediction, persist a row to Prediccion table (best-effort)
         try:
             probability = float(result.get("probability", 0.0))
             pred_bool = True if probability > 0.2 else False
+            print(f"DEBUG: About to insert Prediccion: prob={probability}, pred_bool={pred_bool}")
             with get_conn() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
@@ -252,12 +255,14 @@ def predict(user_id: int):
                     inserted = cur.fetchone()
                     if inserted and 'id_prediccion' in inserted:
                         pred_id = inserted['id_prediccion']
-                        print(f"Inserted Prediccion id={pred_id} for user={user_id} prob={probability}")
+                        print(f"*** SUCCESSFULLY INSERTED Prediccion id={pred_id} for user={user_id} prob={probability} ***")
                     else:
-                        print(f"Inserted Prediccion (no id returned) for user={user_id} prob={probability}")
+                        print(f"*** INSERTED Prediccion (no id returned) for user={user_id} prob={probability} ***")
+                conn.commit()
         except Exception as db_ex:
             import traceback
-            print(f"Warning: could not insert Prediccion row: {traceback.format_exc()}")
+            print(f"!!! ERROR INSERTING PREDICCION: {traceback.format_exc()}")
+        print(f"=== RETURNING PREDICTION RESPONSE ===")
         return {"user_id": user_id, "prediction": result}
     except HTTPException:
         raise

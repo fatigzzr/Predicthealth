@@ -452,6 +452,7 @@ app = FastAPI(title="Hypertension Risk Service", version="2.0")
 @app.post("/predict_hypertension")
 def predict_hypertension_post(data: dict):
     """Predict hypertension risk given extracted features from questionnaire."""
+    print(f"=== HYPERTENSION PREDICT CALLED WITH DATA: {data} ===")
     try:
         # Extract fields from POST data
         user_id = data.get("id_usuario")
@@ -483,12 +484,14 @@ def predict_hypertension_post(data: dict):
         print(f"DEBUG: Received hypertension features from POST: age={age}, stress={stress_score}, bmi={bmi}, smoking={smoking_status}, exercise={exercise_level}")
         
         result = predict_risk_from_df(df)
+        print(f"DEBUG: Prediction result: {result}")
         
         # After computing the prediction, persist a row to Prediccion table (best-effort)
         if user_id:
             try:
                 probability = float(result.get("probability", 0.0))
                 pred_bool = True if probability > 0.2 else False
+                print(f"DEBUG: About to insert Prediccion: user_id={user_id}, prob={probability}, pred_bool={pred_bool}")
                 with get_conn() as conn:
                     with conn.cursor() as cur:
                         cur.execute(
@@ -502,13 +505,17 @@ def predict_hypertension_post(data: dict):
                         inserted = cur.fetchone()
                         if inserted and 'id_prediccion' in inserted:
                             pred_id = inserted['id_prediccion']
-                            print(f"Inserted Prediccion id={pred_id} for user={user_id} prob={probability}")
+                            print(f"*** SUCCESSFULLY INSERTED Prediccion id={pred_id} for user={user_id} prob={probability} ***")
                         else:
-                            print(f"Inserted Prediccion (no id returned) for user={user_id} prob={probability}")
+                            print(f"*** INSERTED Prediccion (no id returned) for user={user_id} prob={probability} ***")
+                    conn.commit()
             except Exception as db_ex:
                 import traceback
-                print(f"Warning: could not insert Prediccion row: {traceback.format_exc()}")
+                print(f"!!! ERROR INSERTING PREDICCION: {traceback.format_exc()}")
+        else:
+            print(f"WARNING: user_id is None/empty, not inserting Prediccion")
         
+        print(f"=== RETURNING HYPERTENSION PREDICTION RESPONSE ===")
         return {"user_id": user_id, "prediction": result}
     except Exception as e:
         import traceback

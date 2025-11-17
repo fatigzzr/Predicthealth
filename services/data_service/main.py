@@ -70,17 +70,11 @@ def guardar_historial(data: dict):
 
         with get_conn() as conn:
             with conn.cursor() as cur:
-                # Build medications array literal for PostgreSQL text[] param
-                if p_medicamentos:
-                    # escape double quotes
-                    safe_items = [str(x).replace('"', '\\"') for x in p_medicamentos]
-                    meds_literal = "{" + ",".join('"%s"' % x for x in safe_items) + "}"
-                else:
-                    meds_literal = None
-
-                # Prepare CALL statement with explicit casts for array and jsonb
+                # Prepare CALL statement with proper parameter binding (no inline casting)
+                # psycopg2 will handle the None to NULL conversions and type inference
+                # 16 parameters total for sp_guardar_paciente_historial
                 sql = (
-                    "CALL sp_guardar_paciente_historial(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::text[], %s::jsonb)"
+                    "CALL sp_guardar_paciente_historial(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                 )
 
                 params = [
@@ -98,11 +92,11 @@ def guardar_historial(data: dict):
                     p_salud_general,
                     p_acv,
                     p_problemas_corazon,
-                    meds_literal if meds_literal is not None else None,
+                    p_medicamentos if p_medicamentos else None,  # psycopg2 converts list to text[]
                     Json(estilo)
                 ]
 
-                # Execute the CALL. psycopg2 will map Python None to SQL NULL.
+                # Execute the CALL. psycopg2 will map Python None to SQL NULL and list to text[].
                 cur.execute(sql, params)
                 conn.commit()
 

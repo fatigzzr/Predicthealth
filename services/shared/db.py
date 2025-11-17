@@ -9,7 +9,7 @@ DB_USER = os.getenv("DB_USER", "predicthealth_user")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "666")
 
 def get_conn():
-    return psycopg2.connect(
+    conn = psycopg2.connect(
         host=DB_HOST,
         port=DB_PORT,
         dbname=DB_NAME,
@@ -17,3 +17,6 @@ def get_conn():
         password=DB_PASSWORD,
         cursor_factory=RealDictCursor
     )
+    conn.autocommit = True
+    return conn
+
