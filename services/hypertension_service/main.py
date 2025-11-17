@@ -1,13 +1,14 @@
 import os
 import joblib
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from services.shared.db import get_conn
 from services.shared.auth import require_auth
 from datetime import date
 import json
 from psycopg2.extras import Json
+from dicttoxml import dicttoxml
 
 # --- Load artifacts ---
 ARTIFACT_DIR = "Backend/AI/Hypertension/artifacts"
@@ -462,6 +463,12 @@ app.add_middleware(
 )
 
 
+def _xml_response(data: dict, root: str = "response") -> Response:
+    """Convert dict to XML response if client accepts application/xml"""
+    xml_bytes = dicttoxml(data, custom_root=root, attr_type=False)
+    return Response(content=xml_bytes, media_type="application/xml")
+
+
 @app.post("/predict_hypertension")
 def predict_hypertension_post(data: dict, user: dict = Depends(require_auth)):
     """Predict hypertension risk given extracted features from questionnaire. Requires valid JWT token."""
@@ -548,7 +555,7 @@ def predict_hypertension_post(data: dict, user: dict = Depends(require_auth)):
 
 
 @app.get("/prediccion/latest/{user_id}")
-def latest_predicciones(user_id: int, user: dict = Depends(require_auth)):
+def latest_predicciones(user_id: int, user: dict = Depends(require_auth), request: Request = None):
     """Return the latest Prediccion rows for diabetes (1) and hypertension (2) for a user. Requires valid JWT token."""
     # Verify the user is accessing their own data or is an admin
     if str(user_id) != user["sub"] and user.get("roleId") != 1:
@@ -604,6 +611,8 @@ def latest_predicciones(user_id: int, user: dict = Depends(require_auth)):
                         'prediccion': pred_bool,
                         'fecha': str(fecha) if fecha is not None else None
                     })
+                if request and "application/xml" in request.headers.get("accept", "").lower():
+                    return _xml_response(result, "LatestPredictions")
                 return result
     except Exception as e:
         import traceback
@@ -612,7 +621,7 @@ def latest_predicciones(user_id: int, user: dict = Depends(require_auth)):
 
 
 @app.get("/prediccion/latest/hypertension/{user_id}")
-def latest_prediccion_hypertension(user_id: int, user: dict = Depends(require_auth)):
+def latest_prediccion_hypertension(user_id: int, user: dict = Depends(require_auth), request: Request = None):
     """Return the newest Prediccion row for hypertension (id_enfermedad=2) for a user. Requires valid JWT token."""
     # Verify the user is accessing their own data or is an admin
     if str(user_id) != user["sub"] and user.get("roleId") != 1:
@@ -633,7 +642,10 @@ def latest_prediccion_hypertension(user_id: int, user: dict = Depends(require_au
                 row = cur.fetchone()
                 if not row:
                     # return empty result indicating no prediction
-                    return {"user_id": user_id, "prediction": None}
+                    resp = {"user_id": user_id, "prediction": None}
+                    if request and "application/xml" in request.headers.get("accept", "").lower():
+                        return _xml_response(resp, "HypertensionPrediction")
+                    return resp
 
                 prob = row.get('probabilidad')
                 pred_bool = row.get('prediccion')
@@ -653,7 +665,7 @@ def latest_prediccion_hypertension(user_id: int, user: dict = Depends(require_au
                     except Exception:
                         pct = None
 
-                return {
+                resp = {
                     'user_id': user_id,
                     'prediction': {
                         'id_enfermedad': 2,
@@ -663,6 +675,9 @@ def latest_prediccion_hypertension(user_id: int, user: dict = Depends(require_au
                         'fecha': str(fecha) if fecha is not None else None
                     }
                 }
+                if request and "application/xml" in request.headers.get("accept", "").lower():
+                    return _xml_response(resp, "HypertensionPrediction")
+                return resp
     except Exception as e:
         import traceback
         print(f"Error fetching latest hypertension prediccion: {traceback.format_exc()}")

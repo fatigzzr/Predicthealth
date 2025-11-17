@@ -1,9 +1,10 @@
 import os
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from services.shared.db import get_conn
 from services.shared.auth import require_auth
 import traceback
+from dicttoxml import dicttoxml
 
 app = FastAPI(title="Recommendations Service", version="1.0")
 APP_PORT = int(os.getenv("RECOMMENDATIONS_SERVICE_PORT", "8011"))
@@ -19,7 +20,7 @@ app.add_middleware(
 
 
 @app.get("/recommendations/{user_id}")
-def get_recommendations(user_id: int, user: dict = Depends(require_auth)):
+def get_recommendations(user_id: int, user: dict = Depends(require_auth), request: Request = None):
     """Get personalized health recommendations based on user's latest predictions. Requires valid JWT token."""
     # Verify the user is accessing their own data or is an admin
     if str(user_id) != user["sub"] and user.get("roleId") != 1:

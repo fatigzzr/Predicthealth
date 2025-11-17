@@ -1,13 +1,14 @@
 import os
 import joblib
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from services.shared.db import get_conn
 from services.shared.auth import require_auth
 from datetime import date
 import json
 from psycopg2.extras import Json
+from dicttoxml import dicttoxml
 
 # --- Load artifacts ---
 ARTIFACT_DIR = "Backend/AI/diabetesv3/artifacts"
@@ -255,8 +256,14 @@ app.add_middleware(
 )
 
 
+def _xml_response(data: dict, root: str = "response") -> Response:
+    """Convert dict to XML response if client accepts application/xml"""
+    xml_bytes = dicttoxml(data, custom_root=root, attr_type=False)
+    return Response(content=xml_bytes, media_type="application/xml")
+
+
 @app.get("/predict_diabetes/{user_id}")
-def predict(user_id: int, user: dict = Depends(require_auth)):
+def predict(user_id: int, user: dict = Depends(require_auth), request: Request = None):
     """Predict diabetes risk for a user by ID. Requires valid JWT token."""
     # Verify the user is accessing their own data or is an admin
     if str(user_id) != user["sub"] and user.get("roleId") != 1:
@@ -296,7 +303,10 @@ def predict(user_id: int, user: dict = Depends(require_auth)):
             import traceback
             print(f"!!! ERROR INSERTING PREDICCION: {traceback.format_exc()}")
         print(f"=== RETURNING PREDICTION RESPONSE ===")
-        return {"user_id": user_id, "prediction": result}
+        resp = {"user_id": user_id, "prediction": result}
+        if request and "application/xml" in request.headers.get("accept", "").lower():
+            return _xml_response(resp, "DiabetesPrediction")
+        return resp
     except HTTPException:
         raise
     except Exception as e:
@@ -307,7 +317,7 @@ def predict(user_id: int, user: dict = Depends(require_auth)):
 
 
 @app.get("/prediccion/latest/{user_id}")
-def latest_predicciones(user_id: int, user: dict = Depends(require_auth)):
+def latest_predicciones(user_id: int, user: dict = Depends(require_auth), request: Request = None):
     """Return the latest Prediccion rows for diabetes (1) and hypertension (2) for a user. Requires valid JWT token."""
     # Verify the user is accessing their own data or is an admin
     if str(user_id) != user["sub"] and user.get("roleId") != 1:
@@ -356,6 +366,8 @@ def latest_predicciones(user_id: int, user: dict = Depends(require_auth)):
                         'prediccion': pred_bool,
                         'fecha': str(fecha) if fecha is not None else None
                     })
+                if request and "application/xml" in request.headers.get("accept", "").lower():
+                    return _xml_response(result, "LatestPredictions")
                 return result
     except Exception as e:
         import traceback
@@ -364,7 +376,7 @@ def latest_predicciones(user_id: int, user: dict = Depends(require_auth)):
 
 
 @app.get("/prediccion/latest/diabetes/{user_id}")
-def latest_prediccion_diabetes(user_id: int, user: dict = Depends(require_auth)):
+def latest_prediccion_diabetes(user_id: int, user: dict = Depends(require_auth), request: Request = None):
     """Return the newest Prediccion row for diabetes (id_enfermedad=1) for a user. Requires valid JWT token."""
     # Verify the user is accessing their own data or is an admin
     if str(user_id) != user["sub"] and user.get("roleId") != 1:
@@ -385,7 +397,10 @@ def latest_prediccion_diabetes(user_id: int, user: dict = Depends(require_auth))
                 row = cur.fetchone()
                 if not row:
                     # return empty result indicating no prediction
-                    return {"user_id": user_id, "prediction": None}
+                    resp = {"user_id": user_id, "prediction": None}
+                    if request and "application/xml" in request.headers.get("accept", "").lower():
+                        return _xml_response(resp, "DiabetesPrediction")
+                    return resp
 
                 prob = row.get('probabilidad')
                 pred_bool = row.get('prediccion')
@@ -404,7 +419,7 @@ def latest_prediccion_diabetes(user_id: int, user: dict = Depends(require_auth))
                     except Exception:
                         pct = None
 
-                return {
+                resp = {
                     'user_id': user_id,
                     'prediction': {
                         'id_enfermedad': 1,
@@ -414,6 +429,9 @@ def latest_prediccion_diabetes(user_id: int, user: dict = Depends(require_auth))
                         'fecha': str(fecha) if fecha is not None else None
                     }
                 }
+                if request and "application/xml" in request.headers.get("accept", "").lower():
+                    return _xml_response(resp, "DiabetesPrediction")
+                return resp
     except Exception as e:
         import traceback
         print(f"Error fetching latest diabetes prediccion: {traceback.format_exc()}")

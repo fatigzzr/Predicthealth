@@ -1,7 +1,7 @@
 # services/paciente_service/main.py
 import os
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Body, Depends
+from fastapi import FastAPI, HTTPException, Body, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import psycopg2
@@ -10,6 +10,7 @@ import traceback
 from services.shared.db import get_conn
 from services.shared.auth import require_auth
 from typing import Optional
+from dicttoxml import dicttoxml
 
 # ---- Config ----
 APP_PORT = int(os.getenv("PACIENTE_PORT", "8003"))
@@ -25,6 +26,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+
+def _xml_response(data: dict, root: str = "response") -> Response:
+    """Convert dict to XML response if client accepts application/xml"""
+    xml_bytes = dicttoxml(data, custom_root=root, attr_type=False)
+    return Response(content=xml_bytes, media_type="application/xml")
+
 
 # ---- Pydantic model ----
 class Paciente(BaseModel):
@@ -97,7 +105,7 @@ async def create_paciente(paciente: Paciente, user: dict = Depends(require_auth)
 
 
 @app.get("/paciente/{user_id}")
-def get_paciente(user_id: int):
+def get_paciente(user_id: int, request: Request = None):
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -114,7 +122,10 @@ def get_paciente(user_id: int):
                 row = cur.fetchone()
                 if not row:
                     raise HTTPException(status_code=404, detail="Paciente not found")
-                return dict(row)
+                result = dict(row)
+                if request and "application/xml" in request.headers.get("accept", "").lower():
+                    return _xml_response(result, "Paciente")
+                return result
     except HTTPException:
         raise
     except Exception as e:
