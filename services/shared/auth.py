@@ -1,6 +1,7 @@
 # services/shared/auth.py
 
 import os
+from dotenv import load_dotenv, find_dotenv
 import uuid
 import time
 from datetime import datetime, timedelta
@@ -9,11 +10,17 @@ from fastapi import HTTPException, Header, Depends
 from typing import Optional
 from .redis import allowlist_jti, revoke_jti, is_jti_allowed
 
+# Load .env so JWT_* are available when importing this module
+load_dotenv(find_dotenv(), override=False)
+
 # JWT configuration
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
+JWT_SECRET = os.getenv("JWT_SECRET")
 JWT_ALG = os.getenv("JWT_ALG", "HS256")
 JWT_AUD = os.getenv("JWT_AUD", "predicthealth")
 ACCESS_TTL_MIN = int(os.getenv("ACCESS_TTL_MIN", "15"))
+
+if not JWT_SECRET or str(JWT_SECRET).strip() == "":
+    raise RuntimeError("JWT_SECRET is required; set it in your .env")
 
 
 def issue_jwt(user_id: str, email: str, role_id: int) -> dict:

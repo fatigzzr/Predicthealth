@@ -1,5 +1,6 @@
 # services/auth_service/main.py
 import os
+from dotenv import load_dotenv, find_dotenv
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -15,13 +16,19 @@ from passlib.hash import pbkdf2_sha256
 from services.shared.db import get_conn
 from services.shared.redis import cache_user
 
+# Ensure .env is loaded before reading env
+load_dotenv(find_dotenv(), override=False)
+
 # ---- Config ----
 APP_PORT = int(os.getenv("AUTH_PORT", "8001"))
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
+JWT_SECRET = os.getenv("JWT_SECRET")
 JWT_ALG = os.getenv("JWT_ALG", "HS256")
 JWT_AUD = os.getenv("JWT_AUD", "predicthealth")
 ACCESS_TTL_MIN = int(os.getenv("ACCESS_TTL_MIN", "15"))
 REFRESH_TTL_DAYS = int(os.getenv("REFRESH_TTL_DAYS", "7"))
+
+if not JWT_SECRET or str(JWT_SECRET).strip() == "":
+    raise RuntimeError("JWT_SECRET is required; set it in your .env")
 
 # ---- FastAPI app ----
 app = FastAPI(title="Auth Service", docs_url="/docs", redoc_url="/redoc", version="0.2.0")

@@ -1,5 +1,6 @@
 # register_service/main.py
 import os
+from dotenv import load_dotenv, find_dotenv
 from fastapi import FastAPI, HTTPException, Body, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -8,11 +9,26 @@ from passlib.hash import pbkdf2_sha256
 from dicttoxml import dicttoxml
 
 # ---- Config ----
+load_dotenv(find_dotenv(), override=False)
 APP_PORT = int(os.getenv("REGISTER_PORT", "8002"))
-DB_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://predicthealth_user:666@localhost/predicthealth"
-)
+
+# Prefer DATABASE_URL; otherwise construct from DB_* variables
+DB_URL = os.getenv("DATABASE_URL")
+if not DB_URL or DB_URL.strip() == "":
+    db_host = os.getenv("DB_HOST")
+    db_port = os.getenv("DB_PORT", "5432")
+    db_name = os.getenv("DB_NAME")
+    db_user = os.getenv("DB_USER")
+    db_password = os.getenv("DB_PASSWORD")
+    missing = [k for k,v in {
+        'DB_HOST': db_host,
+        'DB_NAME': db_name,
+        'DB_USER': db_user,
+        'DB_PASSWORD': db_password
+    }.items() if not v]
+    if missing:
+        raise RuntimeError(f"Missing required DB env vars for register_service: {', '.join(missing)}")
+    DB_URL = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
 # ---- FastAPI app ----
 app = FastAPI(title="Register Service", docs_url="/docs", redoc_url="/redoc", version="0.1.0")
