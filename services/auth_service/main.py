@@ -13,6 +13,7 @@ import xmltodict
 
 from services.shared.redis import allowlist_jti, revoke_jti, is_jti_allowed
 from passlib.hash import pbkdf2_sha256
+from werkzeug.security import check_password_hash as wz_check_password
 from services.shared.db import get_conn
 from services.shared.redis import cache_user
 
@@ -166,7 +167,18 @@ async def login(
         stored_hash = row[2]
         role_id = row[3]
 
-    if not pbkdf2_sha256.verify(password, stored_hash):
+    # Verify password supporting both Passlib and Werkzeug hash formats
+    valid = False
+    try:
+        valid = pbkdf2_sha256.verify(password, stored_hash)
+    except Exception:
+        # Passlib couldn't parse hash; try Werkzeug's format (e.g., pbkdf2:sha256:...)
+        try:
+            valid = wz_check_password(stored_hash, password)
+        except Exception:
+            valid = False
+
+    if not valid:
         raise HTTPException(status_code=401, detail="invalid_credentials")
 
     resp = _issue_tokens(user_id, email, role_id)

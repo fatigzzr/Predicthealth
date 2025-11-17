@@ -10,4 +10,5 @@ python-multipart==0.0.9
 python-dotenv==1.0.1
 asyncpg>=0.29.0
 passlib[bcrypt]==1.7.4
+Werkzeug>=2.0.0
 
