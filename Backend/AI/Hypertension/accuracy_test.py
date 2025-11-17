@@ -18,26 +18,23 @@ df = pd.read_csv("Backend/AI/Hypertension/split/hypertension_test.csv")
 df["Has_Hypertension"] = df["Has_Hypertension"].map({"Yes": 1, "No": 0})
 
 NUMERIC = ["Age", "Salt_Intake", "Stress_Score", "Sleep_Duration", "BMI"]
-CATEGORICAL = ["BP_History", "Medication", "Family_History", "Exercise_Level", "Smoking_Status"]
+CATEGORICAL = ["BP_History", "Medication", "Exercise_Level", "Smoking_Status"]
 
 def preprocess_patient(df_in):
     df = df_in.copy()
 
-    # numeric
     for c in NUMERIC:
         if c not in df:
             df[c] = 0
         df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
     df_num = pd.DataFrame(scaler.transform(df[NUMERIC]), columns=NUMERIC, index=df.index)
 
-    # categorical
     for c in CATEGORICAL:
         if c not in df:
             df[c] = "Unknown"
         df[c] = df[c].astype(str)
     df_cat = pd.get_dummies(df[CATEGORICAL], drop_first=True)
 
-    # align
     df_full = pd.concat([df_num, df_cat], axis=1)
     df_full = df_full.reindex(columns=FEATURES, fill_value=0)
     return df_full
