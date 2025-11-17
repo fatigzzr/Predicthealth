@@ -59,6 +59,7 @@ public class PredictHealthJava extends JFrame {
     private String diabetesUrl;
     private String hypertensionUrl;
     private String dataServiceUrl;
+    private String recommendationsUrl;
 
     private JPanel sexoPanel;
     private JPanel saludPanel;
@@ -131,6 +132,8 @@ public class PredictHealthJava extends JFrame {
         mainPanel.add(step7Panel, "Step7");
         step8Panel = step8Panel();
         mainPanel.add(step8Panel, "Step8");
+
+        mainPanel.add(recommendationsPanel(), "Recommendations");
 
         add(mainPanel, BorderLayout.CENTER);
 
@@ -422,6 +425,7 @@ public class PredictHealthJava extends JFrame {
         diabetesUrl = props.getProperty("diabetes.url", "http://34.135.18.33:8008/predict_diabetes");
         hypertensionUrl = props.getProperty("hypertension.url", "http://34.135.18.33:8009/predict_hypertension");
         dataServiceUrl = props.getProperty("data_service.url", "http://34.135.18.33:8010/guardar_historial");
+        recommendationsUrl = props.getProperty("recommendations.url", "http://34.135.18.33:8011/recommendations");
 
         // Debug: print resolved configuration so we know what the JVM will use
         if (loaded) {
@@ -436,6 +440,7 @@ public class PredictHealthJava extends JFrame {
         System.out.println("  diabetes.url = " + diabetesUrl);
         System.out.println("  hypertension.url = " + hypertensionUrl);
         System.out.println("  data_service.url = " + dataServiceUrl);
+        System.out.println("  recommendations.url = " + recommendationsUrl);
         System.out.println("  logout.url = " + (logoutUrl == null || logoutUrl.isEmpty() ? "(not configured)" : logoutUrl));
     }
 
@@ -596,7 +601,160 @@ public class PredictHealthJava extends JFrame {
         return registerPanel;
     }
 
+    // Recommendations panel (class-level)
+    private JPanel recommendationsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(0x132232));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
 
+        // Back button at top
+        JButton backBtn = createNavButton("Atrás");
+        backBtn.addActionListener(e -> {
+            cardLayout.show(mainPanel, "Status");
+            updateNavButtons();
+        });
+        JPanel topPanel = new JPanel();
+        topPanel.setBackground(new Color(0x132232));
+        topPanel.add(backBtn);
+        panel.add(topPanel, BorderLayout.NORTH);
+
+        // Scrollable recommendations area
+        JPanel recPanel = new JPanel();
+        recPanel.setLayout(new BoxLayout(recPanel, BoxLayout.Y_AXIS));
+        recPanel.setBackground(new Color(0x132232));
+
+        JScrollPane scrollPane = new JScrollPane(recPanel);
+        scrollPane.setBackground(new Color(0x132232));
+        scrollPane.getViewport().setBackground(new Color(0x132232));
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        scrollPane.setBorder(new EmptyBorder(10, 10, 10, 10));
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        // Store reference for later population
+        panel.putClientProperty("recPanel", recPanel);
+
+        return panel;
+    }
+
+    // Load recommendations for a user from the recommendations service
+    private void loadRecommendations(String userId) {
+        if (userId == null || userId.isEmpty()) return;
+        SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                try {
+                    System.out.println("Loading recommendations for user: " + userId);
+                    URL recUrl = new URL(recommendationsUrl + "/" + userId);
+                    HttpURLConnection conn = (HttpURLConnection) recUrl.openConnection();
+                    conn.setRequestMethod("GET");
+                    conn.setRequestProperty("Accept", "application/json");
+                    conn.setConnectTimeout(CONNECT_TIMEOUT);
+                    conn.setReadTimeout(READ_TIMEOUT);
+
+                    int rc = conn.getResponseCode();
+                    if (rc == 200) {
+                        try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                            StringBuilder sb = new StringBuilder();
+                            String line;
+                            while ((line = br.readLine()) != null) sb.append(line);
+                            JSONObject resp = new JSONObject(sb.toString());
+
+                            boolean hasDiabetes = resp.optBoolean("has_diabetes", false);
+                            boolean hasHypertension = resp.optBoolean("has_hypertension", false);
+                            JSONArray recs = resp.optJSONArray("recommendations");
+
+                            // Find the recommendations panel
+                            JPanel recPanel = null;
+                            for (Component comp : mainPanel.getComponents()) {
+                                if (comp instanceof JPanel) {
+                                    Object obj = ((JPanel)comp).getClientProperty("recPanel");
+                                    if (obj instanceof JPanel) {
+                                        recPanel = (JPanel) obj;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (recPanel != null) {
+                                final JPanel finalRecPanel = recPanel;
+                                final boolean fDiabetes = hasDiabetes;
+                                final boolean fHypertension = hasHypertension;
+                                final JSONArray fRecs = recs;
+
+                                SwingUtilities.invokeLater(() -> {
+                                    finalRecPanel.removeAll();
+
+                                    // Title
+                                    JLabel titleLabel = new JLabel("Recomendaciones Personalizadas");
+                                    titleLabel.setForeground(Color.WHITE);
+                                    titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+                                    titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                                    finalRecPanel.add(titleLabel);
+                                    finalRecPanel.add(Box.createVerticalStrut(15));
+
+                                    // Condition summary
+                                    String summary = "Condiciones detectadas: ";
+                                    java.util.List<String> conditions = new java.util.ArrayList<>();
+                                    if (fDiabetes) conditions.add("Diabetes");
+                                    if (fHypertension) conditions.add("Hipertensión");
+                                    summary += (conditions.isEmpty() ? "Ninguna" : String.join(", ", conditions));
+
+                                    JLabel summaryLabel = new JLabel(summary);
+                                    summaryLabel.setForeground(new Color(0xADC7EA));
+                                    summaryLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+                                    summaryLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                                    finalRecPanel.add(summaryLabel);
+                                    finalRecPanel.add(Box.createVerticalStrut(20));
+
+                                    // Add recommendations
+                                    if (fRecs != null && fRecs.length() > 0) {
+                                        for (int i = 0; i < fRecs.length(); i++) {
+                                            JSONObject rec = fRecs.getJSONObject(i);
+                                            String titulo = rec.optString("titulo", "Recomendación");
+                                            String descripcion = rec.optString("descripcion", "");
+
+                                            // Bullet point
+                                            JLabel bulletLabel = new JLabel("• " + titulo);
+                                            bulletLabel.setForeground(Color.WHITE);
+                                            bulletLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+                                            bulletLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                                            finalRecPanel.add(bulletLabel);
+
+                                            // Description (wrapped)
+                                            JLabel descLabel = new JLabel("<html><p style='margin-left:20px; color:#E0E0E0;'>" + descripcion + "</p></html>");
+                                            descLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+                                            descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                                            descLabel.setMaximumSize(new Dimension(650, 200));
+                                            finalRecPanel.add(descLabel);
+                                            finalRecPanel.add(Box.createVerticalStrut(12));
+                                        }
+                                    } else {
+                                        JLabel noRecsLabel = new JLabel("No hay recomendaciones disponibles en este momento.");
+                                        noRecsLabel.setForeground(new Color(0xADC7EA));
+                                        noRecsLabel.setFont(new Font("SansSerif", Font.ITALIC, 13));
+                                        noRecsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                                        finalRecPanel.add(noRecsLabel);
+                                    }
+
+                                    finalRecPanel.add(Box.createVerticalGlue());
+                                    finalRecPanel.revalidate();
+                                    finalRecPanel.repaint();
+                                });
+                            }
+                        }
+                    } else {
+                        System.out.println("Error loading recommendations: HTTP " + rc);
+                    }
+                    conn.disconnect();
+                } catch (Exception ex) {
+                    System.out.println("Error loading recommendations: " + ex.getMessage());
+                    ex.printStackTrace();
+                }
+                return null;
+            }
+        };
+        worker.execute();
+    }
     private void sendRegisterData() {
         String email = emailField.getText();
         String password = new String(passwordField.getPassword());
@@ -1326,6 +1484,25 @@ public class PredictHealthJava extends JFrame {
             loadUserData(lastUserId);
         });
         btns.add(datosBtn);
+
+        // Recommendations button
+        JButton recsBtn = createNavButton("Recomendaciones");
+        recsBtn.addActionListener(e -> {
+            // ensure we have the user id
+            if (lastUserId == null || lastUserId.isEmpty()) {
+                String me = getUserIdFromAuth();
+                if (me != null) lastUserId = me;
+            }
+            if (lastUserId == null || lastUserId.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No se encontró el ID de usuario. Por favor inicie sesión nuevamente.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            // fetch and show recommendations
+            cardLayout.show(mainPanel, "Recommendations");
+            updateNavButtons();
+            loadRecommendations(lastUserId);
+        });
+        btns.add(recsBtn);
 
         // Logout button
         JButton logoutBtn = createNavButton("Cerrar sesión");

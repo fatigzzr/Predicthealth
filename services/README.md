@@ -26,6 +26,10 @@ py -m services.hypertension_service.main
 
 py -m services.data_service.main 
 
+# recommendations_service: 8011
+
+py -m services.recommendations_service.main 
+
 
 ## Python version
 
@@ -56,3 +60,7 @@ python -m services.hypertension_service.main
 # data_service: 8010
 
 python -m services.data_service.main 
+
+# recommendations_service: 8011
+
+python -m services.recommendations_service.main 
