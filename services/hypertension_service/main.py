@@ -401,37 +401,39 @@ def predict_risk_from_df(df: pd.DataFrame):
     # Debug: Print raw probability
     print(f"DEBUG: Raw model probability: {y_prob:.6f}")
 
-    # --- Map raw probability to a 0-100% scale ---
-    if SCALE_METHOD == "direct":
-        # Direct mapping: probability -> percentage
-        risk_percentage = float(max(0.0, min(y_prob * 100.0, 100.0)))
+    # --- Map raw probability to continuous risk scale ---
+    # Use exponential scaling that grows continuously above threshold
+    # This properly differentiates high-risk cases instead of capping at 100%
+    threshold = 0.5  # Midpoint for hypertension risk
+    
+    if y_prob < threshold:
+        # Below threshold: gentler quadratic scaling
+        risk_percentage = float((y_prob / threshold) ** 1.3 * 50.0)
     else:
-        # Thresholded mapping: treat SCALE_THRESHOLD as the 'high-risk' point (maps to 100%)
-        T = max(0.0, min(1.0, SCALE_THRESHOLD))
-        gamma = max(1.0, float(SCALE_GAMMA))
-        if y_prob >= T:
-            # At or above threshold, consider high risk
-            risk_percentage = 100.0
-        else:
-            # Compute normalized proximity to T (0 .. 1)
-            proximity = max(0.0, 1.0 - ((T - y_prob) / T))
-            # Apply a power curve to emphasize closeness to the threshold
-            risk_percentage = float((proximity ** gamma) * 100.0)
+        # Above threshold: accelerated exponential scaling
+        # At threshold (0.5): ~50%
+        # At 0.7: ~100%
+        # At 0.85: ~170%
+        # At 0.95: ~250%
+        risk_percentage = float(50.0 + ((y_prob / threshold - 1.0) ** 1.4) * 125.0)
+    
+    # Cap at a reasonable maximum (e.g., 300% for very high risk)
+    risk_percentage = float(min(risk_percentage, 300.0))
 
-    # --- Risk level ranges based on percentage (0-100%) ---
-    if risk_percentage <= 10:
+    # --- Risk level ranges based on percentage (now 0-300% scale) ---
+    if risk_percentage <= 25:
         risk_level = 1
         risk_label = "Muy Bajo"
-    elif risk_percentage <= 30:
+    elif risk_percentage <= 60:
         risk_level = 2
         risk_label = "Bajo"
-    elif risk_percentage <= 50:
+    elif risk_percentage <= 100:
         risk_level = 3
         risk_label = "Medio"
-    elif risk_percentage <= 75:
+    elif risk_percentage <= 160:
         risk_level = 4
         risk_label = "Alto"
-    else:
+    else:  # 161-300
         risk_level = 5
         risk_label = "Muy Alto"
 
@@ -552,17 +554,27 @@ def latest_predicciones(user_id: int):
                     prob = r.get('probabilidad')
                     pred_bool = r.get('prediccion')
                     fecha = r.get('fecha')
-                    # compute a display percentage for diabetes using same scaling as predict_risk
+                    # compute a display percentage using same scaling as predict_risk
                     pct = None
                     if prob is not None:
                         try:
                             prob_f = float(prob)
                             if id_enf == 1:
+                                # Diabetes scaling
                                 threshold = 0.2
-                                raw_risk = prob_f / threshold
-                                pct = float(min(raw_risk / 1.75 * 100, 100))
+                                if prob_f < threshold:
+                                    pct = float((prob_f / threshold) ** 1.2 * 50.0)
+                                else:
+                                    pct = float(50.0 + ((prob_f / threshold - 1.0) ** 1.5) * 100.0)
+                                pct = float(min(pct, 300.0))
                             else:
-                                pct = float(min(prob_f * 100, 100))
+                                # Hypertension scaling
+                                threshold = 0.5
+                                if prob_f < threshold:
+                                    pct = float((prob_f / threshold) ** 1.3 * 50.0)
+                                else:
+                                    pct = float(50.0 + ((prob_f / threshold - 1.0) ** 1.4) * 125.0)
+                                pct = float(min(pct, 300.0))
                         except Exception:
                             pct = None
 
@@ -609,8 +621,13 @@ def latest_prediccion_hypertension(user_id: int):
                 if prob is not None:
                     try:
                         prob_f = float(prob)
-                        # For hypertension, scale probability directly (threshold may differ)
-                        pct = float(min(prob_f * 100, 100))
+                        # Apply the same scaling logic as predict_risk_from_df
+                        threshold = 0.5
+                        if prob_f < threshold:
+                            pct = float((prob_f / threshold) ** 1.3 * 50.0)
+                        else:
+                            pct = float(50.0 + ((prob_f / threshold - 1.0) ** 1.4) * 125.0)
+                        pct = float(min(pct, 300.0))
                     except Exception:
                         pct = None
 

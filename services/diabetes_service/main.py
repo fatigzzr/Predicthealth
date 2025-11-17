@@ -191,28 +191,42 @@ def predict_risk(user_id: int):
     # Debug: Print raw probability
     print(f"DEBUG: Raw model probability: {y_prob:.6f}")
 
-    # --- Scale threshold-relative risk to 0-100% ---
-    # Threshold is 0.2 - anything above this is concerning
-    # Scale so that 0.36 (1.8x threshold) maps to 100%
-    # Formula: risk_percentage = min((y_prob / threshold) / 1.75 * 100, 100)
+    # --- Scale risk using continuous exponential curve ---
+    # Use a sigmoid-like transformation that continues scaling above threshold
+    # This ensures cases well above threshold get appropriately higher scores
     threshold = 0.2
-    raw_risk = y_prob / threshold
-    risk_percentage = float(min(raw_risk / 1.75 * 100, 100))
+    
+    # Apply exponential scaling: risk grows faster as probability increases
+    # Formula: percentage = (prob / threshold) ^ 1.5 * 100
+    # This gives continuous growth without artificial caps
+    if y_prob < threshold:
+        # Below threshold: gentler scaling
+        risk_percentage = float((y_prob / threshold) ** 1.2 * 50.0)
+    else:
+        # Above threshold: accelerated scaling
+        # At threshold (0.2): ~50%
+        # At 2x threshold (0.4): ~100%
+        # At 3x threshold (0.6): ~173%
+        # At 4x threshold (0.8): ~253%
+        risk_percentage = float(50.0 + ((y_prob / threshold - 1.0) ** 1.5) * 100.0)
+    
+    # Cap at a reasonable maximum (e.g., 300% for very high risk)
+    risk_percentage = float(min(risk_percentage, 300.0))
 
-    # --- Risk level ranges based on percentage (0-100%) ---
-    if risk_percentage <= 20:
+    # --- Risk level ranges based on percentage (now 0-300% scale) ---
+    if risk_percentage <= 30:
         risk_level = 1
         risk_label = "Muy Bajo"
-    elif risk_percentage <= 40:
+    elif risk_percentage <= 60:
         risk_level = 2
         risk_label = "Bajo"
-    elif risk_percentage <= 60:
+    elif risk_percentage <= 100:
         risk_level = 3
         risk_label = "Medio"
-    elif risk_percentage <= 80:
+    elif risk_percentage <= 150:
         risk_level = 4
         risk_label = "Alto"
-    else:  # 81-100
+    else:  # 151-300
         risk_level = 5
         risk_label = "Muy Alto"
     
@@ -308,8 +322,11 @@ def latest_predicciones(user_id: int):
                             prob_f = float(prob)
                             if id_enf == 1:
                                 threshold = 0.2
-                                raw_risk = prob_f / threshold
-                                pct = float(min(raw_risk / 1.75 * 100, 100))
+                                if prob_f < threshold:
+                                    pct = float((prob_f / threshold) ** 1.2 * 50.0)
+                                else:
+                                    pct = float(50.0 + ((prob_f / threshold - 1.0) ** 1.5) * 100.0)
+                                pct = float(min(pct, 300.0))
                             else:
                                 pct = float(min(prob_f * 100, 100))
                         except Exception:
@@ -359,8 +376,11 @@ def latest_prediccion_diabetes(user_id: int):
                     try:
                         prob_f = float(prob)
                         threshold = 0.2
-                        raw_risk = prob_f / threshold
-                        pct = float(min(raw_risk / 1.75 * 100, 100))
+                        if prob_f < threshold:
+                            pct = float((prob_f / threshold) ** 1.2 * 50.0)
+                        else:
+                            pct = float(50.0 + ((prob_f / threshold - 1.0) ** 1.5) * 100.0)
+                        pct = float(min(pct, 300.0))
                     except Exception:
                         pct = None
 

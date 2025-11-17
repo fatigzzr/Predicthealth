@@ -1843,14 +1843,15 @@ public class PredictHealthJava extends JFrame {
         putNotNull(salud, "medicamentos", getSelectedMedications());
 
         // Step 7 & 8: Lifestyle
-        putNotNull(estilo_vida, "frutas", getSelectedButtonText(frutasPanel));
-        putNotNull(estilo_vida, "verduras", getSelectedButtonText(verdurasPanel));
+        // Normalize Spanish Sí/No to PostgreSQL-compatible boolean strings (true/false)
+        putNotNull(estilo_vida, "frutas", normalizeBooleanValue(getSelectedButtonText(frutasPanel)));
+        putNotNull(estilo_vida, "verduras", normalizeBooleanValue(getSelectedButtonText(verdurasPanel)));
         String salValue = (salField != null && !salField.getText().trim().isEmpty()) ? salField.getText().trim() : "0";
         putNotNull(estilo_vida, "sal", salValue);
-        putNotNull(estilo_vida, "fuma", getSelectedButtonText(fumaPanel));
-        putNotNull(estilo_vida, "alcohol", getSelectedButtonText(alcoholPanel));
-        putNotNull(estilo_vida, "movilidad", getSelectedButtonText(movilidadPanel));
-        putNotNull(estilo_vida, "actividad_frecuente", getSelectedButtonText(step8Panel));
+        putNotNull(estilo_vida, "fuma", normalizeBooleanValue(getSelectedButtonText(fumaPanel)));
+        putNotNull(estilo_vida, "alcohol", normalizeBooleanValue(getSelectedButtonText(alcoholPanel)));
+        putNotNull(estilo_vida, "movilidad", normalizeBooleanValue(getSelectedButtonText(movilidadPanel)));
+        putNotNull(estilo_vida, "actividad_frecuente", normalizeBooleanValue(getSelectedButtonText(step8Panel)));
         putNotNull(estilo_vida, "horas_sueno", getTextFieldValue(step8Panel, 0));
         putNotNull(estilo_vida, "nivel_estres", getComboBoxSelected(step8Panel, 3));
         putNotNull(estilo_vida, "salud_mental", getTextFieldValue(step8Panel, 1));
@@ -2038,6 +2039,26 @@ public class PredictHealthJava extends JFrame {
 
 
     // Helper methods
+    /**
+     * Normalize Spanish boolean values (Sí/No) to PostgreSQL-compatible format (true/false)
+     * This prevents "invalid input syntax for type boolean" errors in the database
+     */
+    private String normalizeBooleanValue(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return "false";
+        }
+        String normalized = value.trim().toUpperCase();
+        // Check for affirmative values (Spanish and English)
+        if (normalized.equals("SÍ") || normalized.equals("SI") || 
+            normalized.equals("YES") || normalized.equals("Y") || 
+            normalized.equals("TRUE") || normalized.equals("1") ||
+            normalized.equals("S") || normalized.equals("T")) {
+            return "true";
+        }
+        // Everything else is false
+        return "false";
+    }
+
     private int calculateAge(Date birth) {
         Calendar birthCal = Calendar.getInstance();
         birthCal.setTime(birth);

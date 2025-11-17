@@ -67,6 +67,35 @@ def guardar_historial(data: dict):
                 p_medicamentos = [x.strip() for x in s.split(",") if x.strip()]
 
         estilo = data.get("estilo_vida", {})
+        
+        # Map Java app keys to database stored procedure keys
+        # Java sends: frutas, verduras, fuma, alcohol, movilidad, actividad_frecuente
+        # DB expects: consumeFrutas, consumeVerduras, fuma, alcoholExceso, dificultadCaminar, actividad3Veces
+        key_mapping = {
+            "frutas": "consumeFrutas",
+            "verduras": "consumeVerduras",
+            "sal": "salDiaria",
+            "fuma": "fuma",  # same key
+            "alcohol": "alcoholExceso",
+            "movilidad": "dificultadCaminar",
+            "horas_sueno": "horasSueno",
+            "nivel_estres": "nivelEstres",
+            "salud_mental": "diasSaludMentalMala",
+            "actividad_fisica": "nivelActividad",
+            "actividad_frecuente": "actividad3Veces",
+            "salud_fisica": "diasSaludFisicaMala"
+        }
+        
+        # Transform estilo_vida keys
+        mapped_estilo = {}
+        for java_key, db_key in key_mapping.items():
+            if java_key in estilo:
+                mapped_estilo[db_key] = estilo[java_key]
+        
+        # Keep any unmapped keys as-is (for future compatibility)
+        for key, value in estilo.items():
+            if key not in key_mapping:
+                mapped_estilo[key] = value
 
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -93,7 +122,7 @@ def guardar_historial(data: dict):
                     p_acv,
                     p_problemas_corazon,
                     p_medicamentos if p_medicamentos else None,  # psycopg2 converts list to text[]
-                    Json(estilo)
+                    Json(mapped_estilo)  # Use mapped keys instead of raw estilo
                 ]
 
                 # Execute the CALL. psycopg2 will map Python None to SQL NULL and list to text[].
