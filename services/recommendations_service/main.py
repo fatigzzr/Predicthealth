@@ -69,10 +69,30 @@ def get_recommendations(user_id: int):
                     print(f"DEBUG: Found {len(recommendation_rows)} recommendations")
                     
                     for rec in recommendation_rows:
+                        # Fix double-encoded UTF-8: if the text was stored with encoding issues,
+                        # try to decode and re-encode properly
+                        titulo = rec['titulo']
+                        descripcion = rec['descripcion']
+                        
+                        # Attempt to fix double-encoded UTF-8
+                        try:
+                            if titulo and isinstance(titulo, str):
+                                titulo_bytes = titulo.encode('iso-8859-1')
+                                titulo = titulo_bytes.decode('utf-8')
+                        except Exception as e:
+                            pass  # Keep original if decode fails
+                        
+                        try:
+                            if descripcion and isinstance(descripcion, str):
+                                desc_bytes = descripcion.encode('iso-8859-1')
+                                descripcion = desc_bytes.decode('utf-8')
+                        except Exception as e:
+                            pass  # Keep original if decode fails
+                        
                         recommendations.append({
                             "id_recomendacion": rec['id_recomendacion'],
-                            "titulo": rec['titulo'],
-                            "descripcion": rec['descripcion'],
+                            "titulo": titulo,
+                            "descripcion": descripcion,
                             "id_enfermedad": rec['id_enfermedad']
                         })
                 

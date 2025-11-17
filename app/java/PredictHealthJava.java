@@ -683,13 +683,11 @@ public class PredictHealthJava extends JFrame {
                                 }
                             }
 
-                            if (recPanel != null) {
-                                final JPanel finalRecPanel = recPanel;
-                                final boolean fDiabetes = hasDiabetes;
-                                final boolean fHypertension = hasHypertension;
-                                final JSONArray fRecs = recs;
-
-                                SwingUtilities.invokeLater(() -> {
+                                if (recPanel != null) {
+                                    final JPanel finalRecPanel = recPanel;
+                                    final boolean fDiabetes = hasDiabetes;
+                                    final boolean fHypertension = hasHypertension;
+                                    final JSONArray fRecs = recs;                                SwingUtilities.invokeLater(() -> {
                                     finalRecPanel.removeAll();
 
                                     // Title
@@ -719,10 +717,15 @@ public class PredictHealthJava extends JFrame {
                                         for (int i = 0; i < fRecs.length(); i++) {
                                             JSONObject rec = fRecs.getJSONObject(i);
                                             String titulo = rec.optString("titulo", "Recomendación");
-                                                String descripcion = rec.optString("descripcion", "");
-                                                descripcion = escapeHtmlEntities(descripcion);
-
-                                            // Bullet point
+                                            String descripcion = rec.optString("descripcion", "");
+                                            // Fix double-encoded UTF-8 for both titulo and descripcion
+                                            try {
+                                                byte[] tituloBytes = titulo.getBytes("ISO-8859-1");
+                                                titulo = new String(tituloBytes, "UTF-8");
+                                                byte[] descBytes = descripcion.getBytes("ISO-8859-1");
+                                                descripcion = new String(descBytes, "UTF-8");
+                                            } catch (Exception __e) { /* ignore encoding fix failure */ }
+                                            descripcion = escapeHtmlEntities(descripcion);                                            // Bullet point
                                             JLabel bulletLabel = new JLabel("• " + titulo);
                                             bulletLabel.setForeground(Color.WHITE);
                                             bulletLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
@@ -1711,25 +1714,15 @@ public class PredictHealthJava extends JFrame {
         return lbl;
     }
 
-    // Escape basic HTML entities and common Spanish accented characters to HTML entities
+    // Escape only essential HTML characters; preserve Unicode accents so Swing can render them
     private String escapeHtmlEntities(String s) {
         if (s == null) return "";
         String out = s;
         out = out.replace("&", "&amp;");
         out = out.replace("<", "&lt;");
         out = out.replace(">", "&gt;");
-        out = out.replace("á", "&aacute;");
-        out = out.replace("é", "&eacute;");
-        out = out.replace("í", "&iacute;");
-        out = out.replace("ó", "&oacute;");
-        out = out.replace("ú", "&uacute;");
-        out = out.replace("Á", "&Aacute;");
-        out = out.replace("É", "&Eacute;");
-        out = out.replace("Í", "&Iacute;");
-        out = out.replace("Ó", "&Oacute;");
-        out = out.replace("Ú", "&Uacute;");
-        out = out.replace("ñ", "&ntilde;");
-        out = out.replace("Ñ", "&Ntilde;");
+        out = out.replace("\"", "&quot;");
+        out = out.replace("'", "&#39;");
         return out;
     }
 
