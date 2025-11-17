@@ -1013,6 +1013,7 @@ public class PredictHealthJava extends JFrame {
         SwingWorker<Void, Void> worker = new SwingWorker<>() {
             @Override
             protected Void doInBackground() throws Exception {
+                    // Fetch diabetes prediction
                     try {
                         URL base = new URL(diabetesUrl);
                         String hostPart = base.getProtocol() + "://" + base.getHost() + (base.getPort() > 0 ? ":" + base.getPort() : "");
@@ -1038,7 +1039,6 @@ public class PredictHealthJava extends JFrame {
                                         if (pct >= 0) lastDiabetesPct = pct;
                                     }
                                 } else {
-                                    // no prediction row for this user
                                     lastDiabetesPct = -1.0;
                                 }
                             }
@@ -1050,6 +1050,45 @@ public class PredictHealthJava extends JFrame {
                         System.out.println("Error fetching latest diabetes prediction: " + ex.getMessage());
                         lastDiabetesPct = -1.0;
                     }
+
+                    // Fetch hypertension prediction
+                    try {
+                        URL base = new URL(hypertensionUrl);
+                        String hostPart = base.getProtocol() + "://" + base.getHost() + (base.getPort() > 0 ? ":" + base.getPort() : "");
+                        String path = "/prediccion/latest/hypertension/" + userId;
+                        URL url = new URL(hostPart + path);
+                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                        conn.setRequestMethod("GET");
+                        conn.setRequestProperty("Accept", "application/json");
+                        conn.setConnectTimeout(CONNECT_TIMEOUT);
+                        conn.setReadTimeout(READ_TIMEOUT);
+
+                        int rc = conn.getResponseCode();
+                        if (rc == 200) {
+                            try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                                StringBuilder sb = new StringBuilder();
+                                String line;
+                                while ((line = br.readLine()) != null) sb.append(line);
+                                JSONObject resp = new JSONObject(sb.toString());
+                                if (resp.has("prediction") && !resp.isNull("prediction")) {
+                                    JSONObject p = resp.getJSONObject("prediction");
+                                    if (!p.isNull("percentage")) {
+                                        double pct = p.optDouble("percentage", -1);
+                                        if (pct >= 0) lastHypertensionPct = pct;
+                                    }
+                                } else {
+                                    lastHypertensionPct = -1.0;
+                                }
+                            }
+                        } else {
+                            System.out.println("Could not fetch latest hypertension prediccion: HTTP " + rc);
+                        }
+                        conn.disconnect();
+                    } catch (Exception ex) {
+                        System.out.println("Error fetching latest hypertension prediction: " + ex.getMessage());
+                        lastHypertensionPct = -1.0;
+                    }
+
                     return null;
             }
 
