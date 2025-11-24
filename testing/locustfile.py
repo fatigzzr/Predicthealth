@@ -1,16 +1,20 @@
 """
+PredictHealth Microservices Load Testing Suite
+
 Usage:
     # Run with Web UI
-    locust -f locustfile.py --host=http://localhost
+    locust -f locustfile.py
 
     # Run specific test class
-    locust -f locustfile.py BaselineTest --host=http://localhost
+    locust -f locustfile.py BaselineTest
 
     # Headless mode (smoke test example)
-    locust -f locustfile.py SmokeTest --headless --users 10 --spawn-rate 2 --run-time 2m --host=http://localhost
+    locust -f locustfile.py SmokeTest --headless --users 10 --spawn-rate 2 --run-time 2m
 
     # CSV test with data
-    locust -f locustfile.py CSVTest --headless --users 50 --spawn-rate 10 --run-time 5m --host=http://localhost
+    locust -f locustfile.py CSVTest --headless --users 50 --spawn-rate 10 --run-time 5m
+
+Note: Services use absolute URLs with specific ports (8001-8011), so --host flag is not needed.
 
 Test Scenarios:
     - BaselineTest: Normal load (50 users, steady)
@@ -30,7 +34,8 @@ import json
 import random
 import time
 from typing import Optional
-from locust import HttpUser, TaskSet, task, between, constant, constant_pacing, LoadTestShape
+from locust import HttpUser, TaskSet, task, between, constant, constant_pacing  # LoadTestShape disabled for now
+# from locust import LoadTestShape  # Uncomment to enable custom load shapes
 from locust.exception import StopUser
 
 
@@ -116,6 +121,7 @@ class PredictHealthUser(HttpUser):
     """Base user class with authentication and common tasks"""
     
     abstract = True  # Don't run this directly
+    host = "http://localhost"  # Base host (services use absolute URLs with specific ports)
     access_token: Optional[str] = None
     user_id: Optional[int] = None
     user_email: Optional[str] = None
@@ -521,6 +527,34 @@ class WriteHeavyTest(PredictHealthUser):
                 name="/save_full_history [POST]"
             )
 
+# Custom LoadTestShape classes are disabled for now
+# Uncomment when you need progressive/custom load patterns
+# class SpikeTestShape(LoadTestShape):
+#     """
+#     Spike Test Shape: Sudden traffic burst
+#     - Normal: 50 users
+#     - Spike: 200 users (sudden)
+#     - Duration: 5 minutes
+#     """
+#     
+#     def tick(self):
+#         run_time = self.get_run_time()
+#         
+#         if run_time < 120:
+#             # First 2 min: baseline 50 users
+#             return (50, 10)
+#         elif run_time < 180:
+#             # Spike: jump to 200 users instantly
+#             return (200, 50)
+#         elif run_time < 240:
+#             # Hold spike for 1 min
+#             return (200, 50)
+#         elif run_time < 300:
+#             # Drop back to baseline
+#             return (50, 50)
+#         else:
+#             return None
+
 
 class SpikeTest(PredictHealthUser):
     """
@@ -541,6 +575,27 @@ class SoakTest(PredictHealthUser):
     """
     wait_time = between(2, 5)
     tasks = [MixedTasks]
+
+
+# class BreakpointTestShape(LoadTestShape):
+#     """
+#     Breakpoint Test Shape: Progressive load increase
+#     - Increments: +50 users every 2 minutes
+#     - Continues until failure or manual stop
+#     """
+#     
+#     def tick(self):
+#         run_time = self.get_run_time()
+#         
+#         # Calculate user count based on elapsed time
+#         step = int(run_time / 120)  # Every 2 minutes
+#         user_count = 50 + (step * 50)  # Start at 50, add 50 every step
+#         
+#         # Cap at 1000 users (safety limit)
+#         if user_count > 1000:
+#             return None
+#         
+#         return (user_count, 10)
 
 
 class BreakpointTest(PredictHealthUser):
@@ -615,141 +670,51 @@ class CSVTest(PredictHealthUser):
 
 
 # =============================================================================
-# Custom Load Shapes
+# Combined Test Classes with Shapes (SHAPES DISABLED)
 # =============================================================================
 
-class RampUpShape(LoadTestShape):
-    """
-    Ramp-Up Test: Gradual load increase
-    - Start: 10 users
-    - End: 100 users
-    - Duration: 10 minutes
-    - Spawn rate: +10 users/minute
-    """
-    
-    def tick(self):
-        run_time = self.get_run_time()
-        
-        if run_time < 60:
-            return (10, 5)
-        elif run_time < 120:
-            return (20, 5)
-        elif run_time < 180:
-            return (30, 5)
-        elif run_time < 240:
-            return (40, 5)
-        elif run_time < 300:
-            return (50, 5)
-        elif run_time < 360:
-            return (60, 5)
-        elif run_time < 420:
-            return (70, 5)
-        elif run_time < 480:
-            return (80, 5)
-        elif run_time < 540:
-            return (90, 5)
-        elif run_time < 600:
-            return (100, 5)
-        else:
-            return None
+# class RampUpTestShape(LoadTestShape):
+#     """Ramp-Up Test: Gradual load increase"""
+#     def tick(self):
+#         run_time = self.get_run_time()
+#         if run_time < 60: return (10, 5)
+#         elif run_time < 120: return (20, 5)
+#         elif run_time < 180: return (30, 5)
+#         elif run_time < 240: return (40, 5)
+#         elif run_time < 300: return (50, 5)
+#         elif run_time < 360: return (60, 5)
+#         elif run_time < 420: return (70, 5)
+#         elif run_time < 480: return (80, 5)
+#         elif run_time < 540: return (90, 5)
+#         elif run_time < 600: return (100, 5)
+#         else: return None
 
-
-class RampDownShape(LoadTestShape):
-    """
-    Ramp-Down Test: Gradual load decrease
-    - Start: 100 users
-    - End: 10 users
-    - Duration: 10 minutes
-    - Tests graceful degradation
-    """
-    
-    def tick(self):
-        run_time = self.get_run_time()
-        
-        if run_time < 60:
-            return (100, 5)
-        elif run_time < 120:
-            return (90, 5)
-        elif run_time < 180:
-            return (80, 5)
-        elif run_time < 240:
-            return (70, 5)
-        elif run_time < 300:
-            return (60, 5)
-        elif run_time < 360:
-            return (50, 5)
-        elif run_time < 420:
-            return (40, 5)
-        elif run_time < 480:
-            return (30, 5)
-        elif run_time < 540:
-            return (20, 5)
-        elif run_time < 600:
-            return (10, 5)
-        else:
-            return None
-
-
-class SpikeShape(LoadTestShape):
-    """
-    Spike Test Shape: Sudden traffic burst
-    - Normal: 50 users
-    - Spike: 200 users (sudden)
-    - Duration: 5 minutes
-    """
-    
-    def tick(self):
-        run_time = self.get_run_time()
-        
-        if run_time < 120:
-            # First 2 min: baseline 50 users
-            return (50, 10)
-        elif run_time < 180:
-            # Spike: jump to 200 users instantly
-            return (200, 50)
-        elif run_time < 240:
-            # Hold spike for 1 min
-            return (200, 50)
-        elif run_time < 300:
-            # Drop back to baseline
-            return (50, 50)
-        else:
-            return None
-
-
-class BreakpointShape(LoadTestShape):
-    """
-    Breakpoint Test Shape: Progressive load increase
-    - Increments: +50 users every 2 minutes
-    - Continues until failure or manual stop
-    """
-    
-    def tick(self):
-        run_time = self.get_run_time()
-        
-        # Calculate user count based on elapsed time
-        step = int(run_time / 120)  # Every 2 minutes
-        user_count = 50 + (step * 50)  # Start at 50, add 50 every step
-        
-        # Cap at 1000 users (safety limit)
-        if user_count > 1000:
-            return None
-        
-        return (user_count, 10)
-
-
-# =============================================================================
-# Combined Test Classes with Shapes
-# =============================================================================
 
 class RampUpTest(PredictHealthUser):
-    """Ramp-up test using custom shape"""
+    """Ramp-up test (shapes disabled, use --users parameter)"""
     wait_time = between(1, 3)
     tasks = [MixedTasks]
 
 
+# class RampDownTestShape(LoadTestShape):
+#     """Ramp-Down Test: Gradual load decrease"""
+#     def tick(self):
+#         run_time = self.get_run_time()
+#         if run_time < 60: return (100, 5)
+#         elif run_time < 120: return (90, 5)
+#         elif run_time < 180: return (80, 5)
+#         elif run_time < 240: return (70, 5)
+#         elif run_time < 300: return (60, 5)
+#         elif run_time < 360: return (50, 5)
+#         elif run_time < 420: return (40, 5)
+#         elif run_time < 480: return (30, 5)
+#         elif run_time < 540: return (20, 5)
+#         elif run_time < 600: return (10, 5)
+#         else: return None
+
+
 class RampDownTest(PredictHealthUser):
-    """Ramp-down test using custom shape"""
+    """Ramp-down test (shapes disabled, use --users parameter)"""
     wait_time = between(1, 3)
     tasks = [MixedTasks]
 
@@ -759,37 +724,37 @@ class RampDownTest(PredictHealthUser):
 # =============================================================================
 
 """
-Run Examples:
+Run Examples (Services use absolute URLs on ports 8001-8011):
 
 1. Baseline Test (50 users, 10 min):
-   locust -f locustfile.py BaselineTest --headless --users 50 --spawn-rate 5 --run-time 10m --host http://localhost
+   locust -f locustfile.py BaselineTest --headless --users 50 --spawn-rate 5 --run-time 10m
 
 2. Smoke Test (10 users, 2 min):
-   locust -f locustfile.py SmokeTest --headless --users 10 --spawn-rate 2 --run-time 2m --host http://localhost
+   locust -f locustfile.py SmokeTest --headless --users 10 --spawn-rate 2 --run-time 2m
 
 3. Read-Heavy Test (100 users, 15 min):
-   locust -f locustfile.py ReadHeavyTest --headless --users 100 --spawn-rate 10 --run-time 15m --host http://localhost
+   locust -f locustfile.py ReadHeavyTest --headless --users 100 --spawn-rate 10 --run-time 15m
 
 4. Write-Heavy Test (50 users, 10 min):
-   locust -f locustfile.py WriteHeavyTest --headless --users 50 --spawn-rate 5 --run-time 10m --host http://localhost
+   locust -f locustfile.py WriteHeavyTest --headless --users 50 --spawn-rate 5 --run-time 10m
 
 5. Ramp-Up Test (with custom shape):
-   locust -f locustfile.py RampUpTest --headless --host http://localhost
+   locust -f locustfile.py RampUpTest --headless
 
 6. Ramp-Down Test (with custom shape):
-   locust -f locustfile.py RampDownTest --headless --host http://localhost
+   locust -f locustfile.py RampDownTest --headless
 
 7. Spike Test (with custom shape):
-   locust -f locustfile.py SpikeTest --headless --host http://localhost
+   locust -f locustfile.py SpikeTest --headless
 
 8. Soak Test (100 users, 2 hours):
-   locust -f locustfile.py SoakTest --headless --users 100 --spawn-rate 10 --run-time 2h --host http://localhost
+   locust -f locustfile.py SoakTest --headless --users 100 --spawn-rate 10 --run-time 2h
 
 9. Breakpoint Test (progressive load):
-   locust -f locustfile.py BreakpointTest --headless --host http://localhost
+   locust -f locustfile.py BreakpointTest --headless
 
 10. CSV Test (data-driven):
-    locust -f locustfile.py CSVTest --headless --users 50 --spawn-rate 10 --run-time 10m --host http://localhost
+    locust -f locustfile.py CSVTest --headless --users 50 --spawn-rate 10 --run-time 10m
 
 11. Web UI (interactive):
     locust -f locustfile.py --host http://localhost
