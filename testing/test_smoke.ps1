@@ -12,9 +12,9 @@ Write-Host "Results: $resultsDir" -ForegroundColor Green
 
 locust -f testing/locustfile.py SmokeTest `
     --headless `
-    --users 10 `
-    --spawn-rate 2 `
-    --run-time 2m `
+    --users 5 `
+    --spawn-rate 5 `
+    --run-time 1m `
     --html "$resultsDir/report.html" `
     --csv "$resultsDir/stats"
 

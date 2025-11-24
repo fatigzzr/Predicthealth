@@ -1,0 +1,2 @@
+Method,Name,Error,Occurrences
+POST,/save_full_history [POST],HTTPError('404 Client Error: Not Found for url: /save_full_history [POST]'),485

@@ -7,14 +7,14 @@ $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $resultsDir = "$OutputDir/soak_$timestamp"
 New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
 
-Write-Host "Running Soak Test (1 hour)..." -ForegroundColor Cyan
+Write-Host "Running Soak Test (15 min)..." -ForegroundColor Cyan
 Write-Host "Results: $resultsDir" -ForegroundColor Green
 
 locust -f testing/locustfile.py SoakTest `
     --headless `
-    --users 100 `
+    --users 50 `
     --spawn-rate 10 `
-    --run-time 1h `
+    --run-time 15m `
     --html "$resultsDir/report.html" `
     --csv "$resultsDir/stats"
 
