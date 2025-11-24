@@ -102,6 +102,38 @@ SAMPLE_HYPERTENSION = {
     "exercise_level": 2,
 }
 
+# Sample full history data for /guardar_historial endpoint
+SAMPLE_FULL_HISTORY = {
+    "nombre": "LoadTest",
+    "apellido": "User",
+    "fecha_nacimiento": "1990-01-01",
+    "sexo": "M",
+    "diabetes": False,
+    "hipertension": False,
+    "colesterol": "Normal",
+    "colesterol_alto": "No",
+    "bmi": 25.5,
+    "presion": "Normal",
+    "salud_general": "Buena",
+    "acv": "No",
+    "problemas_corazon": "No",
+    "medicamentos": ["Ninguno"],
+    "estilo_vida": {
+        "frutas": "true",
+        "verduras": "true",
+        "fuma": "false",
+        "alcohol": "false",
+        "movilidad": "false",
+        "sal": "5.0",
+        "horas_sueno": "7",
+        "nivel_estres": "5",
+        "salud_mental": "2",
+        "actividad_fisica": "3",
+        "actividad_frecuente": "true",
+        "salud_fisica": "1",
+    }
+}
+
 
 # =============================================================================
 # Helper Functions
@@ -286,24 +318,8 @@ class WriteTasks(TaskSet):
     def save_full_history(self):
         """Save complete patient history"""
         if self.user.user_id and self.user.access_token:
-            history_data = {
-                "id_usuario": self.user.user_id,
-                "nombre": "Test",
-                "apellido": "User",
-                "sexo": "M",
-                "fecha_nacimiento": "1990-01-01",
-                "diabetes": False,
-                "hipertension": False,
-                "colesterol": "Normal",
-                "colesterol_alto": "No",
-                "bmi": 25.0,
-                "presion": "Normal",
-                "salud_general": "Buena",
-                "acv": "No",
-                "problemas_corazon": "No",
-                "medicamentos": [],
-                "estilo_vida": SAMPLE_LIFESTYLE,
-            }
+            history_data = SAMPLE_FULL_HISTORY.copy()
+            history_data["id_usuario"] = self.user.user_id
             
             self.client.post(
                 f"{get_service_url('data')}/guardar_historial",
@@ -515,16 +531,13 @@ class WriteHeavyTest(PredictHealthUser):
     
     def save_full_history(self):
         if self.user_id and self.access_token:
-            full_data = {
-                "id_usuario": self.user_id,
-                "diabetes_data": {"glucose": 120, "bmi": 25.5},
-                "hypertension_data": SAMPLE_HYPERTENSION.copy()
-            }
+            full_data = SAMPLE_FULL_HISTORY.copy()
+            full_data["id_usuario"] = self.user_id
             self.client.post(
-                f"{get_service_url('data')}/save_full_history",
+                f"{get_service_url('data')}/guardar_historial",
                 json=full_data,
                 headers=self.get_auth_headers(),
-                name="/save_full_history [POST]"
+                name="/guardar_historial [POST]"
             )
 
 # Custom LoadTestShape classes are disabled for now
@@ -629,13 +642,26 @@ class CSVTest(PredictHealthUser):
     @staticmethod
     def load_csv_data():
         """Load users from CSV file"""
-        try:
-            with open('users.csv', 'r') as f:
-                reader = csv.DictReader(f)
-                return list(reader)
-        except FileNotFoundError:
-            print("Warning: users.csv not found, using default test users")
-            return TEST_USERS
+        import os
+        # Try multiple possible locations for users.csv
+        possible_paths = [
+            'testing/users.csv',  # From repo root
+            'users.csv',          # From testing/ directory
+            os.path.join(os.path.dirname(__file__), 'users.csv'),  # Relative to locustfile
+        ]
+        
+        for csv_path in possible_paths:
+            try:
+                with open(csv_path, 'r') as f:
+                    reader = csv.DictReader(f)
+                    data = list(reader)
+                    print(f"Loaded {len(data)} users from {csv_path}")
+                    return data
+            except FileNotFoundError:
+                continue
+        
+        print("Warning: users.csv not found in any location, using default test users")
+        return TEST_USERS
     
     def on_start(self):
         """Override login to use CSV data"""
