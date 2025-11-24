@@ -51,14 +51,14 @@ SERVICES = {
 }
 
 # Test users (from init.sql - 200 users with complete patient data in database)
-# All users use password: test123
+# All users use password: password123
 # 100 users from cdc-diabetes dataset + 100 users from hypertension dataset
 TEST_USERS = [
     # Generate all 200 users programmatically to avoid huge list
     # Pattern: user_1@cdc-diabetes.com through user_100@cdc-diabetes.com
     #         user_1@hypertension-risk.com through user_100@hypertension-risk.com
-    *[{"email": f"user_{i}@cdc-diabetes.com", "password": "test123"} for i in range(1, 101)],
-    *[{"email": f"user_{i}@hypertension-risk.com", "password": "test123"} for i in range(1, 101)],
+    *[{"email": f"user_{i}@cdc-diabetes.com", "password": "password123"} for i in range(1, 101)],
+    *[{"email": f"user_{i}@hypertension-risk.com", "password": "password123"} for i in range(1, 101)],
 ]
 
 # Sample patient data
@@ -367,21 +367,78 @@ class ReadHeavyTest(PredictHealthUser):
     
     @task(80)
     def read_operations(self):
-        read_task = ReadTasks(self)
-        read_task.execute_task(random.choice([
-            read_task.get_patient,
-            read_task.get_diabetes_prediction,
-            read_task.get_latest_diabetes,
-            read_task.get_recommendations,
-        ]))
+        # Pick a random read operation
+        operation = random.choice([
+            self.get_patient,
+            self.get_diabetes_prediction,
+            self.get_latest_diabetes,
+            self.get_recommendations,
+        ])
+        operation()
     
     @task(20)
     def write_operations(self):
-        write_task = WriteTasks(self)
-        write_task.execute_task(random.choice([
-            write_task.create_patient,
-            write_task.create_lifestyle,
-        ]))
+        # Pick a random write operation
+        operation = random.choice([
+            self.create_patient,
+            self.create_lifestyle,
+        ])
+        operation()
+    
+    # Read operations
+    def get_patient(self):
+        if self.user_id:
+            self.client.get(
+                f"{get_service_url('patient')}/paciente/{self.user_id}",
+                name="/paciente/{id} [GET]"
+            )
+    
+    def get_diabetes_prediction(self):
+        if self.user_id and self.access_token:
+            self.client.get(
+                f"{get_service_url('diabetes')}/predict_diabetes/{self.user_id}",
+                headers=self.get_auth_headers(),
+                name="/predict_diabetes/{id} [GET]"
+            )
+    
+    def get_latest_diabetes(self):
+        if self.user_id and self.access_token:
+            self.client.get(
+                f"{get_service_url('diabetes')}/prediccion/latest/diabetes/{self.user_id}",
+                headers=self.get_auth_headers(),
+                name="/prediccion/latest/diabetes/{id} [GET]"
+            )
+    
+    def get_recommendations(self):
+        if self.user_id and self.access_token:
+            self.client.get(
+                f"{get_service_url('recommendations')}/recommendations/{self.user_id}",
+                headers=self.get_auth_headers(),
+                name="/recommendations/{id} [GET]"
+            )
+    
+    # Write operations
+    def create_patient(self):
+        if self.user_id and self.access_token:
+            patient_data = SAMPLE_PATIENT.copy()
+            patient_data["id_usuario"] = self.user_id
+            self.client.post(
+                f"{get_service_url('patient')}/paciente",
+                json=patient_data,
+                headers=self.get_auth_headers(),
+                name="/paciente [POST]"
+            )
+    
+    def create_lifestyle(self):
+        if self.user_id and self.access_token:
+            lifestyle_data = SAMPLE_LIFESTYLE.copy()
+            lifestyle_data["id_usuario"] = self.user_id
+            self.client.post(
+                f"{get_service_url('health')}/estilo_vida",
+                json=lifestyle_data,
+                headers=self.get_auth_headers(),
+                name="/estilo_vida [POST]"
+            )
 
 
 class WriteHeavyTest(PredictHealthUser):
@@ -395,18 +452,74 @@ class WriteHeavyTest(PredictHealthUser):
     
     @task(20)
     def read_operations(self):
-        read_task = ReadTasks(self)
-        read_task.execute_task(read_task.get_patient)
+        self.get_patient()
     
     @task(80)
     def write_operations(self):
-        write_task = WriteTasks(self)
-        write_task.execute_task(random.choice([
-            write_task.create_patient,
-            write_task.create_lifestyle,
-            write_task.predict_hypertension,
-            write_task.save_full_history,
-        ]))
+        # Pick a random write operation
+        operation = random.choice([
+            self.create_patient,
+            self.create_lifestyle,
+            self.predict_hypertension,
+            self.save_full_history,
+        ])
+        operation()
+    
+    # Read operation
+    def get_patient(self):
+        if self.user_id:
+            self.client.get(
+                f"{get_service_url('patient')}/paciente/{self.user_id}",
+                name="/paciente/{id} [GET]"
+            )
+    
+    # Write operations
+    def create_patient(self):
+        if self.user_id and self.access_token:
+            patient_data = SAMPLE_PATIENT.copy()
+            patient_data["id_usuario"] = self.user_id
+            self.client.post(
+                f"{get_service_url('patient')}/paciente",
+                json=patient_data,
+                headers=self.get_auth_headers(),
+                name="/paciente [POST]"
+            )
+    
+    def create_lifestyle(self):
+        if self.user_id and self.access_token:
+            lifestyle_data = SAMPLE_LIFESTYLE.copy()
+            lifestyle_data["id_usuario"] = self.user_id
+            self.client.post(
+                f"{get_service_url('health')}/estilo_vida",
+                json=lifestyle_data,
+                headers=self.get_auth_headers(),
+                name="/estilo_vida [POST]"
+            )
+    
+    def predict_hypertension(self):
+        if self.user_id and self.access_token:
+            hypertension_data = SAMPLE_HYPERTENSION.copy()
+            hypertension_data["id_usuario"] = self.user_id
+            self.client.post(
+                f"{get_service_url('hypertension')}/predict_hypertension",
+                json=hypertension_data,
+                headers=self.get_auth_headers(),
+                name="/predict_hypertension [POST]"
+            )
+    
+    def save_full_history(self):
+        if self.user_id and self.access_token:
+            full_data = {
+                "id_usuario": self.user_id,
+                "diabetes_data": {"glucose": 120, "bmi": 25.5},
+                "hypertension_data": SAMPLE_HYPERTENSION.copy()
+            }
+            self.client.post(
+                f"{get_service_url('data')}/save_full_history",
+                json=full_data,
+                headers=self.get_auth_headers(),
+                name="/save_full_history [POST]"
+            )
 
 
 class SpikeTest(PredictHealthUser):
