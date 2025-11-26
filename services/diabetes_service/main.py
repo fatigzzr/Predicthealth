@@ -11,7 +11,8 @@ from psycopg2.extras import Json
 from dicttoxml import dicttoxml
 
 # --- Load artifacts ---
-ARTIFACT_DIR = "Backend/AI/diabetesv3/artifacts"
+# Use the on-disk folder name inside the image (capitalized in repo)
+ARTIFACT_DIR = os.path.join("Backend", "AI", "Diabetesv3", "artifacts")
 try:
     pipeline_path = os.path.join(ARTIFACT_DIR, "diabetes_pipeline.joblib")
     if not os.path.exists(pipeline_path):
