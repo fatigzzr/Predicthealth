@@ -563,17 +563,6 @@ UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '25 days' + INTERVAL '16:50
 UPDATE Usuario SET actualizado_en = NOW() - INTERVAL '28 days' + INTERVAL '14:25:00' WHERE id_usuario = 15;
 
 -- =====================================
--- INSERTAR MODELOS NECESARIOS
--- =====================================
-
--- Insertar modelos si no existen
-INSERT INTO Modelo (nombre, version, umbral, descripcion, referencia_entrada)
-VALUES 
-    ('Modelo Base Diabetes', '1.0', 0.5, 'Modelo base para predicción de diabetes', 'Características demográficas y de salud'),
-    ('Modelo Base Hipertensión', '1.0', 0.5, 'Modelo base para predicción de hipertensión', 'Características demográficas y de salud')
-ON CONFLICT DO NOTHING;
-
--- =====================================
 -- DATOS DUMMY PARA PREDICCIONES POR MES
 -- =====================================
 

@@ -2438,6 +2438,17 @@ $$;
 \c predicthealth
 
 -- =====================================
+-- INSERTAR MODELOS NECESARIOS
+-- =====================================
+
+-- Insertar modelos si no existen
+INSERT INTO Modelo (nombre, version, umbral, descripcion, referencia_entrada)
+VALUES 
+    ('Modelo Base Diabetes', '1.0', 0.5, 'Modelo base para predicción de diabetes', 'Características demográficas y de salud'),
+    ('Modelo Base Hipertensión', '1.0', 0.5, 'Modelo base para predicción de hipertensión', 'Características demográficas y de salud')
+ON CONFLICT DO NOTHING;
+
+-- =====================================
 -- INSERTAR ROLES
 -- =====================================
 INSERT INTO Rol (id_rol, nombre) VALUES 
