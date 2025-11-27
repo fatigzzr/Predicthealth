@@ -15,6 +15,15 @@ Plataforma integral de IA para predicción de enfermedades crónicas (diabetes e
        --boot-disk-size=200GB \
        --boot-disk-type=pd-standard
      ```
+  - Firewall GCP (ejemplo):
+     ```bash
+     gcloud compute firewall-rules create predicthealth-allow \
+       --allow=tcp:5432,tcp:6379,tcp:5001,tcp:8001-8004,tcp:8008-8011,tcp:3000 \
+       --network=default \
+       --direction=INGRESS
+     ```
+    Ajusta red/regla/puertos según tu despliegue.
+   - Puertos libres en la VM: 5432 (Postgres), 6379 (Redis), 5001 (backend monolito), 8001/8002/8003/8004/8008/8009/8010/8011 (microservicios), 3000 (frontend).
    - Docker + Docker Compose v2:
      ```bash
      sudo dnf -y update
@@ -29,15 +38,6 @@ Plataforma integral de IA para predicción de enfermedades crónicas (diabetes e
      ```bash
      sudo dnf -y install git
      ```
-   - Firewall GCP (ejemplo):
-     ```bash
-     gcloud compute firewall-rules create predicthealth-allow \
-       --allow=tcp:5432,tcp:6379,tcp:5001,tcp:8001-8004,tcp:8008-8011,tcp:3000 \
-       --network=default \
-       --direction=INGRESS
-     ```
-    Ajusta red/regla/puertos según tu despliegue.
-   - Puertos libres en la VM: 5432 (Postgres), 6379 (Redis), 5001 (backend monolito), 8001/8002/8003/8004/8008/8009/8010/8011 (microservicios), 3000 (frontend).
 
 2) **Clonar este repositorio o Subir la carpeta**
    ```bash
@@ -62,11 +62,6 @@ Plataforma integral de IA para predicción de enfermedades crónicas (diabetes e
      ```
 
 4) **Java (Swing)**
-   - No está en el compose. Ejecuta en una máquina con GUI (no en la VM headless):
-     ```bash
-     cd app/java
-     java -cp "PredictHealthJava.jar:lib/*" PredictHealthJava
-     ```
    - Edita `app/java/config.properties` con la IP/puertos de tu despliegue si cambias endpoints:
      ```properties
      login.url=http://<IP_VM>:8001/auth/login
@@ -79,13 +74,21 @@ Plataforma integral de IA para predicción de enfermedades crónicas (diabetes e
      data_service.url=http://<IP_VM>:8010/guardar_historial
      recommendations.url=http://<IP_VM>:8011/recommendations
      ```
+     - No está en el compose. Ejecuta en una máquina con GUI (no en la VM headless):
+     ```bash
+     cd app/java
+     java -cp "PredictHealthJava.jar:lib/*" PredictHealthJava
+     ```
 
 5) **Cargar datos de prueba adicionales (opcional)**
-   - Ejecuta el script `Base de Datos/prueba.sql` sobre la base `predicthealth`:
+   - Copia el archivo al contenedor db:
      ```bash
-     psql -h localhost -U predicthealth_user -d predicthealth -f "Base de Datos/prueba.sql"
+     docker cp "Base de Datos/prueba.sql" predicthealth-db:/tmp/prueba.sql
      ```
-     (La contraseña por defecto del usuario es `666`).
+   - Ejecuta el SQL dentro del contenedor:
+     ```bash
+     docker compose exec -T db psql -U predicthealth_user -d predicthealth -f /tmp/prueba.sql
+     ```
 
 6) **Detener**
    ```bash
