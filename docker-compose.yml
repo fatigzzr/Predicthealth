@@ -1,6 +1,10 @@
+version: "3.9"
+
 services:
   db:
-    image: postgres:15
+    build:
+      context: .
+      dockerfile: db.Dockerfile
     container_name: predicthealth-db
     environment:
       POSTGRES_DB: predicthealth
@@ -10,18 +14,29 @@ services:
       - "5432:5432"
     volumes:
       - predicthealth-db-data:/var/lib/postgresql/data
-      - "./Base de Datos/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U predicthealth_user -d predicthealth"]
       interval: 10s
       timeout: 5s
       retries: 6
 
+  redis:
+    image: redis:7
+    container_name: predicthealth-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
   backend:
-    container_name: predicthealth-backend
     build:
       context: .
       dockerfile: Backend/Dockerfile
+    container_name: predicthealth-backend
     depends_on:
       db:
         condition: service_healthy
@@ -33,8 +48,225 @@ services:
       PGPASSWORD: 666
       JWT_SECRET: dev-secret-change-me
       JWT_EXPIRES_MIN: 60
+      PORT: 5001
     ports:
       - "5001:5001"
+
+  auth_service:
+    build:
+      context: .
+      dockerfile: services/auth_service/Dockerfile
+    container_name: predicthealth-auth
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: predicthealth
+      DB_USER: predicthealth_user
+      DB_PASSWORD: 666
+      JWT_SECRET: dev-secret-change-me
+      JWT_ALG: HS256
+      JWT_AUD: predicthealth
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      PORT: 8001
+      WORKERS: 4
+    ports:
+      - "8001:8001"
+
+  register_service:
+    build:
+      context: .
+      dockerfile: services/register_service/Dockerfile
+    container_name: predicthealth-register
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: predicthealth
+      DB_USER: predicthealth_user
+      DB_PASSWORD: 666
+      PORT: 8002
+      WORKERS: 2
+    ports:
+      - "8002:8002"
+
+  patient_service:
+    build:
+      context: .
+      dockerfile: services/patient_service/Dockerfile
+    container_name: predicthealth-patient
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: predicthealth
+      DB_USER: predicthealth_user
+      DB_PASSWORD: 666
+      JWT_SECRET: dev-secret-change-me
+      JWT_ALG: HS256
+      JWT_AUD: predicthealth
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      PORT: 8003
+      WORKERS: 2
+    ports:
+      - "8003:8003"
+
+  health_service:
+    build:
+      context: .
+      dockerfile: services/health_service/Dockerfile
+    container_name: predicthealth-health
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: predicthealth
+      DB_USER: predicthealth_user
+      DB_PASSWORD: 666
+      JWT_SECRET: dev-secret-change-me
+      JWT_ALG: HS256
+      JWT_AUD: predicthealth
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      PORT: 8004
+      WORKERS: 2
+    ports:
+      - "8004:8004"
+
+  diabetes_service:
+    build:
+      context: .
+      dockerfile: services/diabetes_service/Dockerfile
+    container_name: predicthealth-diabetes
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: predicthealth
+      DB_USER: predicthealth_user
+      DB_PASSWORD: 666
+      JWT_SECRET: dev-secret-change-me
+      JWT_ALG: HS256
+      JWT_AUD: predicthealth
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      PORT: 8008
+      WORKERS: 4
+    ports:
+      - "8008:8008"
+
+  hypertension_service:
+    build:
+      context: .
+      dockerfile: services/hypertension_service/Dockerfile
+    container_name: predicthealth-hypertension
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: predicthealth
+      DB_USER: predicthealth_user
+      DB_PASSWORD: 666
+      JWT_SECRET: dev-secret-change-me
+      JWT_ALG: HS256
+      JWT_AUD: predicthealth
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      PORT: 8009
+      WORKERS: 4
+    ports:
+      - "8009:8009"
+
+  data_service:
+    build:
+      context: .
+      dockerfile: services/data_service/Dockerfile
+    container_name: predicthealth-data
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: predicthealth
+      DB_USER: predicthealth_user
+      DB_PASSWORD: 666
+      JWT_SECRET: dev-secret-change-me
+      JWT_ALG: HS256
+      JWT_AUD: predicthealth
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      PORT: 8010
+      WORKERS: 4
+    ports:
+      - "8010:8010"
+
+  recommendations_service:
+    build:
+      context: .
+      dockerfile: services/recommendations_service/Dockerfile
+    container_name: predicthealth-recommendations
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: predicthealth
+      DB_USER: predicthealth_user
+      DB_PASSWORD: 666
+      JWT_SECRET: dev-secret-change-me
+      JWT_ALG: HS256
+      JWT_AUD: predicthealth
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      PORT: 8011
+      WORKERS: 2
+    ports:
+      - "8011:8011"
+
+  frontend:
+    build:
+      context: ./app/web
+      dockerfile: Dockerfile
+    container_name: predicthealth-frontend
+    ports:
+      - "3000:80"
+    depends_on: []
+    # Si necesitas apuntar a otro backend en build time, añade env:
+    # environment:
+    #   - REACT_APP_API_BASE=https://api.example.com
 
 volumes:
   predicthealth-db-data:
