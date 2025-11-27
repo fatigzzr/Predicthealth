@@ -53,7 +53,7 @@ Plataforma integral de IA para predicción de enfermedades crónicas (diabetes e
    - La base se inicializa con `Base de Datos/init.sql` y persiste en el volumen `predicthealth-db-data`.
 
 3) **Frontend**
-   - Navega a http://localhost:3000.
+   - Navega a `http://<IP>:3000`.
    - Para desarrollo con hot reload (sin contenedor):
      ```bash
      cd app/web
