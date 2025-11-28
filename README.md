@@ -74,11 +74,17 @@ Plataforma integral de IA para predicción de enfermedades crónicas (diabetes e
      data_service.url=http://<IP_VM>:8010/guardar_historial
      recommendations.url=http://<IP_VM>:8011/recommendations
      ```
-     - No está en el compose. Ejecuta en una máquina con GUI (no en la VM headless):
-     ```bash
-     cd app/java
-     java -cp "PredictHealthJava.jar:lib/*" PredictHealthJava
-     ```
+   - Esta app local debe ejecutarse en una máquina con GUI (no en la VM headless):
+     - **Linux/Mac:**
+       ```bash
+       cd app/java
+       java -cp "PredictHealthJava.jar:lib/*" PredictHealthJava
+       ```
+     - **Windows:**
+       ```bash
+       cd app/java
+       java -cp "PredictHealthJava.jar;lib/*" PredictHealthJava
+       ```
 
 5) **Cargar datos de prueba adicionales (opcional)**
    - Copia el archivo al contenedor db:
